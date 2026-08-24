@@ -239,7 +239,7 @@ nav.scrolled{background:rgba(247,243,238,.97);border-bottom:1px solid var(--rule
 .contact{padding:110px 56px;background:var(--white)}
 .contact-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px}
 .contact-info p{font-size:15px;line-height:1.85;color:var(--ink-lt);font-weight:300;margin-bottom:36px}
-.contact-details{display:flex;flex-direction:column;gap:20px;margin-bottom:32px}
+.contact-details{display:flex;flex-direction:column;gap:20px;margin-top:24px;margin-bottom:32px}
 .cdetail{display:flex;gap:16px;align-items:flex-start}
 .cdetail-icon{width:36px;height:36px;border:1px solid var(--sand);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .cdetail-icon svg{width:15px;height:15px;stroke:var(--earth);fill:none;stroke-width:1.5}
@@ -778,7 +778,7 @@ footer{background:var(--ink);padding:64px 56px 32px}
       <div class="contact-details">
         <div class="cdetail">
           <div class="cdetail-icon"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-          <div><div class="cdetail-lbl">Office</div><div class="cdetail-val">Shriya Mining Industries<br>Ongole Road, Markapur 523316</div></div>
+          <div><div class="cdetail-lbl">Office</div><div class="cdetail-val">Shriya Mining Industries<br>Ongole Road, Markapur<br>Andhra Pradesh, India 523316</div></div>
         </div>
         <div class="cdetail">
           <div class="cdetail-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
@@ -792,6 +792,7 @@ footer{background:var(--ink);padding:64px 56px 32px}
         <form id="inquiryForm">
           <input type="hidden" name="_subject" value="New Inquiry — Shriya Mining Industries Website">
           <input type="hidden" name="_template" value="table">
+          <input type="hidden" name="_autoresponse" value="Thank you for reaching out to Shriya Mining Industries. We've received your inquiry and our export team will respond within 24 hours.">
           <input type="hidden" name="_captcha" value="false">
           <div class="frow">
             <div class="fgroup"><div class="flabel">Full Name</div><input class="finput" type="text" id="fname" name="name" placeholder="Your name" required></div>
@@ -890,6 +891,7 @@ document.getElementById('inquiryForm').addEventListener('submit',function(e){
   })
   .then(r=>{if(!r.ok)throw new Error('Request failed');return r.json();})
   .then(()=>{
+    form.reset();
     btn.style.display='none';
     document.getElementById('formSuccess').style.display='block';
   })
