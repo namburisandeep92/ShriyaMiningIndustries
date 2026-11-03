@@ -15,7 +15,7 @@ button,.btn{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:8
 button.sec{background:transparent;color:var(--ac);border:1px solid var(--ac)}button:disabled{opacity:.4;cursor:default}
 #drop{border:2px dashed var(--bd);border-radius:10px;padding:48px;text-align:center;color:var(--mut)}#drop.hov{border-color:var(--ac)}
 table{border-collapse:collapse;width:max-content;min-width:100%}td,th{white-space:nowrap}th,td{border-bottom:1px solid var(--bd);padding:5px 6px;text-align:left;vertical-align:top}th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--mut)}
-.scroll{max-height:60vh;overflow:auto}input,textarea{font:inherit;color:inherit;background:transparent;border:1px solid var(--bd);border-radius:4px;padding:3px 5px;width:100%}
+.scroll{max-height:60vh;overflow:auto}input,textarea{font:inherit;color:inherit;background:transparent;border:1px solid var(--bd);border-radius:4px;padding:3px 5px;width:100%}input:required:invalid,textarea:required:invalid{border-color:#c33;box-shadow:inset 0 0 0 1px rgba(195,51,51,.2)}
 td input{min-width:60px}.num{text-align:right}.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.bar .sp{flex:1}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}label{font-size:12px;color:var(--mut);display:block}
 .tot{text-align:right;font-size:16px;font-weight:600;margin-top:10px}.hide{display:none}.x{color:#c33;cursor:pointer;border:0;background:none;padding:0 4px}
@@ -31,11 +31,11 @@ td input{min-width:60px}.num{text-align:right}.bar{display:flex;gap:10px;align-i
 #rows td{background:var(--card)}#rows tr:nth-child(even) td{background:var(--z)}#rows tr.sl td{background:var(--sl)}#rows tr:hover td{background:var(--hv)}
 #rows td.c1{font-weight:600}#rows td.num{color:var(--qn);font-weight:600;font-variant-numeric:tabular-nums}
 .chip{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;background:hsl(var(--h) 65% 50%/.18);color:hsl(var(--h) 60% var(--cl))}
-#lt{border-collapse:separate;border-spacing:0;width:max-content;min-width:0}#lt th,#lt td{white-space:nowrap;padding:3px 6px}
-#lt th{background:var(--hd);color:#fff;position:sticky;top:0;z-index:3;font-size:12px;border-bottom:0}
+#lt{border-collapse:separate;border-spacing:0;width:max-content;min-width:0;table-layout:fixed}#lt th,#lt td{white-space:normal;padding:3px 6px;box-sizing:border-box;overflow:visible;text-overflow:clip}
+#lt th{background:var(--hd);color:#fff;position:sticky;top:0;z-index:3;font-size:12px;border-bottom:0;text-align:left;vertical-align:middle;line-height:1.2}#lt th.num{text-align:center}#lt thead,#lt tbody,#lt tfoot{table-layout:fixed}
 #lt th:first-child,#lt td:first-child{position:sticky;left:0;z-index:2;box-shadow:2px 0 0 var(--bd)}#lt th:first-child{z-index:4;background:var(--earth)}
 #ln td{background:var(--card)}#ln tr:nth-child(even) td{background:var(--z)}#ln tr:hover td{background:var(--hv)}
-#ln td:first-child input{font-weight:600}#ln input{border-color:transparent}#ln input:hover{border-color:var(--bd)}#ln input:focus{border-color:var(--ac);background:var(--card)}
+#ln td:first-child input{font-weight:600}#ln input{border-color:transparent;width:100%;min-width:0;padding:2px 4px}#ln input:hover{border-color:var(--bd)}#ln input:focus{border-color:var(--ac);background:var(--card)}
 #ln input.warn{background:hsl(40 100% 50%/.22)}#ln td.amt{text-align:right;font-weight:700;color:var(--qn);font-variant-numeric:tabular-nums}
 #ln td:not(:first-child) input.num{color:var(--qn)}.tot{background:var(--fh);padding:8px 14px;border-radius:6px;color:var(--ac)}
 
@@ -50,8 +50,8 @@ button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--o
 .grp{border:1px solid var(--bd);border-top:4px solid var(--g);border-radius:8px;padding:12px;background:color-mix(in srgb,var(--g) 7%,var(--card))}
 .grp h4{margin:0 0 10px;color:var(--g);font-size:12px;letter-spacing:.6px;text-transform:uppercase}.fg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}.fg .full{grid-column:1/-1}
 .grp input,.grp textarea{background:var(--card)}input:focus,textarea:focus,select:focus{outline:2px solid var(--earth);outline-offset:-1px}
-#lt{table-layout:fixed;width:100%;min-width:1150px}#lt td,#lt th{overflow:hidden;text-overflow:ellipsis}#lt input{width:100%;min-width:0}
-#lt tfoot td{background:var(--fh);font-weight:700;color:var(--ac);border-top:2px solid var(--hd);font-variant-numeric:tabular-nums;white-space:nowrap}
+#lt{table-layout:fixed;width:100%;min-width:1150px}#lt td,#lt th{overflow:visible;text-overflow:clip;white-space:normal}#lt input{width:100%;min-width:0}
+#lt tfoot td{background:var(--fh);font-weight:700;color:var(--ac);border-top:2px solid var(--hd);font-variant-numeric:tabular-nums;white-space:nowrap;box-sizing:border-box}
 #lt tfoot td.amtT{background:var(--gold);color:var(--tx);font-size:16px}#lt tfoot .t2 td{background:var(--card);border-top:1px solid var(--bd)}
 #lt tfoot .wl{display:block;font-size:11px;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}#lt tfoot #words{font-weight:700;font-style:italic;color:var(--tx)}
 .note{color:var(--mut);font-size:12px;margin:10px 0 0}
@@ -68,6 +68,7 @@ button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--o
 #s4{border-top:4px solid #8a7d6e}#it{width:100%;min-width:0}#it th:last-child{width:34%}.acts{display:flex;gap:6px;flex-wrap:wrap}#ib td,#ib th{white-space:nowrap}#ib td:last-child{white-space:normal}
 .hist td{background:var(--fh)}.vt{margin:8px 0 12px;background:var(--card)}.vt th{position:static}.lg{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--mut)}.lg span{color:var(--tx);font-weight:600}
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:#5c5248;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:.25s;z-index:99;box-shadow:0 4px 14px rgba(0,0,0,.3)}#toast.on{opacity:1;transform:translateX(-50%)}
+.req-banner{display:none;background:#fff1f1;border:1px solid #d76a6a;color:#8a1f1f;border-radius:8px;padding:10px 12px;margin:0 0 14px;font-weight:600;box-shadow:0 1px 3px rgba(138,31,31,.08)}.req-banner.show{display:block}.req-banner strong{color:#9c1d1d}.invalid-field{border-color:#c33 !important;background:#fff3f3 !important;box-shadow:inset 0 0 0 1px rgba(195,51,51,.2) !important} .invalid-field.warn{background:hsl(40 100% 50%/.22) !important}
 .steps span{cursor:pointer}.steps span:hover{filter:brightness(1.12)}
 #s5{border-top:4px solid var(--terracotta)}.tiles{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.tile{flex:1;min-width:130px;border:1px solid var(--bd);border-left:5px solid hsl(var(--h) 60% 45%);border-radius:8px;padding:8px 12px;cursor:pointer;background:var(--z)}.tile b{display:block;font-size:22px}.tile span{font-size:12px;color:var(--mut)}
 #ft{width:100%;min-width:0}#ft td{white-space:nowrap}#ft td.wrap{white-space:normal;min-width:160px}</style></head><body>
@@ -83,6 +84,7 @@ button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--o
 <div class="scroll"><table id="tbl"><colgroup id="cg"></colgroup><thead><tr id="th"></tr><tr id="fr"></tr></thead><tbody id="rows"></tbody></table></div></section>
 
 <section id="s3" class="hide">
+<div id="reqBanner" class="req-banner" aria-live="polite"></div>
 <div class="bar noprint"><button class="sec" onclick="backBtn()">← Back to selection</button><span class="sp"></span><button class="pr" onclick="pdf()">📄 Save &amp; download PDF</button><button class="gn" onclick="dl()">⬇ Save &amp; download Excel</button></div>
 <div class="card svc noprint" id="svcard"><div id="curinfo"></div><div class="svrow"><label for="svstat">Status</label><select id="svstat"><option>Draft</option><option>In review</option></select><input id="svnote" placeholder="Note for this version (optional)"><button class="gn" id="svbtn" onclick="saveInv()">Save invoice (v1)</button></div></div>
 <div class="card hc"><div class="ch"><h3>Invoice details</h3><span class="chs">Edit any field – it flows into the downloaded invoice</span></div><div id="hdr"></div></div>
@@ -168,13 +170,13 @@ function build(){const picks=rows.filter(r=>sel.has(r.i));
 function renderEditor(){
  const GR=[['Invoice details','#7a5c3e',['Invoice no','Invoice date','Buyer PO nos','Buyer PO date','Other reference']],['Parties','#6b7052',['Exporter','Consignee','Buyer (if other)','Notify party']],['Shipping','#c49a6c',['Country of origin','Final destination','Pre-carriage by','Place of receipt','Vessel / Flight','Port of loading','Port of discharge','Final delivery']],['Terms & packing','#8a7d6e',['Payment terms','Marks code','Container no','Packing','Grade']]];
  const used=GR.flatMap(g=>g[2]);Object.keys(DEF).filter(k=>!used.includes(k)&&k!='Crate starting no').forEach(k=>GR[3][2].push(k));
- const fieldH=k=>{const long=DEF[k].includes('\n'),t=/date/i.test(k)?'date':k=='Crate starting no'?'number':'text',full=long||k=='Other reference'||k=='Buyer PO nos';
-  return`<div class="${full?'full':''}"><label>${k}</label>${long?`<textarea rows="4" data-k="${k}">${esc(H[k])}</textarea>`:`<input type="${t}" ${t=='number'?'min="0" placeholder="e.g. 245"':''} data-k="${k}" title="${esc(H[k])}" value="${esc(H[k])}">`}</div>`};
+ const fieldH=k=>{const long=DEF[k].includes('\n'),t=/date/i.test(k)?'date':k=='Crate starting no'?'number':'text',full=long||k=='Other reference'||k=='Buyer PO nos',req=['Invoice no','Crate starting no'].includes(k);
+  return`<div class="${full?'full':''}"><label>${k}</label>${long?`<textarea rows="4" data-k="${k}" data-required="${req?1:0}" ${req?'required':''}>${esc(H[k])}</textarea>`:`<input type="${t}" ${t=='number'?'min="0" placeholder="e.g. 245"':''} data-k="${k}" data-required="${req?1:0}" title="${esc(H[k])}" value="${esc(H[k])}" ${req?'required':''}>`}</div>`};
  $('hdr').innerHTML=GR.map(([n,c,ks])=>`<div class="grp" style="--g:${c}"><h4>${n}</h4><div class="fg">${ks.map(fieldH).join('')}</div></div>`).join('');
- document.querySelectorAll('#hdr [data-k]').forEach(e=>e.oninput=()=>{H[e.dataset.k]=e.value;if(e.dataset.k=='Crate starting no')rng()});
+ document.querySelectorAll('#hdr [data-k]').forEach(e=>e.oninput=()=>{H[e.dataset.k]=e.value;if(e.dataset.k=='Crate starting no'){const v=e.value;const top=document.querySelector('#hdr [data-k="Crate starting no"]');const tblInput=document.getElementById('cstart');if(top)top.value=v;if(tblInput)tblInput.value=v;rng()}});
  CW=null;go(3);ln();saveUI()}
 const COLS=[{k:'stone',t:'Stone',w:190},{k:'finish',t:'Finish',w:90},{k:'size',t:'Size',w:95},{k:'ref',t:'PO / ref',w:300},
-{k:'crates',t:'Crates',w:70,num:1},{k:'crt',t:'Crate range',w:105},{k:'qty',t:'Qty',w:85,num:1},{k:'uom',t:'UOM',w:60},
+{k:'crates',t:'Crate count',w:70,num:1},{k:'crt',t:'Crate range',w:105},{k:'qty',t:'Qty',w:85,num:1},{k:'uom',t:'UOM',w:60},
 {k:'net',t:'Net kg',w:80,num:1},{k:'gross',t:'Gross kg',w:85,num:1},
 {k:'rate',t:'Rate / UOM',w:100,num:1},{k:'amt',t:'Amount USD',w:110,num:1},{k:'del',t:'',w:40}];
 const NUMK=['crates','qty','net','gross','rate'];let CW=null;
@@ -182,21 +184,41 @@ const cv2=document.createElement('canvas').getContext('2d');
 function mw(t){cv2.font='14px '+getComputedStyle(document.body).fontFamily;return cv2.measureText(t).width}
 const amt=l=>Math.round((+l.qty||0)*(+l.rate||0)*100)/100;
 const total=()=>Math.round(L.reduce((s,l)=>s+amt(l),0)*100)/100;
+function clearRequiredHighlights(){document.querySelectorAll('#hdr [data-k], #ln input[data-line][data-field]').forEach(el=>el.classList.remove('invalid-field'));const banner=$('reqBanner');if(banner){banner.textContent='';banner.classList.remove('show')}}
+function fieldValueFromDom(selector){const el=document.querySelector(selector);return el?el.value.trim():''}
+function safeNumber(value){const n=Number(String(value ?? '').trim());return Number.isFinite(n)?n:NaN}
+function isPositiveInteger(value){const n=safeNumber(value);return Number.isInteger(n)&&n>0}
+function isPositiveNumber(value){const n=safeNumber(value);return Number.isFinite(n)&&n>0}
+function syncCrateStartValue(val){const next=String(val ?? '').trim();H['Crate starting no']=next;const top=document.querySelector('#hdr [data-k="Crate starting no"]');const tblInput=document.getElementById('cstart');if(top)top.value=next;if(tblInput)tblInput.value=next;rng();}
+function highlightRequiredFields(missing){clearRequiredHighlights();const banner=$('reqBanner');if(!banner)return;
+if(!missing.length){banner.classList.remove('show');return}
+const text=`Missing required fields: ${missing.slice(0,5).join(' • ')}${missing.length>5?' • …':''}`;banner.textContent=text;banner.classList.add('show');
+const fieldChecks=[];
+for(const item of missing){const m=item.match(/^Line (\d+): (.+)$/);if(m){const lineIndex=Number(m[1])-1;const fields=m[2].split(', ');fields.forEach(f=>fieldChecks.push({line:lineIndex,field:f}));}else{fieldChecks.push({key:item})}}
+fieldChecks.forEach(({line,key,field})=>{if(key){const selector=(key==='Invoice no'?'#hdr [data-k="Invoice no"]':key==='Crate start #'?'#hdr [data-k="Crate starting no"]':`#hdr [data-k="${key}"]`); const el=document.querySelector(selector);if(el){el.classList.add('invalid-field');}}
+ else if(line!==undefined&&field){const el=document.querySelector(`#ln input[data-line="${line}"][data-field="${field}"]`);if(el)el.classList.add('invalid-field');}});
+const firstInvalid=document.querySelector('.invalid-field');if(firstInvalid&&firstInvalid.focus)firstInvalid.focus();
+}
+function labelForRequiredField(name){if(name==='Crate count')return 'Crate count';if(name==='Crate range')return 'Crate range';if(name==='Rate per UOM')return 'Rate per UOM';return name}
+function validateInvoiceFields(){const missing=[];const no=fieldValueFromDom('#hdr [data-k="Invoice no"]');if(!no)missing.push('Invoice no');
+const startNo=(fieldValueFromDom('#hdr [data-k="Crate starting no"]')||fieldValueFromDom('#cstart')||String(H['Crate starting no']||'')).trim();if(!isPositiveInteger(startNo))missing.push('Crate start #');
+L.forEach((l,i)=>{const lineNo=i+1;const checks=[];const qtyValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="qty"]`)||String(l.qty??'').trim();if(!isPositiveInteger(qtyValue))checks.push('Qty');const crates=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Crates"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="crates"]`)||String(l.crates??'').trim();if(!isPositiveInteger(crates))checks.push('Crate count');const crt=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Crate range"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="crt"]`)||String(l.crt??'').trim();if(!crt)checks.push('Crate range');const uom=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="UOM"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="uom"]`)||String(l.uom??'').trim();if(!uom)checks.push('UOM');const netValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="net"]`)||String(l.net??'').trim();if(!isPositiveNumber(netValue))checks.push('Net kg');const grossValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="gross"]`)||String(l.gross??'').trim();if(!isPositiveNumber(grossValue))checks.push('Gross kg');const rateValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Rate / UOM"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="rate"]`)||String(l.rate??'').trim();if(!isPositiveNumber(rateValue))checks.push('Rate per UOM');if(checks.length)missing.push(`Line ${lineNo}: ${checks.map(labelForRequiredField).join(', ')}`)});
+if(missing.length){highlightRequiredFields(missing);toast(missing.length===1?`${missing[0]} is required`:`Required fields missing: ${missing.slice(0,3).join(' • ')}${missing.length>3?' • ...':''}`);return false}clearRequiredHighlights();return true}
 function initCW(){CW=COLS.map(c=>c.w);const av=($('lt').parentElement.clientWidth||0)-2,s=CW.reduce((a,b)=>a+b,0);if(av>s){const f=av/s;CW=CW.map(x=>Math.floor(x*f))}}
 function tbl(){$('lcg').innerHTML=COLS.map((c,i)=>`<col style="width:${CW[i]}px">`).join('');
- $('lth').innerHTML=`<tr class="pre"><th colspan="5"></th><th class="csh"><div class="cs"><span>Crate start #</span><input id="cstart" type="number" min="0" placeholder="e.g. 245" value="${esc(H['Crate starting no']||'')}" oninput="H['Crate starting no']=this.value;rng()"></div></th><th colspan="${COLS.length-6}"></th></tr>`+'<tr>'+COLS.map((c,i)=>`<th class="${c.num?'num':''}">${c.t}${i<COLS.length-1?`<span class="rz" data-i="${i}" title="Drag to resize · double-click to fit"></span>`:''}</th>`).join('')+'</tr>';
+ $('lth').innerHTML=`<tr class="pre"><th colspan="5"></th><th class="csh"><div class="cs"><span>Crate start #</span><input id="cstart" type="number" min="0" placeholder="e.g. 245" value="${esc(H['Crate starting no']||'')}" oninput="syncCrateStartValue(this.value)"></div></th><th colspan="${COLS.length-6}"></th></tr>`+'<tr>'+COLS.map((c,i)=>`<th class="${c.num?'num':''}">${c.t}${i<COLS.length-1?`<span class="rz" data-i="${i}" title="Drag to resize · double-click to fit"></span>`:''}</th>`).join('')+'</tr>';
  $('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px';
  $('lft').innerHTML=`<tr class="t1"><td colspan="4" style="text-align:right">TOTAL</td><td class="num" id="tCr"></td><td></td><td class="num" id="tQty"></td><td></td><td class="num" id="tNet">0</td><td class="num" id="tGr">0</td><td class="num">TOTAL USD</td><td class="num amtT" id="tot">0.00</td><td></td></tr><tr class="t2"><td colspan="${COLS.length}"><span class="wl">Amount chargeable in words</span><input id="words" value="${esc($('words')?$('words').value:'')}"></td></tr>`}
 function rng(){let n=parseInt(H['Crate starting no']);const ok=!isNaN(n);L.forEach((l,i)=>{const c=Math.max(0,parseInt(l.crates)||0);let t='';if(ok&&c>0){t=c==1?String(n):`${n} - ${n+c-1}`;n+=c}l.crt=t;const e=$('rg'+i);if(e){e.value=t;e.title=t}})}
 const ul=l=>String(l.uom||'').trim().toUpperCase()||'QTY';
-function cell(i,c){const l=L[i],k=c.k;
+function cell(i,c){const l=L[i],k=c.k,req=['crates','crt','uom','rate'].includes(k);
  if(k=='amt')return`<td class="amt" id="a${i}">${amt(l).toFixed(2)}</td>`;
  if(k=='del')return`<td><button class="x noprint" title="Remove line" onclick="L.splice(${i},1);ln()">✕</button></td>`;
  let v=l[k]??'';if(['crates','net','gross'].includes(k)&&!v)v='';
- if(k=='crt')return`<td><input class="ro" id="rg${i}" readonly value="${esc(v)}" title="${esc(v)}"></td>`;
- return`<td><input data-k="${k}" class="${c.num?'num':''}${k=='rate'&&!(+v)?' warn':''}" ${NUMK.includes(k)?'inputmode="decimal"':''} title="${esc(v)}" value="${esc(v)}" onchange="upd(${i},'${k}',this.value,this)"></td>`}
+ if(k=='crt')return`<td><input class="ro" id="rg${i}" data-line="${i}" data-field="${k}" data-required="${req?1:0}" readonly value="${esc(v)}" title="${esc(v)}" ${req?'required':''}></td>`;
+ return`<td><input data-k="${k}" data-line="${i}" data-field="${k}" data-required="${req?1:0}" class="${c.num?'num':''}${k=='rate'&&!(+v)?' warn':''}" ${NUMK.includes(k)?'inputmode="decimal"':''} title="${esc(v)}" value="${esc(v)}" onchange="upd(${i},'${k}',this.value,this)" ${req?'required':''}></td>`}
 function ln(){if(!CW)initCW();tbl();rng();$('ln').innerHTML=L.map((l,i)=>`<tr>${COLS.map(c=>cell(i,c)).join('')}</tr>`).join('');tot()}
-function upd(i,k,v,el){const l=L[i];l[k]=NUMK.includes(k)?(parseFloat(v)||0):v;if(el){el.title=el.value;if(k=='rate')el.classList.toggle('warn',!l.rate)}if(k=='crates')rng();$('a'+i).textContent=amt(l).toFixed(2);tot()}
+function upd(i,k,v,el){const l=L[i];if(NUMK.includes(k)){if(v==='' ) l[k]=''; else {const n=safeNumber(v);l[k]=Number.isFinite(n)?n:0;}} else l[k]=v;if(el){el.title=el.value;const invalid=(k==='qty'||k==='crates')?(!isPositiveInteger(l[k])):((k==='net'||k==='gross'||k==='rate')?(!isPositiveNumber(l[k])):false);el.classList.toggle('warn',invalid);if(k==='rate')el.classList.toggle('warn',!isPositiveNumber(l[k]));}if(k==='crates')rng();$('a'+i).textContent=amt(l).toFixed(2);tot()}
 function addLine(){L.push({stone:'',finish:'',size:'',ref:'',crates:0,crt:'',qty:0,uom:'SF',net:0,gross:0,rate:0,kind:''});ln()}
 function tot(){const S=k=>L.reduce((a,l)=>a+(+l[k]||0),0),f=(n,d)=>n.toLocaleString('en-US',{maximumFractionDigits:d});
  $('tCr').textContent=S('crates')||'';{const us=new Set(L.map(l=>String(l.uom||'').toUpperCase()));$('tQty').textContent=us.size==1?f(S('qty'),2):''}$('tNet').textContent=f(S('net'),3);$('tGr').textContent=f(S('gross'),3);
@@ -333,6 +355,7 @@ function saveUI(){const inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
  $('svstat').value=inv&&inv.status=='In review'?'In review':'Draft'}
 function saveInv(auto){const no=String(H['Invoice no']||'').trim();
  if(!L.length){toast('Add at least one line first');return false}
+ if(!validateInvoiceFields())return false
  let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
  if(!inv){if(!no){toast('Enter an Invoice no first');return false}
   if(LEDGER.invoices.some(x=>x.no==no&&x.status!='Cancelled')){toast(`Invoice ${no} already exists – open it from Saved invoices`);return false}
@@ -392,7 +415,7 @@ async function mailReview(inv){const ver=inv.versions[inv.versions.length-1];if(
  if(bad.length)setTimeout(()=>toast(`Skipped invalid address: ${bad.join(', ')}`),4000)}
 const fnm=n=>String(n||'draft').replace(/[\\/:*?"<>|]+/g,'-');
 const sameAsLatest=inv=>{const lv=inv.versions[inv.versions.length-1];return !!lv&&JSON.stringify({H,L})===JSON.stringify({H:lv.H,L:lv.L})};
-async function dl(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}const nm=`Invoice_${fnm(no)}_${stamp(new Date())}.xlsx`;await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`);return}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
+async function dl(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}if(!validateInvoiceFields())return;const nm=`Invoice_${fnm(no)}_${stamp(new Date())}.xlsx`;await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`);return}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
  if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
  const nm=vname(inv,inv.versions[inv.versions.length-1])+'.xlsx';await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`)}
 function buildPrintHtml(title){
@@ -440,7 +463,7 @@ table.gd{width:100%;border-collapse:collapse;margin-top:-.6pt}.gd th{background:
 .tq{background:#f7f3ee;font-weight:700;display:flex;align-items:center}.tl{background:#7a5c3e;color:#fff;font-weight:700;font-size:8.5pt;display:flex;align-items:center}.ta{background:#f7e2a8;color:#7a5c3e;font-weight:700;font-size:13pt;display:flex;align-items:center;border-right:0!important}
 .tw{background:#f7f3ee;font-weight:700;padding:5px 8px;border-top:.6pt solid #c8bead}.dc{margin-top:0;page-break-inside:avoid}`;
 return`<!doctype html><html><head><meta charset="utf-8"><title>${E(title)}</title><style>${css}</style></head><body>${p1}${p2}</body></html>`}
-async function pdf(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}return printDoc(`Invoice_${fnm(no)}_${stamp(new Date())}`)}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
+async function pdf(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}if(!validateInvoiceFields())return;return printDoc(`Invoice_${fnm(no)}_${stamp(new Date())}`)}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
  if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
  printDoc(vname(inv,inv.versions[inv.versions.length-1]))}
 function printDoc(name){const fr=document.createElement('iframe');
