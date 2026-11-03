@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shriya Mining Industries – Invoice Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+:root{--bg:#f7f3ee;--cream:#f7f3ee;--parchment:#ede6da;--sand:#d4c4a8;--sand-dk:#b8a888;--stone:#8a7d6e;--stone-dk:#5c5248;--earth:#7a5c3e;--earth-lt:#c49a6c;--olive:#6b7052;--olive-lt:#9aa070;--terracotta:#a85c3c;--tera-lt:#d4855c;--ink:#2a2520;--ink-mid:#3e3830;--ink-lt:#5a5248;--rule:#c8bead;--rule-lt:#e0d8ce;--white:#fdfaf6;--gold:#f7e2a8;--card:#fffdf9;--tx:var(--ink);--mut:var(--stone-dk);--ac:var(--earth);--bd:var(--rule);--hd:var(--earth);--fh:var(--parchment);--z:var(--cream);--hv:#efe4d4;--sl:#edf3e3;--qn:var(--earth);--cl:35%}
+@media(prefers-color-scheme:dark){:root{--bg:#201d1a;--card:#292420;--tx:#f4efe9;--mut:#c9bca9;--ac:var(--earth-lt);--bd:#574e45;--hd:#5c4333;--fh:#312d2a;--z:#26211e;--hv:#3b322e;--sl:#2e3a2b;--qn:var(--earth-lt);--cl:78%}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.4 system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:14px 24px;background:var(--card);border-bottom:1px solid var(--bd);display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+h1{font-size:17px;margin:0}.steps{display:flex;gap:8px}.steps span{padding:4px 12px;border-radius:99px;border:1px solid var(--bd);color:var(--mut)}
+.steps .on{background:var(--ac);color:#fff;border-color:var(--ac)}
+main{max-width:1200px;margin:20px auto;padding:0 16px}.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:18px;margin-bottom:16px}
+button,.btn{background:var(--ac);color:#fff;border:0;border-radius:6px;padding:8px 16px;font-size:14px;cursor:pointer}
+button.sec{background:transparent;color:var(--ac);border:1px solid var(--ac)}button:disabled{opacity:.4;cursor:default}
+#drop{border:2px dashed var(--bd);border-radius:10px;padding:48px;text-align:center;color:var(--mut)}#drop.hov{border-color:var(--ac)}
+table{border-collapse:collapse;width:max-content;min-width:100%}td,th{white-space:nowrap}th,td{border-bottom:1px solid var(--bd);padding:5px 6px;text-align:left;vertical-align:top}th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--mut)}
+.scroll{max-height:60vh;overflow:auto}input,textarea{font:inherit;color:inherit;background:transparent;border:1px solid var(--bd);border-radius:4px;padding:3px 5px;width:100%}
+td input{min-width:60px}.num{text-align:right}.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.bar .sp{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}label{font-size:12px;color:var(--mut);display:block}
+.tot{text-align:right;font-size:16px;font-weight:600;margin-top:10px}.hide{display:none}.x{color:#c33;cursor:pointer;border:0;background:none;padding:0 4px}
+@media print{header,.bar,.noprint,#s1,#s2{display:none!important}body{background:#fff;color:#000}.card{border:0}input,textarea{border:0}}
+#fr th{top:29px;padding:3px}#fr input,#fr select{font-size:12px;padding:2px 3px;min-width:70px;background:var(--card);color:var(--tx)}
+#rows td{max-width:none}.scroll{overflow:auto}
+.fz{position:sticky;background:var(--card);z-index:2}.c0{left:0;width:40px;min-width:40px;max-width:40px;text-align:center}.c0 input{min-width:0;width:auto}
+.c1{left:40px;box-shadow:2px 0 0 var(--bd)}thead th.fz{z-index:4}#th th[data-c]{cursor:grab;user-select:none}
+#cp{position:absolute;top:36px;left:0;z-index:20;max-height:60vh;overflow:auto;min-width:230px;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,.25)}#cp label{display:flex;gap:6px;align-items:center;color:var(--tx);font-size:13px;padding:2px 0}
+#tbl{table-layout:fixed;width:auto;min-width:0}#tbl td,#tbl th{overflow:hidden;text-overflow:ellipsis}
+#th th{background:var(--hd);color:#fff;font-size:12px;letter-spacing:.2px;border-bottom:0}#th th.c1{background:var(--earth)}
+#fr th{background:var(--fh)}#fr th.fz{background:var(--fh)}#fr input,#fr select{width:100%;min-width:0}
+#rows td{background:var(--card)}#rows tr:nth-child(even) td{background:var(--z)}#rows tr.sl td{background:var(--sl)}#rows tr:hover td{background:var(--hv)}
+#rows td.c1{font-weight:600}#rows td.num{color:var(--qn);font-weight:600;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;background:hsl(var(--h) 65% 50%/.18);color:hsl(var(--h) 60% var(--cl))}
+#lt{border-collapse:separate;border-spacing:0;width:max-content;min-width:0}#lt th,#lt td{white-space:nowrap;padding:3px 6px}
+#lt th{background:var(--hd);color:#fff;position:sticky;top:0;z-index:3;font-size:12px;border-bottom:0}
+#lt th:first-child,#lt td:first-child{position:sticky;left:0;z-index:2;box-shadow:2px 0 0 var(--bd)}#lt th:first-child{z-index:4;background:var(--earth)}
+#ln td{background:var(--card)}#ln tr:nth-child(even) td{background:var(--z)}#ln tr:hover td{background:var(--hv)}
+#ln td:first-child input{font-weight:600}#ln input{border-color:transparent}#ln input:hover{border-color:var(--bd)}#ln input:focus{border-color:var(--ac);background:var(--card)}
+#ln input.warn{background:hsl(40 100% 50%/.22)}#ln td.amt{text-align:right;font-weight:700;color:var(--qn);font-variant-numeric:tabular-nums}
+#ln td:not(:first-child) input.num{color:var(--qn)}.tot{background:var(--fh);padding:8px 14px;border-radius:6px;color:var(--ac)}
+
+header{background:linear-gradient(90deg,#6b4d37,#7a5c3e 42%,#a85c3c 100%);border:0;box-shadow:0 2px 8px rgba(58,38,25,.18)}h1{color:#fff;font-size:18px}
+.steps span{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#f2e9df}.steps .on{background:#fff;color:#6b4d37;font-weight:700;border-color:#fff}.steps .done{background:#6b7052;border-color:#6b7052;color:#fff}
+.card{box-shadow:0 1px 4px rgba(58,38,25,.08)}#s1{border-top:4px solid var(--earth)}#s2{border-top:4px solid var(--olive)}.hc{border-top:4px solid var(--earth)}.lc{border-top:4px solid var(--olive-lt)}
+#drop{background:linear-gradient(135deg,var(--parchment),var(--card));border-color:var(--earth)}#drop b{color:var(--earth);font-size:16px}
+#s2 .bar{background:var(--fh);padding:10px 12px;border-radius:8px}#cnt{background:var(--olive);color:#fff;padding:3px 12px;border-radius:99px;font-size:13px}
+button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--olive);color:#fff;border:0}button.pr{background:var(--terracotta);color:#fff;border:0}button.sm{padding:5px 12px}button.sec{background:transparent;color:var(--earth);border:1px solid var(--earth)}button.sec:hover{background:var(--fh)}
+.ch{display:flex;align-items:center;gap:12px;margin:-4px 0 14px;flex-wrap:wrap}.ch h3{margin:0;font-size:17px;color:var(--earth)}.chs{color:var(--mut);font-size:12px}.ch .sp{flex:1}
+#hdr{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.grp{border:1px solid var(--bd);border-top:4px solid var(--g);border-radius:8px;padding:12px;background:color-mix(in srgb,var(--g) 7%,var(--card))}
+.grp h4{margin:0 0 10px;color:var(--g);font-size:12px;letter-spacing:.6px;text-transform:uppercase}.fg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}.fg .full{grid-column:1/-1}
+.grp input,.grp textarea{background:var(--card)}input:focus,textarea:focus,select:focus{outline:2px solid var(--earth);outline-offset:-1px}
+#lt{table-layout:fixed;width:100%;min-width:1150px}#lt td,#lt th{overflow:hidden;text-overflow:ellipsis}#lt input{width:100%;min-width:0}
+#lt tfoot td{background:var(--fh);font-weight:700;color:var(--ac);border-top:2px solid var(--hd);font-variant-numeric:tabular-nums;white-space:nowrap}
+#lt tfoot td.amtT{background:var(--gold);color:var(--tx);font-size:16px}#lt tfoot .t2 td{background:var(--card);border-top:1px solid var(--bd)}
+#lt tfoot .wl{display:block;font-size:11px;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}#lt tfoot #words{font-weight:700;font-style:italic;color:var(--tx)}
+.note{color:var(--mut);font-size:12px;margin:10px 0 0}
+#lt{min-width:0;table-layout:fixed;width:auto}#lt th{padding-right:10px}
+.rz{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:col-resize;z-index:6;touch-action:none}.rz:hover,.rz.on{background:rgba(122,92,62,.2)}
+.ro{background:var(--fh)!important;font-weight:600;color:var(--ac)}
+.seg{display:inline-flex;border:1px solid var(--ac);border-radius:6px;overflow:hidden}.seg button{background:transparent;color:var(--ac);border:0;border-radius:0;padding:2px 9px;font-size:12px}.seg button.on{background:var(--ac);color:#fff}
+.crbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:color-mix(in srgb,var(--olive-lt) 12%,var(--card));border:1px solid var(--olive);border-radius:8px;padding:8px 12px;margin-bottom:10px}.crbar label{font-size:13px;font-weight:700;color:var(--olive);margin:0}.crbar input{width:130px}.crbar span{color:var(--mut);font-size:12px}
+#lth tr.pre th{position:static;background:var(--card);border-bottom:0;padding:3px 4px;box-shadow:none;color:var(--olive)}
+.cs{display:flex;flex-direction:column;gap:1px}.cs span{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--olive);white-space:nowrap}.cs input{height:24px;text-align:center;font-weight:700;border-color:var(--olive);background:color-mix(in srgb,var(--olive-lt) 12%,var(--card))}
+
+.navb{margin-left:auto;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.45)}
+.svc{border-top:4px solid #6b7052;padding:12px 16px}#curinfo{margin-bottom:8px;font-size:13px}.svrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.svrow label{margin:0;font-weight:700;color:var(--mut)}.svrow input{flex:1;min-width:220px;width:auto}
+#s4{border-top:4px solid #8a7d6e}#it{width:100%;min-width:0}#it th:last-child{width:34%}.acts{display:flex;gap:6px;flex-wrap:wrap}#ib td,#ib th{white-space:nowrap}#ib td:last-child{white-space:normal}
+.hist td{background:var(--fh)}.vt{margin:8px 0 12px;background:var(--card)}.vt th{position:static}.lg{margin:6px 0 0;padding-left:18px;font-size:12px;color:var(--mut)}.lg span{color:var(--tx);font-weight:600}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:#5c5248;color:#fff;padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;transition:.25s;z-index:99;box-shadow:0 4px 14px rgba(0,0,0,.3)}#toast.on{opacity:1;transform:translateX(-50%)}
+.steps span{cursor:pointer}.steps span:hover{filter:brightness(1.12)}
+#s5{border-top:4px solid var(--terracotta)}.tiles{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.tile{flex:1;min-width:130px;border:1px solid var(--bd);border-left:5px solid hsl(var(--h) 60% 45%);border-radius:8px;padding:8px 12px;cursor:pointer;background:var(--z)}.tile b{display:block;font-size:22px}.tile span{font-size:12px;color:var(--mut)}
+#ft{width:100%;min-width:0}#ft td{white-space:nowrap}#ft td.wrap{white-space:normal;min-width:160px}</style></head><body>
+<header><h1>Shriya Mining Industries – Invoice Generator</h1>
+<div class="steps"><span id="t1" class="on" onclick="stepTo(1)">1 Upload</span><span id="t2" onclick="stepTo(2)">2 Select records</span><span id="t3" onclick="stepTo(3)">3 Edit &amp; download</span></div><button class="navb" id="navFul" onclick="showFul()">📊 PO fulfilment</button><button class="navb" id="navInv" style="margin-left:8px" onclick="showInv()">📁 Saved invoices <span id="invcnt"></span></button></header>
+<main>
+<section id="s1" class="card"><div id="drop"><p><b>Drop the purchase / orders spreadsheet here</b> (.xlsx, .xls, .csv)</p>
+<button onclick="f.click()">Browse file</button><input id="f" type="file" accept=".xlsx,.xls,.csv" class="hide"><p id="err" style="color:#c33"></p></div></section>
+
+<section id="s2" class="card hide">
+<div class="bar"><input id="q" placeholder="Search item, SKU, PO#…" style="max-width:260px"><div id="cpw" style="position:relative"><button class="sec" onclick="$('cp').classList.toggle('hide')">Columns ▾</button><div id="cp" class="card hide"></div></div><button class="sec" onclick="clrF()">Clear filters</button><button class="sec" onclick="selVis(true)">Select shown</button><button class="sec" onclick="selVis(false)">Clear shown</button>
+<span class="sp"></span><b id="cnt">0 selected</b><button class="sec" onclick="go(1)">Change file</button><button id="mk" onclick="build()" disabled>Create invoice →</button></div>
+<div class="scroll"><table id="tbl"><colgroup id="cg"></colgroup><thead><tr id="th"></tr><tr id="fr"></tr></thead><tbody id="rows"></tbody></table></div></section>
+
+<section id="s3" class="hide">
+<div class="bar noprint"><button class="sec" onclick="backBtn()">← Back to selection</button><span class="sp"></span><button class="pr" onclick="pdf()">📄 Save &amp; download PDF</button><button class="gn" onclick="dl()">⬇ Save &amp; download Excel</button></div>
+<div class="card svc noprint" id="svcard"><div id="curinfo"></div><div class="svrow"><label for="svstat">Status</label><select id="svstat"><option>Draft</option><option>In review</option></select><input id="svnote" placeholder="Note for this version (optional)"><button class="gn" id="svbtn" onclick="saveInv()">Save invoice (v1)</button></div></div>
+<div class="card hc"><div class="ch"><h3>Invoice details</h3><span class="chs">Edit any field – it flows into the downloaded invoice</span></div><div id="hdr"></div></div>
+<div class="card lc"><div class="ch"><h3>Line items</h3><span class="chs">Drag a column edge to resize · double-click an edge to fit</span><span class="sp"></span><button class="sec sm noprint" onclick="CW=null;ln()">↔ Reset widths</button><button class="gn sm noprint" onclick="addLine()">+ Add line</button></div>
+<div class="scroll" style="max-height:none"><table id="lt"><colgroup id="lcg"></colgroup><thead id="lth"></thead><tbody id="ln"></tbody><tfoot id="lft"></tfoot></table></div>
+<p class="noprint note">Crate ranges follow the Crate start # (above the Crate range column) and each line's crate count, in table order. Amount = Qty × Rate, where the rate is per the line's UOM (SF, Box, PC …). Rates of 0 are highlighted in amber.</p></div></section>
+<section id="s4" class="card hide"><div class="ch"><button class="sec sm" onclick="backFromInv()">← Back</button><h3>Saved invoices</h3><span class="chs">Status and every saved version of each invoice</span><span class="sp"></span><button class="gn sm" onclick="go(1)">+ New from PO file</button></div>
+<div class="bar"><input id="iq" placeholder="Search invoice no, PO…" oninput="renderInv()" style="max-width:240px"><select id="ifs" onchange="renderInv()" style="max-width:170px"></select><span class="sp"></span><button class="sec sm" onclick="exportLedger()">⬇ Export ledger</button><button class="sec sm" onclick="$('imp').click()">⬆ Import ledger</button><input id="imp" type="file" accept=".json" class="hide" onchange="importLedger(this.files[0]);this.value=''"></div>
+<div class="scroll" style="max-height:none"><table id="it"><thead><tr><th>Invoice no</th><th>Date</th><th>Buyer PO nos</th><th>Status</th><th>Version</th><th class="num">Total USD</th><th>Last saved</th><th>Actions</th></tr></thead><tbody id="ib"></tbody></table></div>
+<p class="note">Invoices are saved in this browser. Use “Export ledger” regularly and keep the file in your ShriyaMiningIndustries folder – it is also how you move the data to another computer.</p></section>
+<section id="s5" class="card hide"><div class="ch"><button class="sec sm" onclick="backFromInv()">← Back</button><h3>PO fulfilment</h3><span class="chs" id="fsrc"></span></div>
+<div id="ftiles" class="tiles"></div>
+<div class="bar"><input id="fq" placeholder="Search PO, SKU, item…" oninput="renderFul()" style="max-width:240px"><select id="ffs" onchange="renderFul()" style="max-width:190px"><option value="">All statuses</option><option>Open</option><option>In progress</option><option>Fulfilled</option><option>Over-shipped</option></select><span class="sp"></span><button class="sec sm" onclick="exportFul()">⬇ Export CSV</button></div>
+<div class="scroll" style="max-height:none"><table id="ft"><thead><tr><th>Status</th><th>PO#</th><th>SO ref</th><th>SKU</th><th>Item</th><th>UOM</th><th class="num">Ordered</th><th class="num">Draft / in review</th><th class="num">Approved</th><th class="num">Shipped</th><th class="num">Not yet invoiced</th><th>Invoices</th></tr></thead><tbody id="fb"></tbody></table></div>
+<p class="note">Status follows approval: <b>Open</b> = nothing approved yet (draft / in-review invoices only show in their own column); <b>In progress</b> = approved or partly shipped; <b>Fulfilled</b> = fully shipped; <b>Over-shipped</b> = approved + shipped exceeds the order. Uses the latest saved version of each invoice (Cancelled ignored). Only lines created from PO rows are matched; lines you add by hand are not. Quantities are matched in the PO line's own UOM – if you changed a line's UOM, it is flagged ⚠ and not counted.</p></section>
+</main>
+<div id="toast"></div>
+<script>
+/* FEATURE SWITCHES – set to true to turn a feature back on (nothing was deleted). */
+const FEATURES={savedInvoices:false,fulfilment:false};
+const $=id=>document.getElementById(id);const PIN='SPS Item',CHIP=['UOM','Ship To Location'];let widths={},order=[],hidden=new Set(),opts={},colF={},selCols=new Set(),rows=[],cols=[],sel=new Set(),L=[],H={};
+const esc=v=>String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function fv(v){if(v instanceof Date){const x=new Date(v.getTime()+432e5);return`${x.getUTCMonth()+1}/${x.getUTCDate()}/${x.getUTCFullYear()}`}if(typeof v=='number')return v.toLocaleString(undefined,{maximumFractionDigits:4});return String(v).replace(/ 12:00:00 AM$/,'')}
+const DEF={'Invoice no':'','Invoice date':new Date().toISOString().slice(0,10),'Buyer PO nos':'','Buyer PO date':'','Other reference':'',
+'Exporter':'SHRIYA MINING INDUSTRIES\nS.NO: 1174/2B, ONGOLE ROAD\nMARKAPUR - 523 316\nPRAKASAM D.T. (A.P) INDIA.','Consignee':'NATURAL STONE RESOURCES INC\nU.S.A.',
+'Buyer (if other)':'','Notify party':'NATURAL STONE RESOURCES\nUSA','Country of origin':'INDIA','Final destination':'U.S.A','Pre-carriage by':'BY ROAD','Place of receipt':'CHENNAI',
+'Vessel / Flight':'BY SEA','Port of loading':'CHENNAI','Port of discharge':'HOUSTON','Final delivery':'HOUSTON','Payment terms':'D.P AT SIGHT','Marks code':'CODE ; DAL','Container no':'','Packing':'WOODEN CRATES','Grade':'FIRST GRADE','Crate starting no':''};
+let LAST=1;
+function stepTo(n){if(n==2&&!rows.length){toast('Upload a PO file first');return}if(n==3&&!L.length){toast('Create an invoice first');return}go(n)}
+function showFul(){if(!FEATURES.fulfilment)return;go(5);renderFul()}
+function backFromInv(){const n=LAST;(n==2&&!rows.length)||(n==3&&!L.length)?go(1):go(n)}
+function go(n){if(n<4)LAST=n;[1,2,3,4,5].forEach(i=>{const e=$('s'+i),t=$('t'+i);if(e)e.classList.toggle('hide',i!=n);if(t){t.classList.toggle('on',i==n);t.classList.toggle('done',i<n&&n<4)}})}
+const drop=$('drop');['dragover','dragenter'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.add('hov')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,x=>{x.preventDefault();drop.classList.remove('hov')}));
+drop.addEventListener('drop',x=>load(x.dataTransfer.files[0]));$('f').onchange=e=>load(e.target.files[0]);
+function load(file){if(!file)return;const r=new FileReader();r.onload=e=>{try{
+ const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});const j=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+ if(!j.length||!('SPS Item' in j[0])||!('Qty' in j[0]))throw Error('Expected columns “SPS Item”, “Qty”, “UOM”, “PO#” … not found.');
+ cols=Object.keys(j[0]); rows=j.map((o,i)=>({i,raw:o,all:cols.map(c=>fv(o[c])).join(' ').toLowerCase(),item:String(o['SPS Item']),sku:o.SKU,sup:o.Supplier,po:String(o['PO#']),date:fv(o['PO Date']),so:String(o['SO Ref#']),ship:o['Ship To Location'],qty:parseFloat(o.Qty)||0,uom:o.UOM}));
+ {const kc={};rows.forEach(r=>{const b=[r.po,r.sku,r.so,r.qty].join('|');kc[b]=(kc[b]||0)+1;r.key=b+'#'+kc[b]})}
+ snapPO(file.name);sel=new Set();colF={};selCols=new Set();$('q').value='';$('err').textContent='';
+ order=[PIN,...cols.filter(c=>c!==PIN)];hidden=new Set();opts={};widths={};
+ const fam=getComputedStyle(document.body).fontFamily,cv=document.createElement('canvas').getContext('2d'),tw=(t,f)=>{cv.font=f+' '+fam;return cv.measureText(t).width};
+ cols.forEach(c=>{let m=0;rows.forEach(r=>{const t=fv(r.raw[c]);if(t.length>m*0.5||true){const w=tw(t,'14px');if(w>m)m=w}});if(CHIP.includes(c))m+=20;widths[c]=Math.round(Math.min(560,Math.max(m+24,tw(c,'bold 12px')+40,90)))});
+ cols.forEach(c=>{const u=[...new Set(rows.map(r=>fv(r.raw[c])))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));if(u.length>1&&u.length<=30){selCols.add(c);opts[c]=u}});
+ head();
+ draw();go(2)}catch(x){$('err').textContent=x.message}};r.readAsArrayBuffer(file)}
+const vis=()=>{const q=$('q').value.toLowerCase(),fs=Object.entries(colF).filter(e=>e[1]!=='');return rows.filter(r=>r.all.includes(q)&&fs.every(([c,f])=>{const v=fv(r.raw[c]);return selCols.has(c)?v===f:v.toLowerCase().includes(f.toLowerCase())}))};
+$('fr').addEventListener('input',e=>{if(e.target.dataset.c!==undefined){colF[e.target.dataset.c]=e.target.value;draw()}});
+function clrF(){colF={};$('q').value='';$('fr').querySelectorAll('input,select').forEach(e=>e.value='');draw()}
+const vc=()=>order.filter(c=>!hidden.has(c));
+function head(){const v=vc();$('cg').innerHTML='<col style="width:40px">'+v.map(c=>`<col style="width:${widths[c]}px">`).join('');$('tbl').style.width=(40+v.reduce((a,c)=>a+widths[c],0))+'px';
+ $('th').innerHTML='<th class="fz c0"></th>'+v.map((c,i)=>`<th ${c===PIN?'':'draggable="true"'} data-c="${esc(c)}" class="${i==0?'fz c1':''}" title="${c===PIN?'Pinned column':'Drag to move this column'}">${c===PIN?'📌':'⠿'} ${esc(c)}</th>`).join('');
+ $('fr').innerHTML='<th class="fz c0"></th>'+v.map((c,i)=>{const u=opts[c],val=colF[c]||'',cl=i==0?' class="fz c1"':'';
+  return u?`<th${cl}><select data-c="${esc(c)}"><option value="">All</option>${u.map(x=>`<option value="${esc(x)}"${x===val?' selected':''}>${esc(x)||'(blank)'}</option>`).join('')}</select></th>`:`<th${cl}><input data-c="${esc(c)}" placeholder="Filter…" value="${esc(val)}"></th>`}).join('');
+ $('cp').innerHTML='<div style="margin-bottom:6px"><button class="sec" onclick="showAll()">Show all</button></div>'+order.map(c=>`<label><input type="checkbox" style="width:auto;min-width:0" data-c="${esc(c)}" ${hidden.has(c)?'':'checked'} ${c===PIN?'disabled':''} onchange="togCol(this.dataset.c,this.checked)">${esc(c)}</label>`).join('')}
+function togCol(c,on){on?hidden.delete(c):hidden.add(c);head();draw()}
+function showAll(){hidden.clear();head();draw()}
+let dragC=null;
+$('th').addEventListener('dragstart',e=>{const t=e.target.closest('th[data-c]');if(t){dragC=t.dataset.c;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragC)}});
+$('th').addEventListener('dragover',e=>{if(dragC&&e.target.closest('th[data-c]'))e.preventDefault()});
+$('th').addEventListener('drop',e=>{const t=e.target.closest('th[data-c]');if(!t||!dragC)return;e.preventDefault();const fi=order.indexOf(dragC),ti=order.indexOf(t.dataset.c);if(t.dataset.c===PIN||dragC===PIN){dragC=null;return}if(fi!==ti){order.splice(fi,1);order.splice(ti,0,dragC);head();draw()}dragC=null});
+document.addEventListener('click',e=>{if(!e.target.closest('#cpw'))$('cp').classList.add('hide')});
+function draw(){const v=vc();$('rows').innerHTML=vis().map(r=>`<tr class="${sel.has(r.i)?'sl':''}"><td class="fz c0"><input type="checkbox" ${sel.has(r.i)?'checked':''} onchange="tog(${r.i},this.checked);this.closest('tr').classList.toggle('sl',this.checked)"></td>${v.map((c,i)=>`<td class="${i==0?'fz c1 ':''}${typeof r.raw[c]=='number'?'num':''}" title="${esc(fv(r.raw[c]))}">${CHIP.includes(c)&&fv(r.raw[c])?`<span class="chip" style="--h:${[...fv(r.raw[c])].reduce((a,ch)=>a*31+ch.charCodeAt(0)>>>0,7)%360}">${esc(fv(r.raw[c]))}</span>`:esc(fv(r.raw[c]))}</td>`).join('')}</tr>`).join('');cnt()}
+function cnt(){$('cnt').textContent=sel.size+' selected · '+vis().length+' of '+rows.length+' shown';$('mk').disabled=!sel.size}
+function tog(i,on){on?sel.add(i):sel.delete(i);cnt()}function selVis(on){vis().forEach(r=>on?sel.add(r.i):sel.delete(r.i));draw()}
+$('q').oninput=draw;
+function parse(r){let s=r.item,code='';const m0=s.match(/^([A-Z]{2,4}) - /);if(m0){code=m0[1];s=s.slice(m0[0].length)}
+ const N='(?:\\d+ \\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:\\.\\d+)?)';const m=s.match(new RegExp('('+N+')\\s?x\\s?('+N+')','i'));const ev=t=>t.split(' ').reduce((q,u)=>q+(u.includes('/')?u.split('/')[0]/u.split('/')[1]:+u),0);let stone=s,finish='',size='',area=0;
+ if(m){stone=s.slice(0,m.index).trim();size=`${m[1]}" X ${m[2]}"`;area=ev(m[1])*ev(m[2])/144;finish=(s.slice(m.index+m[0].length).trim().split(' ')[0]||'')}
+ else{const w=s.split(' ');finish=w.slice(-3,-2)[0]||''}
+ const kind=/granite/i.test(s)?'GRANITE TILES':/slate/i.test(s)?'SLATE STONE TILES':/lime/i.test(s)?'LIMESTONE':'';
+ return{code,stone:stone.toUpperCase(),finish:finish.toUpperCase(),size,area,kind}}
+function build(){const picks=rows.filter(r=>sel.has(r.i));
+ L=picks.map(r=>{const p=parse(r);
+  const rate=r.uom=='SF'?({'12" X 12"':1.62,'12" X 24"':1.75}[p.size]||0):0;
+  return{stone:p.stone,finish:p.finish,size:p.size,
+   ref:`NSR PO # ${r.po}${r.so?` // SO # ${r.so}`:''} (${r.sku})`,crates:0,crt:'',qty:r.qty,uom:r.uom,net:0,gross:0,rate,code:p.code,kind:p.kind,src:r.key,poQty:r.qty,poUom:r.uom}});
+ L.sort((a,b)=>(a.kind||'').localeCompare(b.kind||''));
+ const pos=[...new Set(picks.map(r=>r.po))];const ds=picks.map(r=>new Date(r.date)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
+ H=Object.assign({},DEF,{'Buyer PO nos':pos.join(', '),'Buyer PO date':ds.length?ds[0].toISOString().slice(0,10):'','Marks code':'CODE ; '+([...new Set(picks.map(r=>parse(r).code).filter(Boolean))].join(', ')||'')});
+ CUR=null;renderEditor();$('svnote').value=''}
+function renderEditor(){
+ const GR=[['Invoice details','#7a5c3e',['Invoice no','Invoice date','Buyer PO nos','Buyer PO date','Other reference']],['Parties','#6b7052',['Exporter','Consignee','Buyer (if other)','Notify party']],['Shipping','#c49a6c',['Country of origin','Final destination','Pre-carriage by','Place of receipt','Vessel / Flight','Port of loading','Port of discharge','Final delivery']],['Terms & packing','#8a7d6e',['Payment terms','Marks code','Container no','Packing','Grade']]];
+ const used=GR.flatMap(g=>g[2]);Object.keys(DEF).filter(k=>!used.includes(k)&&k!='Crate starting no').forEach(k=>GR[3][2].push(k));
+ const fieldH=k=>{const long=DEF[k].includes('\n'),t=/date/i.test(k)?'date':k=='Crate starting no'?'number':'text',full=long||k=='Other reference'||k=='Buyer PO nos';
+  return`<div class="${full?'full':''}"><label>${k}</label>${long?`<textarea rows="4" data-k="${k}">${esc(H[k])}</textarea>`:`<input type="${t}" ${t=='number'?'min="0" placeholder="e.g. 245"':''} data-k="${k}" title="${esc(H[k])}" value="${esc(H[k])}">`}</div>`};
+ $('hdr').innerHTML=GR.map(([n,c,ks])=>`<div class="grp" style="--g:${c}"><h4>${n}</h4><div class="fg">${ks.map(fieldH).join('')}</div></div>`).join('');
+ document.querySelectorAll('#hdr [data-k]').forEach(e=>e.oninput=()=>{H[e.dataset.k]=e.value;if(e.dataset.k=='Crate starting no')rng()});
+ CW=null;go(3);ln();saveUI()}
+const COLS=[{k:'stone',t:'Stone',w:190},{k:'finish',t:'Finish',w:90},{k:'size',t:'Size',w:95},{k:'ref',t:'PO / ref',w:300},
+{k:'crates',t:'Crates',w:70,num:1},{k:'crt',t:'Crate range',w:105},{k:'qty',t:'Qty',w:85,num:1},{k:'uom',t:'UOM',w:60},
+{k:'net',t:'Net kg',w:80,num:1},{k:'gross',t:'Gross kg',w:85,num:1},
+{k:'rate',t:'Rate / UOM',w:100,num:1},{k:'amt',t:'Amount USD',w:110,num:1},{k:'del',t:'',w:40}];
+const NUMK=['crates','qty','net','gross','rate'];let CW=null;
+const cv2=document.createElement('canvas').getContext('2d');
+function mw(t){cv2.font='14px '+getComputedStyle(document.body).fontFamily;return cv2.measureText(t).width}
+const amt=l=>Math.round((+l.qty||0)*(+l.rate||0)*100)/100;
+const total=()=>Math.round(L.reduce((s,l)=>s+amt(l),0)*100)/100;
+function initCW(){CW=COLS.map(c=>c.w);const av=($('lt').parentElement.clientWidth||0)-2,s=CW.reduce((a,b)=>a+b,0);if(av>s){const f=av/s;CW=CW.map(x=>Math.floor(x*f))}}
+function tbl(){$('lcg').innerHTML=COLS.map((c,i)=>`<col style="width:${CW[i]}px">`).join('');
+ $('lth').innerHTML=`<tr class="pre"><th colspan="5"></th><th class="csh"><div class="cs"><span>Crate start #</span><input id="cstart" type="number" min="0" placeholder="e.g. 245" value="${esc(H['Crate starting no']||'')}" oninput="H['Crate starting no']=this.value;rng()"></div></th><th colspan="${COLS.length-6}"></th></tr>`+'<tr>'+COLS.map((c,i)=>`<th class="${c.num?'num':''}">${c.t}${i<COLS.length-1?`<span class="rz" data-i="${i}" title="Drag to resize · double-click to fit"></span>`:''}</th>`).join('')+'</tr>';
+ $('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px';
+ $('lft').innerHTML=`<tr class="t1"><td colspan="4" style="text-align:right">TOTAL</td><td class="num" id="tCr"></td><td></td><td class="num" id="tQty"></td><td></td><td class="num" id="tNet">0</td><td class="num" id="tGr">0</td><td class="num">TOTAL USD</td><td class="num amtT" id="tot">0.00</td><td></td></tr><tr class="t2"><td colspan="${COLS.length}"><span class="wl">Amount chargeable in words</span><input id="words" value="${esc($('words')?$('words').value:'')}"></td></tr>`}
+function rng(){let n=parseInt(H['Crate starting no']);const ok=!isNaN(n);L.forEach((l,i)=>{const c=Math.max(0,parseInt(l.crates)||0);let t='';if(ok&&c>0){t=c==1?String(n):`${n} - ${n+c-1}`;n+=c}l.crt=t;const e=$('rg'+i);if(e){e.value=t;e.title=t}})}
+const ul=l=>String(l.uom||'').trim().toUpperCase()||'QTY';
+function cell(i,c){const l=L[i],k=c.k;
+ if(k=='amt')return`<td class="amt" id="a${i}">${amt(l).toFixed(2)}</td>`;
+ if(k=='del')return`<td><button class="x noprint" title="Remove line" onclick="L.splice(${i},1);ln()">✕</button></td>`;
+ let v=l[k]??'';if(['crates','net','gross'].includes(k)&&!v)v='';
+ if(k=='crt')return`<td><input class="ro" id="rg${i}" readonly value="${esc(v)}" title="${esc(v)}"></td>`;
+ return`<td><input data-k="${k}" class="${c.num?'num':''}${k=='rate'&&!(+v)?' warn':''}" ${NUMK.includes(k)?'inputmode="decimal"':''} title="${esc(v)}" value="${esc(v)}" onchange="upd(${i},'${k}',this.value,this)"></td>`}
+function ln(){if(!CW)initCW();tbl();rng();$('ln').innerHTML=L.map((l,i)=>`<tr>${COLS.map(c=>cell(i,c)).join('')}</tr>`).join('');tot()}
+function upd(i,k,v,el){const l=L[i];l[k]=NUMK.includes(k)?(parseFloat(v)||0):v;if(el){el.title=el.value;if(k=='rate')el.classList.toggle('warn',!l.rate)}if(k=='crates')rng();$('a'+i).textContent=amt(l).toFixed(2);tot()}
+function addLine(){L.push({stone:'',finish:'',size:'',ref:'',crates:0,crt:'',qty:0,uom:'SF',net:0,gross:0,rate:0,kind:''});ln()}
+function tot(){const S=k=>L.reduce((a,l)=>a+(+l[k]||0),0),f=(n,d)=>n.toLocaleString('en-US',{maximumFractionDigits:d});
+ $('tCr').textContent=S('crates')||'';{const us=new Set(L.map(l=>String(l.uom||'').toUpperCase()));$('tQty').textContent=us.size==1?f(S('qty'),2):''}$('tNet').textContent=f(S('net'),3);$('tGr').textContent=f(S('gross'),3);
+ const t=total();$('tot').textContent=t.toLocaleString('en-US',{minimumFractionDigits:2});$('words').value=words(t)}
+let rz=null;const setW=()=>{$('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px'};
+document.addEventListener('pointerdown',e=>{const h=e.target.closest&&e.target.closest('.rz');if(!h)return;e.preventDefault();const i=+h.dataset.i;rz={i,x:e.clientX,w:CW[i],h};h.classList.add('on');try{h.setPointerCapture(e.pointerId)}catch(x){}});
+document.addEventListener('pointermove',e=>{if(!rz)return;CW[rz.i]=Math.max(40,Math.round(rz.w+e.clientX-rz.x));$('lcg').children[rz.i].style.width=CW[rz.i]+'px';setW()});
+document.addEventListener('pointerup',()=>{if(rz){rz.h.classList.remove('on');rz=null}});
+document.addEventListener('dblclick',e=>{const h=e.target.closest&&e.target.closest('.rz');if(!h)return;const i=+h.dataset.i,c=COLS[i];let m=mw(c.t)+34;
+ L.forEach(l=>{const t=c.k=='amt'?amt(l).toFixed(2):c.k=='basis'?'SQFT QTY':String(l[c.k]??'');m=Math.max(m,mw(t)+(c.k=='basis'?44:26))});CW[i]=Math.min(700,Math.ceil(m));$('lcg').children[i].style.width=CW[i]+'px';setW()});
+function w(n){const a='ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN'.split(' '),b='_ _ TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY'.split(' ');
+ if(n<20)return a[n];if(n<100)return b[n/10|0]+(n%10?' '+a[n%10]:'');if(n<1000)return a[n/100|0]+' HUNDRED'+(n%100?' '+w(n%100):'');
+ if(n<1e6)return w(n/1000|0)+' THOUSAND'+(n%1000?' '+w(n%1000):'');return w(n/1e6|0)+' MILLION'+(n%1e6?' '+w(n%1e6):'')}
+function words(t){const d=Math.floor(t),c=Math.round((t-d)*100);return`USD ${w(d)} AND CENTS ${w(c)} ONLY`}
+async function buildWb(wo){
+const WD=wo!==undefined?wo:($('words')?$('words').value:words(total()));const h=k=>H[k]||'';const lines=L.map(l=>({...l,amount:amt(l)}));
+const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase();
+const qd=l=>({v:+l.qty||0,nf:(Number.isInteger(+l.qty)?'#,##0':'#,##0.00')+' "'+(un(l.uom)||'QTY')+'"'});
+const rnf=l=>'0.00"/'+(un(l.uom)||'QTY')+'"';
+const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=lines.reduce((a,l)=>a+(+l.net||0),0),tg=lines.reduce((a,l)=>a+(+l.gross||0),0);
+const uk=new Set(lines.map(l=>un(l.uom))),uni=lines.length>0&&uk.size==1,tnf=uni?'#,##0.00 "'+(un(lines[0].uom)||'QTY')+'"':'#,##0.00';
+const wb=new ExcelJS.Workbook();wb.creator='Shriya Mining Industries';wb.title='Invoice '+h('Invoice no');
+const EARTH='FF7A5C3E',EARTH_LT='FFC49A6C',LIGHT='FFEDE6DA',MID='FFF1E5D7',LINE='FFC8BEAD',HAIR='FFE0D8CE',ZEB='FFF7F3EE',GOLD='FFF7E2A8';
+const NAVY=EARTH,BLUE=EARTH_LT;
+const Ln={style:'thin',color:{argb:LINE}},Hr={style:'hair',color:{argb:LINE}},MED={style:'medium',color:{argb:NAVY}};
+const BD={top:Ln,left:Ln,bottom:Ln,right:Ln},VB={left:Ln,right:Ln};
+const d=h('Invoice date'),dt=d?new Date(d+'T00:00:00Z'):'',pd=h('Buyer PO date'),ptxt=pd?pd.split('-').reverse().join('-'):'';
+function sheet(name,title,inv,tab){
+ const ws=wb.addWorksheet(name,{properties:{tabColor:{argb:tab}},views:[{showGridLines:false}],pageSetup:{paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,margins:{left:.4,right:.4,top:.5,bottom:.6,header:.2,footer:.25}}});
+ ws.headerFooter={oddFooter:'&L&8Shriya Mining Industries&C&8Page &P of &N&R&8&D'};
+ [12,12,14,14,14,14,14,13,16].forEach((w,i)=>ws.getColumn(i+1).width=w);
+ const put=(r,c1,c2,v,o={},r2=r)=>{if(c2>c1||r2>r)ws.mergeCells(r,c1,r2,c2);const c=ws.getCell(r,c1);c.value=v;
+  c.font={name:'Calibri',size:o.size||10.5,bold:!!o.b,italic:!!o.i,color:{argb:o.color||'FF1B2430'}};
+  const hz=o.h||'left';c.alignment={horizontal:hz,vertical:o.v||'middle',wrapText:!!o.wrap,indent:hz=='center'?0:(o.ind??1)};if(o.nf)c.numFmt=o.nf;
+  for(let a=r;a<=r2;a++)for(let b=c1;b<=c2;b++){const x=ws.getCell(a,b);x.border=o.bd||BD;if(o.fill)x.fill={type:'pattern',pattern:'solid',fgColor:{argb:o.fill}}}return c};
+ const lab=(r,c1,c2,t)=>{put(r,c1,c2,t.toUpperCase(),{size:8,b:1,color:BLUE,fill:LIGHT,bd:{top:Ln,left:Ln,right:Ln}});ws.getRow(r).height=15};
+ const val=(r,c1,c2,t,o={},r2=r)=>put(r,c1,c2,t,{bd:{left:Ln,right:Ln,bottom:Ln},...o},r2);
+ const block=(r,c1,c2,arr,n)=>{for(let k=0;k<n;k++){put(r+k,c1,c2,arr[k]||'',{b:k==0,size:k?10.5:12,color:k?undefined:NAVY,bd:{left:Ln,right:Ln,bottom:k==n-1?Ln:undefined}});ws.getRow(r+k).height=18}};
+ put(1,1,9,'SHRIYA MINING INDUSTRIES',{b:1,size:20,color:'FFFFFFFF',fill:NAVY,h:'center',bd:{}});ws.getRow(1).height=38;
+ put(2,1,9,title,{b:1,size:14,color:NAVY,fill:MID,h:'center',bd:{bottom:Ln}});ws.getRow(2).height=24;
+ let r=3;
+ lab(r,1,5,'Exporter');lab(r,6,9,'Invoice no & Date');r++;
+ block(r,1,5,h('Exporter').split('\n'),4);
+ val(r,6,7,h('Invoice no'),{b:1,size:12,color:NAVY});val(r,8,9,dt,{b:1,h:'center',nf:'dd-mmm-yyyy'});ws.getRow(r).height=22;
+ lab(r+1,6,9,"Buyer's order no & Date");
+ val(r+2,6,7,'PO NO  '+h('Buyer PO nos'),{wrap:1,b:1});val(r+2,8,9,'DATE  '+ptxt,{h:'center'});ws.getRow(r+2).height=30;
+ val(r+3,6,9,'Other reference(s):  '+h('Other reference'));
+ r+=4;
+ lab(r,1,5,'Consignee');lab(r,6,9,'Buyer (if other than consignee)');r++;
+ block(r,1,5,h('Consignee').split('\n'),4);
+ val(r,6,9,h('Buyer (if other)'));lab(r+1,6,9,'Notify Party');
+ const np=h('Notify party').split('\n');val(r+2,6,9,np[0]||'',{b:1,color:NAVY});val(r+3,6,9,np.slice(1).join(', '));
+ r+=4;
+ lab(r,1,3,'Pre-Carriage by');lab(r,4,5,'Place of Receipt by Pre-carrier');lab(r,6,7,'Country of origin of goods');lab(r,8,9,'Country of final destination');r++;
+ [[1,3,'Pre-carriage by'],[4,5,'Place of receipt'],[6,7,'Country of origin'],[8,9,'Final destination']].forEach(([a,b,k])=>val(r,a,b,h(k),{b:1}));ws.getRow(r).height=19;r++;
+ lab(r,1,3,'Vessel / Flight No');lab(r,4,5,'Port of loading');lab(r,6,9,'Terms of Payment & Delivery');r++;
+ val(r,1,3,h('Vessel / Flight'),{b:1});val(r,4,5,h('Port of loading'),{b:1});val(r,6,9,'PAYMENT :   '+h('Payment terms'),{b:1,color:NAVY,v:'top'},r+2);ws.getRow(r).height=19;r++;
+ lab(r,1,3,'Port of Destination');lab(r,4,5,'Final Destination');r++;
+ val(r,1,3,h('Port of discharge'),{b:1});val(r,4,5,h('Final delivery'),{b:1});ws.getRow(r).height=19;r++;
+ const HD={b:1,h:'center',color:'FFFFFFFF',fill:NAVY,bd:{top:Ln,left:Ln,right:Ln,bottom:Ln}};
+ put(r,1,2,"Marks & No's",HD);put(r,3,6,'Description of goods',HD);
+ if(inv){put(r,7,7,'Quantity',HD);put(r,8,8,'Rate',HD);put(r,9,9,'Amount',HD)}else{put(r,7,7,'Quantity',HD);put(r,8,8,'Net Wt',HD);put(r,9,9,'Gross Wt',HD)}ws.getRow(r).height=22;r++;
+ const SB={h:'center',b:1,size:9.5,color:NAVY,fill:MID,bd:{left:Ln,right:Ln,bottom:Ln}};
+ put(r,1,2,'Container',SB);put(r,3,6,[tc?String(tc).padStart(2,'0')+' NOS':'',h('Packing'),h('Grade')].filter(Boolean).join('  ·  '),SB);
+ if(inv){put(r,7,7,'Qty / Unit',SB);put(r,8,8,'USD / Unit',SB);put(r,9,9,'USD',SB)}else{put(r,7,7,'Qty',SB);put(r,8,8,'KGS',SB);put(r,9,9,'KGS',SB)}r++;
+ put(r,1,2,h('Marks code'),{b:1,color:NAVY,bd:VB});put(r,3,9,'',{bd:VB});ws.getRow(r).height=19;r++;
+ const first=r;let lk=null,z=0;const fl=f=>f?{fill:f}:{};
+ lines.forEach(l=>{
+  if(l.kind&&l.kind!==lk){put(r,1,9,l.kind+(l.kind=='GRANITE TILES'?'     HSN CODE 68022310':''),{b:1,color:BLUE,fill:MID,size:10,bd:{left:Ln,right:Ln,top:Ln}});ws.getRow(r).height=20;r++;lk=l.kind;z=0}
+  const f=z++%2?ZEB:undefined,I={bd:VB,...fl(f)},q=qd(l);
+  put(r,1,2,l.crt?'CRT NO  '+l.crt:'',{...I,b:1,color:NAVY});put(r,3,5,(l.stone+'  '+l.finish).trim(),{...I,b:1,size:11});put(r,6,6,l.size,{...I,h:'center',b:1});
+  put(r,7,7,q.v,{...I,h:'right',nf:q.nf});
+  if(inv){put(r,8,8,+l.rate||0,{...I,h:'right',nf:rnf(l)});put(r,9,9,{formula:`ROUND(G${r}*H${r},2)`,result:l.amount},{...I,h:'right',b:1,nf:'#,##0.00',color:'FF0B5C45'})}
+  else{put(r,8,8,+l.net||'',{...I,h:'right',nf:'#,##0.000'});put(r,9,9,+l.gross||'',{...I,h:'right',nf:'#,##0.000'})}
+  ws.getRow(r).height=20;r++;
+  const cn=parseInt(l.crates)||0;
+  put(r,1,2,cn>0?String(cn).padStart(2,'0')+(cn>1?' CRATES':' CRATE'):'',{...I,size:10,color:NAVY});
+  put(r,3,6,l.ref,{...I,wrap:1,size:9,i:1,color:'FF5B6578'});put(r,7,7,'',I);put(r,8,9,'',I);ws.getRow(r).height=26;r++;
+  put(r,1,9,'',{bd:{left:Ln,right:Ln,bottom:Hr},...fl(f)});ws.getRow(r).height=5;r++});
+ put(r,1,2,'',{bd:VB});put(r,3,6,h('Container no')?'CONT # '+h('Container no'):'',{b:1,color:NAVY,bd:VB});put(r,7,9,'',{bd:VB});ws.getRow(r).height=19;r++;
+ put(r,1,9,'',{bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r).height=4;
+ const last=r;r++;
+ const T={b:1,color:'FFFFFFFF',fill:NAVY,h:'center'};
+ if(inv){lab(r,1,6,'Amount chargeable in words');ws.getRow(r).height=15;
+  put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`}:'',{b:1,h:'right',nf:tnf,fill:LIGHT},r+1);put(r,8,8,'TOTAL (USD)',{...T,size:9},r+1);
+  put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',size:13,color:NAVY,nf:'$#,##0.00',fill:GOLD},r+1);
+  put(r+1,1,6,WD,{b:1,i:1,wrap:1,color:NAVY,bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r+1).height=26;r+=2}
+ else{put(r,1,6,'TOTAL',{...T,h:'left'});put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`}:'',{b:1,h:'right',nf:tnf,fill:LIGHT});
+  put(r,8,8,{formula:`SUM(H${first}:H${last})`,result:tn},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:tg},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});ws.getRow(r).height=24;r++;
+  put(r,1,9,'TOTAL GROSS WEIGHT :   '+tg.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++;put(r,1,9,'TOTAL NET WEIGHT :   '+tn.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++}
+ lab(r,1,5,'Declaration');lab(r,6,9,'Signature & Date');r++;
+ put(r,1,5,'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.',{wrap:1,v:'top',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln}},r+2);
+ put(r,6,9,'For SHRIYA MINING INDUSTRIES',{b:1,h:'center',color:NAVY,bd:{left:Ln,right:Ln}});put(r+1,6,9,'',{bd:{left:Ln,right:Ln}});ws.getRow(r+1).height=34;
+ put(r+2,6,9,'Authorised Signatory',{h:'center',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln,top:Hr}});
+ const fin=r+2;
+ for(let a=1;a<=fin;a++)for(let b=1;b<=9;b++){const x=ws.getCell(a,b),o=x.border||{};x.border={top:a==1?MED:o.top,bottom:a==fin?MED:o.bottom,left:b==1?MED:o.left,right:b==9?MED:o.right}}
+ ws.pageSetup.printArea=`A1:I${fin}`}
+sheet('INV','INVOICE',true,NAVY);sheet('PACKING','PACKING LIST',false,'FF2E8B6E');
+return wb}
+const KEY='smi_invoice_ledger_v1',STAT=['Draft','In review','Approved','Shipped','Cancelled'],LOCKED=['Approved','Shipped','Cancelled'],SH={Draft:215,'In review':35,Approved:145,Shipped:265,Cancelled:0};
+const clone=o=>JSON.parse(JSON.stringify(o)),stChip=s=>`<span class="chip" style="--h:${SH[s]}">${esc(s)}</span>`,money=n=>(+n||0).toLocaleString('en-US',{minimumFractionDigits:2});
+const fdt=s=>{const d=new Date(s);return isNaN(d)?'':d.toLocaleString([],{dateStyle:'medium',timeStyle:'short'})};
+function snapPO(name){if(!FEATURES.fulfilment)return;LEDGER.po={at:new Date().toISOString(),file:name,rows:rows.map(r=>({key:r.key,po:r.po,so:r.so,sku:r.sku,item:r.item,qty:r.qty,uom:r.uom,date:r.date,sup:r.sup,ship:r.ship}))};persist()}
+const FH={Open:35,'In progress':215,Fulfilled:145,'Over-shipped':0};
+function fulData(){const po=(LEDGER.po&&LEDGER.po.rows)||[],m=new Map();
+ po.forEach(r=>m.set(r.key,{r,pend:0,appr:0,ship:0,conf:0,inv:[],warn:false}));
+ LEDGER.invoices.forEach(inv=>{if(inv.status=='Cancelled'||!inv.versions.length)return;const lv=inv.versions[inv.versions.length-1];
+  lv.L.forEach(l=>{const x=l.src&&m.get(l.src);if(!x)return;const q=+l.qty||0;if(l.uom!=x.r.uom){x.warn=true;x.inv.push(`${inv.no} ⚠`);return}
+   if(inv.status=='Shipped')x.ship+=q;else if(inv.status=='Approved')x.appr+=q;else x.pend+=q;x.inv.push(`${inv.no} (${q}, ${inv.status})`)})});
+ return[...m.values()].map(x=>{x.conf=x.appr+x.ship;const t=x.conf,o=x.r.qty;x.rem=Math.round((o-t-x.pend)*1e4)/1e4;
+  x.st=t<=1e-9?'Open':t>o+1e-6?'Over-shipped':x.ship>=o-1e-6?'Fulfilled':'In progress';return x})}
+function renderFul(){const d=fulData();$('fsrc').textContent=LEDGER.po?`PO file: ${LEDGER.po.file} · loaded ${fdt(LEDGER.po.at)} · ${LEDGER.po.rows.length} lines`:'';
+ if(!d.length){$('ftiles').innerHTML='';$('fb').innerHTML='<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--mut)">No PO data yet. Upload the PO spreadsheet (step 1) – it is remembered here.</td></tr>';return}
+ const cnt=k=>d.filter(x=>x.st==k).length,fs=$('ffs').value;
+ $('ftiles').innerHTML=['Open','In progress','Fulfilled','Over-shipped'].map(k=>`<div class="tile" style="--h:${FH[k]}" onclick="$('ffs').value='${fs==k?'':k}';renderFul()"><b>${cnt(k)}</b><span>${k}${fs==k?' (click to clear)':''}</span></div>`).join('');
+ const q=$('fq').value.toLowerCase();
+ $('fb').innerHTML=d.filter(x=>(!fs||x.st==fs)&&[x.r.po,x.r.so,x.r.sku,x.r.item].join(' ').toLowerCase().includes(q)).map(x=>`<tr><td>${stChip2(x.st)}${x.warn?' ⚠':''}</td><td>${esc(x.r.po)}</td><td>${esc(x.r.so)}</td><td>${esc(x.r.sku)}</td><td>${esc(x.r.item)}</td><td>${esc(x.r.uom)}</td><td class="num">${x.r.qty}</td><td class="num">${x.pend||''}</td><td class="num">${x.appr||''}</td><td class="num">${x.ship||''}</td><td class="num"><b>${x.rem}</b></td><td class="wrap">${esc(x.inv.join('; '))}</td></tr>`).join('')}
+const stChip2=s=>`<span class="chip" style="--h:${FH[s]}">${s}</span>`;
+function exportFul(){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',h=['Status','PO#','SO ref','SKU','Item','UOM','Ordered','Draft/in review','Approved','Shipped','Not yet invoiced','Invoices'];
+ const t=[h.map(q).join(',')].concat(fulData().map(x=>[x.st,x.r.po,x.r.so,x.r.sku,x.r.item,x.r.uom,x.r.qty,x.pend,x.appr,x.ship,x.rem,x.inv.join('; ')].map(q).join(',')));
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+t.join('\n')],{type:'text/csv'}));a.download=`PO_fulfilment_${new Date().toISOString().slice(0,10)}.csv`;a.click()}
+let LEDGER={invoices:[]},CUR=null,openH=new Set(),tt;
+/* ---- STORAGE LAYER: the only place that knows where data lives. To move to the cloud, replace load()/save() here. ---- */
+const STORE={load(){try{const t=localStorage.getItem(KEY);return t?JSON.parse(t):null}catch(e){return null}},
+ save(d){try{localStorage.setItem(KEY,JSON.stringify(d));return true}catch(e){return false}}};
+try{const t=STORE.load();if(t)LEDGER=t}catch(e){}
+if(!LEDGER||!Array.isArray(LEDGER.invoices))LEDGER={invoices:[]};
+function persist(){if(STORE.save(LEDGER))return true;toast('Could not save – use Export ledger');return false}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3800)}
+function updInvCount(){$('invcnt').textContent=LEDGER.invoices.length?'('+LEDGER.invoices.length+')':''}
+function saveUI(){const inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
+ $('curinfo').innerHTML=inv?`Editing <b>Invoice ${esc(inv.no||'')}</b> – started from v${CUR.baseV}. Saving creates <b>v${inv.versions.length+1}</b>. Current status: ${stChip(inv.status)}`:'<b>New invoice</b> – not saved yet. Save it to keep it, track its status and keep every version.';
+ $('svbtn').textContent=inv?`Save as v${inv.versions.length+1}`:'Save invoice (v1)';
+ $('svstat').value=inv&&inv.status=='In review'?'In review':'Draft'}
+function saveInv(auto){const no=String(H['Invoice no']||'').trim();
+ if(!L.length){toast('Add at least one line first');return false}
+ let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
+ if(!inv){if(!no){toast('Enter an Invoice no first');return false}
+  if(LEDGER.invoices.some(x=>x.no==no&&x.status!='Cancelled')){toast(`Invoice ${no} already exists – open it from Saved invoices`);return false}
+  inv={id:'inv_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),no,status:'Draft',versions:[],log:[]};LEDGER.invoices.push(inv)}
+ if(LOCKED.includes(inv.status)){toast(`Invoice is ${inv.status} – reopen it first`);return false}
+ const v=inv.versions.length+1,st=$('svstat').value,note=$('svnote').value.trim()||(auto?'Saved on download':''),now=new Date().toISOString();
+ const prevSt=inv.status;inv.no=no||inv.no;inv.status=st;
+ inv.versions.push({v,at:now,note,status:st,H:clone(H),L:clone(L),words:$('words').value,total:total()});
+ inv.log.push({at:now,text:`Saved v${v} (${st})${note?': '+note:''}`});
+ CUR={id:inv.id,baseV:v};$('svnote').value='';persist();saveUI();updInvCount();toast(`Saved as v${v}`);if(st=='In review'&&prevSt!='In review'&&!auto)mailReview(inv);return true}
+function showInv(){if(!FEATURES.savedInvoices)return;go(4);renderInv()}
+function backBtn(){rows.length?go(2):showInv()}
+function openInv(id,v){const inv=LEDGER.invoices.find(x=>x.id==id);if(!inv)return;
+ if(LOCKED.includes(inv.status)){toast(`Invoice is ${inv.status} – use Reopen first`);return}
+ const ver=inv.versions.find(x=>x.v==v);if(!ver)return;
+ H=clone(ver.H);L=clone(ver.L);CUR={id,baseV:v};renderEditor();
+ if(ver.words)$('words').value=ver.words;$('svnote').value=v<inv.versions.length?`Restored from v${v}`:'';}
+function setStatus(id,st,ask){const inv=LEDGER.invoices.find(x=>x.id==id);if(!inv)return;let why='';
+ if(ask){why=(prompt(st=='Cancelled'?'Reason for cancelling this invoice?':'Reason for reopening this invoice?')||'').trim();if(!why){toast('A reason is required');return}}
+ const from=inv.status;inv.status=st;inv.log.push({at:new Date().toISOString(),text:`Status ${from} → ${st}${why?': '+why:''}`});
+ persist();renderInv();if(CUR&&CUR.id==id)saveUI();toast(`Invoice ${inv.no}: ${st}`);if(st=='In review')mailReview(inv)}
+function togHist(id){openH.has(id)?openH.delete(id):openH.add(id);renderInv()}
+function renderInv(){const q=$('iq').value.toLowerCase(),fs=$('ifs').value,la=i=>i.versions.length?i.versions[i.versions.length-1].at:'';
+ const list=LEDGER.invoices.filter(i=>i.versions.length&&(!fs||i.status==fs)&&[i.no,i.status,i.versions[i.versions.length-1].H['Buyer PO nos']||''].join(' ').toLowerCase().includes(q)).sort((a,b)=>la(b).localeCompare(la(a)));
+ $('ib').innerHTML=list.length?list.map(i=>{const lv=i.versions[i.versions.length-1],lk=LOCKED.includes(i.status),o=openH.has(i.id);
+  const B=(t,f,c='sec')=>`<button class="${c} sm" onclick="${f}">${t}</button>`,a=[];
+  if(!lk)a.push(B('Open',`openInv('${i.id}',${lv.v})`,'gn'));
+  if(i.status=='Draft')a.push(B('Send to review',`setStatus('${i.id}','In review')`));
+  if(i.status=='In review')a.push(B('Approve',`setStatus('${i.id}','Approved')`),B('Back to draft',`setStatus('${i.id}','Draft')`));
+  if(i.status=='Approved')a.push(B('Mark shipped',`setStatus('${i.id}','Shipped')`));
+  if(lk)a.push(B('Reopen',`setStatus('${i.id}','In review',1)`));
+  if(!['Shipped','Cancelled'].includes(i.status))a.push(B('Cancel',`setStatus('${i.id}','Cancelled',1)`));
+  a.push(B('⬇ Excel',`dlVer('${i.id}',${lv.v})`),B(o?'Hide history':'History',`togHist('${i.id}')`));
+  let h=`<tr><td><b>${esc(i.no)}</b></td><td>${esc(lv.H['Invoice date']||'')}</td><td>${esc(lv.H['Buyer PO nos']||'')}</td><td>${stChip(i.status)}</td><td>v${lv.v}</td><td class="num">${money(lv.total)}</td><td>${fdt(lv.at)}</td><td><div class="acts">${a.join('')}</div></td></tr>`;
+  if(o)h+=`<tr class="hist"><td colspan="8"><b>Versions</b><table class="vt"><thead><tr><th>Version</th><th>Saved</th><th>Status</th><th>Note</th><th class="num">Total USD</th><th></th></tr></thead><tbody>${i.versions.slice().reverse().map(v=>`<tr><td>v${v.v}</td><td>${fdt(v.at)}</td><td>${stChip(v.status)}</td><td>${esc(v.note||'')}</td><td class="num">${money(v.total)}</td><td><div class="acts">${B('⬇ Excel',`dlVer('${i.id}',${v.v})`)}${lk?'':B('Edit from this version',`openInv('${i.id}',${v.v})`)}</div></td></tr>`).join('')}</tbody></table><b>Activity</b><ul class="lg">${i.log.slice().reverse().map(l=>`<li><span>${fdt(l.at)}</span> ${esc(l.text)}</li>`).join('')}</ul></td></tr>`;
+  return h}).join(''):`<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--mut)">No saved invoices yet. Create an invoice from a PO file and press “Save invoice”.</td></tr>`}
+function exportLedger(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(LEDGER,null,1)],{type:'application/json'}));a.download=`SMI_invoice_ledger_${new Date().toISOString().slice(0,10)}.json`;a.click()}
+function importLedger(f){if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!d||!Array.isArray(d.invoices))throw 0;let n=0,u=0;
+ d.invoices.forEach(x=>{const o=LEDGER.invoices.find(y=>y.id==x.id);if(!o){LEDGER.invoices.push(x);n++}else if((x.versions||[]).length>o.versions.length||(x.log||[]).length>o.log.length){Object.assign(o,x);u++}});
+ if(d.po&&(!LEDGER.po||d.po.at>LEDGER.po.at))LEDGER.po=d.po;persist();renderInv();updInvCount();toast(`Imported: ${n} new, ${u} updated`)}catch(x){toast('That file is not a valid invoice ledger')}};r.readAsText(f)}
+async function xlsxSave(wb,name){const buf=await wb.xlsx.writeBuffer();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=name;a.click()}
+const pz=n=>String(n).padStart(2,'0'),stamp=at=>{const d=new Date(at);return`${d.getFullYear()}${pz(d.getMonth()+1)}${pz(d.getDate())}_${pz(d.getHours())}${pz(d.getMinutes())}${pz(d.getSeconds())}`};
+const vname=(inv,ver)=>`Invoice_${fnm(inv.no)}_v${ver.v}_${stamp(ver.at)}`;
+const REVIEW_TO=['sandeepnamburi@shriyamining.com','sandeep.shriyamining.com'];
+async function mailReview(inv){const ver=inv.versions[inv.versions.length-1];if(!ver)return;
+ const ok=REVIEW_TO.filter(a=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a)),bad=REVIEW_TO.filter(a=>!ok.includes(a));
+ const subj=`Invoice ${inv.no} for approval`,nm=vname(inv,ver)+'.xlsx';
+ const body=`Hello,\r\n\r\nPlease review and approve the attached invoice.\r\n\r\nInvoice no: ${inv.no}\r\nVersion: v${ver.v}\r\nBuyer PO nos: ${ver.H['Buyer PO nos']||''}\r\nTotal: USD ${money(ver.total)}\r\n\r\nThanks`;
+ const sH=H,sL=L;let buf=null;
+ try{H=clone(ver.H);L=clone(ver.L);buf=await (await buildWb(ver.words)).xlsx.writeBuffer()}catch(e){buf=null}finally{H=sH;L=sL}
+ if(buf){const u=new Uint8Array(buf);let bin='';for(let k=0;k<u.length;k+=0x8000)bin+=String.fromCharCode.apply(null,u.subarray(k,k+0x8000));
+  const b64=btoa(bin).replace(/.{1,76}/g,'$&\r\n'),bd='=_smi_'+Date.now().toString(36),enc=t=>/^[\x20-\x7e]*$/.test(t)?t:'=?UTF-8?B?'+btoa(unescape(encodeURIComponent(t)))+'?=';
+  const eml=['X-Unsent: 1','To: '+ok.join(', '),'Subject: '+enc(subj),'MIME-Version: 1.0',`Content-Type: multipart/mixed; boundary="${bd}"`,'',`--${bd}`,'Content-Type: text/plain; charset=utf-8','Content-Transfer-Encoding: 8bit','',body,'',`--${bd}`,`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="${nm}"`,'Content-Transfer-Encoding: base64',`Content-Disposition: attachment; filename="${nm}"`,'',b64,`--${bd}--`,''].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([eml],{type:'message/rfc822'}));a.download=vname(inv,ver)+'_for_approval.eml';document.body.appendChild(a);a.click();a.remove();
+  toast('Open the downloaded “…_for_approval.eml” file – it opens an email draft with the invoice attached')}
+ else{const a=document.createElement('a');a.href=`mailto:${ok.join(',')}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body+'\r\n\r\n(Please attach the downloaded Excel before sending.)')}`;document.body.appendChild(a);a.click();a.remove();toast('Could not build the attachment – draft opened without it')}
+ if(bad.length)setTimeout(()=>toast(`Skipped invalid address: ${bad.join(', ')}`),4000)}
+const fnm=n=>String(n||'draft').replace(/[\\/:*?"<>|]+/g,'-');
+const sameAsLatest=inv=>{const lv=inv.versions[inv.versions.length-1];return !!lv&&JSON.stringify({H,L})===JSON.stringify({H:lv.H,L:lv.L})};
+async function dl(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}const nm=`Invoice_${fnm(no)}_${stamp(new Date())}.xlsx`;await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`);return}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
+ if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
+ const nm=vname(inv,inv.versions[inv.versions.length-1])+'.xlsx';await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`)}
+function buildPrintHtml(title){
+const h=k=>H[k]||'',E=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),ml=v=>E(v).replace(/\n/g,'<br>');
+const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase()||'QTY',nf=(n,d)=>(+n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const qf=l=>(Number.isInteger(+l.qty)?nf(l.qty,0):nf(l.qty,2))+' '+un(l.uom);
+const tc=L.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=L.reduce((a,l)=>a+(+l.net||0),0),tg=L.reduce((a,l)=>a+(+l.gross||0),0);
+const uk=new Set(L.map(l=>un(l.uom))),uni=L.length>0&&uk.size==1,tq=uni?nf(L.reduce((a,l)=>a+(+l.qty||0),0),2)+' '+[...uk][0]:'';
+const d=h('Invoice date'),dd=d?d.split('-').reverse().join('-'):'',pd=h('Buyer PO date'),pdd=pd?pd.split('-').reverse().join('-'):'';
+const np=h('Notify party').split('\n'),WD=($('words')&&$('words').value)||words(total());
+const box=(t,b,c)=>`<div class="bx ${c||''}"><div class="lb">${t}</div><div class="bv">${b}</div></div>`;
+const exp=h('Exporter').split('\n'),con=h('Consignee').split('\n');
+const nm=a=>`<b class="nm">${E(a[0]||'')}</b><br>${a.slice(1).map(E).join('<br>')}`;
+const top=(ttl)=>`<div class="ban">SHRIYA MINING INDUSTRIES</div><div class="ttl">${ttl}</div>
+<div class="g2"><div>${box('Exporter',nm(exp))}${box('Consignee',nm(con))}</div>
+<div>${box('Invoice no &amp; Date',`<b class="nm">${E(h('Invoice no'))}</b><span class="r">${E(dd)}</span>`)}${box("Buyer's order no &amp; Date",`<b>PO NO ${E(h('Buyer PO nos'))}</b><span class="r">DATE ${E(pdd)}</span><br>Other reference(s): ${E(h('Other reference'))}`)}${box('Buyer (if other than consignee)',E(h('Buyer (if other)'))||'&nbsp;')}${box('Notify Party',`<b class="nm">${E(np[0]||'')}</b><br>${E(np.slice(1).join(', '))}`)}</div></div>
+<div class="g4">${box('Pre-carriage by',E(h('Pre-carriage by')))}${box('Place of receipt',E(h('Place of receipt')))}${box('Country of origin',E(h('Country of origin')))}${box('Final destination',E(h('Final destination')))}</div>
+<div class="g2b"><div class="g2c">${box('Vessel / Flight No',E(h('Vessel / Flight')))}${box('Port of loading',E(h('Port of loading')))}${box('Port of destination',E(h('Port of discharge')))}${box('Final destination',E(h('Final delivery')))}</div>${box('Terms of payment &amp; delivery','PAYMENT : '+E(h('Payment terms')))}</div>`;
+let lk=null,z=0;
+const body=(inv)=>{let o='';L.forEach(l=>{if(l.kind&&l.kind!==lk){o+=`<tr class="sec"><td colspan="5">${E(l.kind)}${l.kind=='GRANITE TILES'?'&emsp;&emsp;HSN CODE 68022310':''}</td></tr>`;lk=l.kind;z=0}
+ const cn=parseInt(l.crates)||0,zb=z++%2?' zb':'';
+ o+=`<tr class="it${zb}"><td class="mk"><b>${l.crt?'CRT NO '+E(l.crt):''}</b><br><span>${cn>0?String(cn).padStart(2,'0')+(cn>1?' CRATES':' CRATE'):''}</span></td><td class="ds"><b>${E((l.stone+'  '+l.finish).trim())}</b>${l.size?` &nbsp;<b>${E(l.size)}</b>`:''}<br><i>${E(l.ref)}</i></td>`+
+  (inv?`<td class="n">${qf(l)}</td><td class="n">${nf(l.rate,2)}/${un(l.uom)}</td><td class="n am">${nf(amt(l),2)}</td>`:`<td class="n">${qf(l)}</td><td class="n">${+l.net?nf(l.net,3):''}</td><td class="n">${+l.gross?nf(l.gross,3):''}</td>`)+'</tr>'});return o};
+lk=null;z=0;const B1=body(true);lk=null;z=0;const B2=body(false);
+const th=(a,b,c)=>`<thead><tr><th>Marks &amp; No's</th><th>Description of goods</th><th>${a[0]}</th><th>${a[1]}</th><th>${a[2]}</th></tr><tr class="sb"><th>Container</th><th>${[tc?String(tc).padStart(2,'0')+' NOS':'',h('Packing'),h('Grade')].filter(Boolean).map(E).join(' &middot; ')}</th><th>${b[0]}</th><th>${b[1]}</th><th>${b[2]}</th></tr></thead>`;
+const cont=`<tr class="ft"><td></td><td><b>${h('Container no')?'CONT # '+E(h('Container no')):''}</b></td><td colspan="3"></td></tr>`;
+const sign=`<div class="g2 dc"><div class="bx"><div class="lb">Declaration</div><div class="bv sm">We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.</div></div><div class="bx sg"><div class="lb">Signature &amp; Date</div><div class="bv" style="text-align:center"><b class="nm">For SHRIYA MINING INDUSTRIES</b><div style="height:34px"></div><span class="sm">Authorised Signatory</span></div></div></div>`;
+const p1=`<section class="pg">${top('INVOICE')}<table class="gd">${th(['Quantity','Rate','Amount'],['Qty / Unit','USD / Unit','USD'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B1}${cont}</tbody></table>
+<div class="tt"><div class="wd"><div class="lb">Amount chargeable in words</div><b>${E(WD)}</b></div><div class="tq">${tq}</div><div class="tl">TOTAL (USD)</div><div class="ta">$${nf(total(),2)}</div></div>${sign}</section>`;
+const p2=`<section class="pg">${top('PACKING LIST')}<table class="gd pk">${th(['Quantity','Net Wt','Gross Wt'],['Qty','KGS','KGS'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B2}${cont}<tr class="tr"><td colspan="2">TOTAL</td><td class="n">${tq}</td><td class="n">${nf(tn,3)}</td><td class="n">${nf(tg,3)}</td></tr></tbody></table>
+<div class="tw">TOTAL GROSS WEIGHT : ${nf(tg,3)} KGS</div><div class="tw">TOTAL NET WEIGHT : ${nf(tn,3)} KGS</div>${sign}</section>`;
+const css=`@page{size:A4;margin:10mm 9mm 12mm}*{box-sizing:border-box}html,body{margin:0}body{font:10pt/1.35 Calibri,Carlito,Arial,sans-serif;color:#1b2430;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{page-break-after:always;border:2px solid #7a5c3e;border-radius:2px;overflow:hidden}.pg:last-child{page-break-after:auto}
+.ban{background:#7a5c3e;color:#fff;text-align:center;font-weight:700;font-size:19pt;letter-spacing:1.5px;padding:7px}.ttl{background:#f1e5d7;color:#7a5c3e;text-align:center;font-weight:700;font-size:13pt;padding:4px;border-bottom:1px solid #c8bead}
+.g2{display:grid;grid-template-columns:1fr 1fr}.g4{display:grid;grid-template-columns:repeat(4,1fr)}.g2b{display:grid;grid-template-columns:2fr 1fr}.g2c{display:grid;grid-template-columns:repeat(4,1fr)}.g2b>.bx,.g2c>.bx{height:100%}
+.bx{border:.6pt solid #c8bead;margin:0 0 -.6pt -.6pt}.lb{background:#f7f3ee;color:#7a5c3e;font-size:7.5pt;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 6px;border-bottom:.6pt solid #c8bead}.bv{padding:4px 6px;min-height:20px}
+.nm{color:#7a5c3e;font-size:11pt}.r{float:right;font-weight:700}.sm{font-size:8.5pt;color:#5b6578}
+table.gd{width:100%;border-collapse:collapse;margin-top:-.6pt}.gd th{background:#7a5c3e;color:#fff;padding:4px 6px;font-size:10pt;border:.6pt solid #c8bead}.gd tr.sb th{background:#f1e5d7;color:#7a5c3e;font-size:8.5pt}
+.gd td{padding:3px 6px;border-left:.6pt solid #c8bead;border-right:.6pt solid #c8bead;vertical-align:top}.gd tr{page-break-inside:avoid}
+.gd tr.sec td{background:#f1e5d7;color:#7a5c3e;font-weight:700;padding:4px 8px;border-top:.6pt solid #c8bead}.gd tr.it td{border-bottom:.4pt solid #d3dbe8}.gd tr.zb td{background:#f7f3ee}
+.gd td.mk{width:20%;color:#7a5c3e}.gd td.mk span{font-size:9pt}.gd td.ds i{color:#5b6578;font-size:8.5pt}.gd td.n{text-align:right;white-space:nowrap}.gd td.am{font-weight:700;color:#6b7052}
+.gd tr.mc td{color:#7a5c3e;padding:4px 6px}.gd tr.ft td{border-bottom:.6pt solid #c8bead;padding:5px 6px;color:#7a5c3e}.gd tr.tr td{background:#7a5c3e;color:#fff;font-weight:700;padding:5px 6px}.gd tr.tr td.n{background:#f7e2a8;color:#1b2430}
+.pk td.n,.gd th:nth-child(n+3){text-align:right}.gd th:nth-child(2){text-align:left}.gd th:first-child{text-align:left}
+.tt{display:grid;grid-template-columns:1fr auto auto auto;align-items:stretch;border-top:.6pt solid #c8bead;border-bottom:.6pt solid #c8bead}.tt>div{padding:6px 8px;border-right:.6pt solid #c8bead}.tt .wd{color:#7a5c3e}.tt .wd .lb{margin:-6px -8px 4px;border-right:0}
+.tq{background:#f7f3ee;font-weight:700;display:flex;align-items:center}.tl{background:#7a5c3e;color:#fff;font-weight:700;font-size:8.5pt;display:flex;align-items:center}.ta{background:#f7e2a8;color:#7a5c3e;font-weight:700;font-size:13pt;display:flex;align-items:center;border-right:0!important}
+.tw{background:#f7f3ee;font-weight:700;padding:5px 8px;border-top:.6pt solid #c8bead}.dc{margin-top:0;page-break-inside:avoid}`;
+return`<!doctype html><html><head><meta charset="utf-8"><title>${E(title)}</title><style>${css}</style></head><body>${p1}${p2}</body></html>`}
+async function pdf(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}return printDoc(`Invoice_${fnm(no)}_${stamp(new Date())}`)}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
+ if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
+ printDoc(vname(inv,inv.versions[inv.versions.length-1]))}
+function printDoc(name){const fr=document.createElement('iframe');
+ fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(fr);
+ fr.contentDocument.open();fr.contentDocument.write(buildPrintHtml(name));fr.contentDocument.close();
+ toast(`In the print window choose “Save as PDF” – file name will be ${name}.pdf`);
+ const old=document.title,fw=fr.contentWindow,back=()=>{document.title=old};
+ setTimeout(()=>{try{document.title=name;fr.contentDocument.title=name;fw.addEventListener('afterprint',back,{once:true});window.addEventListener('afterprint',back,{once:true});fw.focus();fw.print()}catch(e){back();toast('Could not open print window')}setTimeout(()=>{back();fr.remove()},60000)},300)}
+async function dlVer(id,v){const inv=LEDGER.invoices.find(x=>x.id==id),ver=inv&&inv.versions.find(x=>x.v==v);if(!ver)return;const sH=H,sL=L;H=clone(ver.H);L=clone(ver.L);
+ try{await xlsxSave(await buildWb(ver.words),vname(inv,ver)+'.xlsx')}finally{H=sH;L=sL}}
+$('ifs').innerHTML='<option value="">All statuses</option>'+STAT.map(s=>`<option>${s}</option>`).join('');updInvCount();
+(function(){const hide=i=>{const e=$(i);if(e)e.style.display='none'};
+ if(!FEATURES.savedInvoices){hide('navInv');hide('svcard')}if(!FEATURES.fulfilment)hide('navFul')})();
+</script></body></html>
