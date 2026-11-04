@@ -162,7 +162,7 @@ function build(){const picks=rows.filter(r=>sel.has(r.i));
  L=picks.map(r=>{const p=parse(r);
   const rate=r.uom=='SF'?({'12" X 12"':1.62,'12" X 24"':1.75}[p.size]||0):0;
   return{stone:p.stone,finish:p.finish,size:p.size,
-   ref:`NSR PO # ${r.po}${r.so?` // SO # ${r.so}`:''} (${r.sku})`,crates:0,crt:'',qty:r.qty,uom:r.uom,net:0,gross:0,rate,code:p.code,kind:p.kind,src:r.key,poQty:r.qty,poUom:r.uom}});
+   ref:`NSR PO # ${r.po}${r.so?` // SO # ${r.so}`:''} (${r.sku})`,crates:0,crt:'',qty:r.qty,uom:r.uom,net:'',gross:'',rate,code:p.code,kind:p.kind,src:r.key,poQty:r.qty,poUom:r.uom}});
  L.sort((a,b)=>(a.kind||'').localeCompare(b.kind||''));
  const pos=[...new Set(picks.map(r=>r.po))];const ds=picks.map(r=>new Date(r.date)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
  H=Object.assign({},DEF,{'Buyer PO nos':pos.join(', '),'Buyer PO date':ds.length?ds[0].toISOString().slice(0,10):'','Marks code':'CODE ; '+([...new Set(picks.map(r=>parse(r).code).filter(Boolean))].join(', ')||'')});
@@ -177,9 +177,8 @@ function renderEditor(){
  CW=null;go(3);ln();saveUI()}
 const COLS=[{k:'stone',t:'Stone',w:190},{k:'finish',t:'Finish',w:90},{k:'size',t:'Size',w:95},{k:'ref',t:'PO / ref',w:300},
 {k:'crates',t:'Crate count',w:70,num:1},{k:'crt',t:'Crate range',w:105},{k:'qty',t:'Qty',w:85,num:1},{k:'uom',t:'UOM',w:60},
-{k:'net',t:'Net kg',w:80,num:1},{k:'gross',t:'Gross kg',w:85,num:1},
-{k:'rate',t:'Rate / UOM',w:100,num:1},{k:'amt',t:'Amount USD',w:110,num:1},{k:'del',t:'',w:40}];
-const NUMK=['crates','qty','net','gross','rate'];let CW=null;
+{k:'net',t:'Weight',w:95,num:1},{k:'rate',t:'Rate / UOM',w:100,num:1},{k:'amt',t:'Amount USD',w:110,num:1},{k:'del',t:'',w:40}];
+const NUMK=['crates','qty','net','rate'];let CW=null;
 const cv2=document.createElement('canvas').getContext('2d');
 function mw(t){cv2.font='14px '+getComputedStyle(document.body).fontFamily;return cv2.measureText(t).width}
 const amt=l=>Math.round((+l.qty||0)*(+l.rate||0)*100)/100;
@@ -202,13 +201,13 @@ const firstInvalid=document.querySelector('.invalid-field');if(firstInvalid&&fir
 function labelForRequiredField(name){if(name==='Crate count')return 'Crate count';if(name==='Crate range')return 'Crate range';if(name==='Rate per UOM')return 'Rate per UOM';return name}
 function validateInvoiceFields(){const missing=[];const no=fieldValueFromDom('#hdr [data-k="Invoice no"]');if(!no)missing.push('Invoice no');
 const startNo=(fieldValueFromDom('#hdr [data-k="Crate starting no"]')||fieldValueFromDom('#cstart')||String(H['Crate starting no']||'')).trim();if(!isPositiveInteger(startNo))missing.push('Crate start #');
-L.forEach((l,i)=>{const lineNo=i+1;const checks=[];const qtyValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="qty"]`)||String(l.qty??'').trim();if(!isPositiveInteger(qtyValue))checks.push('Qty');const crates=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Crates"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="crates"]`)||String(l.crates??'').trim();if(!isPositiveInteger(crates))checks.push('Crate count');const crt=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Crate range"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="crt"]`)||String(l.crt??'').trim();if(!crt)checks.push('Crate range');const uom=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="UOM"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="uom"]`)||String(l.uom??'').trim();if(!uom)checks.push('UOM');const netValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="net"]`)||String(l.net??'').trim();if(!isPositiveNumber(netValue))checks.push('Net kg');const grossValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="gross"]`)||String(l.gross??'').trim();if(!isPositiveNumber(grossValue))checks.push('Gross kg');const rateValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Rate / UOM"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="rate"]`)||String(l.rate??'').trim();if(!isPositiveNumber(rateValue))checks.push('Rate per UOM');if(checks.length)missing.push(`Line ${lineNo}: ${checks.map(labelForRequiredField).join(', ')}`)});
+L.forEach((l,i)=>{const lineNo=i+1;const checks=[];const qtyValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="qty"]`)||String(l.qty??'').trim();if(!isPositiveInteger(qtyValue))checks.push('Qty');const crates=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Crates"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="crates"]`)||String(l.crates??'').trim();if(!isPositiveInteger(crates))checks.push('Crate count');const crt=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Crate range"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="crt"]`)||String(l.crt??'').trim();if(!crt)checks.push('Crate range');const uom=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="UOM"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="uom"]`)||String(l.uom??'').trim();if(!uom)checks.push('UOM');const weightValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="net"]`)||String(l.net??'').trim();if(weightValue!==''&&!isPositiveNumber(weightValue))checks.push('Weight');const rateValue=fieldValueFromDom(`#ln input[data-line="${i}"][data-field="Rate / UOM"]`)||fieldValueFromDom(`#ln input[data-line="${i}"][data-field="rate"]`)||String(l.rate??'').trim();if(!isPositiveNumber(rateValue))checks.push('Rate per UOM');if(checks.length)missing.push(`Line ${lineNo}: ${checks.map(labelForRequiredField).join(', ')}`)});
 if(missing.length){highlightRequiredFields(missing);toast(missing.length===1?`${missing[0]} is required`:`Required fields missing: ${missing.slice(0,3).join(' • ')}${missing.length>3?' • ...':''}`);return false}clearRequiredHighlights();return true}
 function initCW(){CW=COLS.map(c=>c.w);const av=($('lt').parentElement.clientWidth||0)-2,s=CW.reduce((a,b)=>a+b,0);if(av>s){const f=av/s;CW=CW.map(x=>Math.floor(x*f))}}
 function tbl(){$('lcg').innerHTML=COLS.map((c,i)=>`<col style="width:${CW[i]}px">`).join('');
  $('lth').innerHTML=`<tr class="pre"><th colspan="5"></th><th class="csh"><div class="cs"><span>Crate start #</span><input id="cstart" type="number" min="0" placeholder="e.g. 245" value="${esc(H['Crate starting no']||'')}" oninput="syncCrateStartValue(this.value)"></div></th><th colspan="${COLS.length-6}"></th></tr>`+'<tr>'+COLS.map((c,i)=>`<th class="${c.num?'num':''}">${c.t}${i<COLS.length-1?`<span class="rz" data-i="${i}" title="Drag to resize · double-click to fit"></span>`:''}</th>`).join('')+'</tr>';
  $('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px';
- $('lft').innerHTML=`<tr class="t1"><td colspan="4" style="text-align:right">TOTAL</td><td class="num" id="tCr"></td><td></td><td class="num" id="tQty"></td><td></td><td class="num" id="tNet">0</td><td class="num" id="tGr">0</td><td class="num">TOTAL USD</td><td class="num amtT" id="tot">0.00</td><td></td></tr><tr class="t2"><td colspan="${COLS.length}"><span class="wl">Amount chargeable in words</span><input id="words" value="${esc($('words')?$('words').value:'')}"></td></tr>`}
+ $('lft').innerHTML=`<tr class="t1"><td colspan="4" style="text-align:right">TOTAL</td><td class="num" id="tCr"></td><td></td><td class="num" id="tQty"></td><td class="num" id="tNet">0</td><td class="num">TOTAL USD</td><td class="num amtT" id="tot">0.00</td><td></td></tr><tr class="t2"><td colspan="${COLS.length}"><span class="wl">Amount chargeable in words</span><input id="words" value="${esc($('words')?$('words').value:'')}"></td></tr>`}
 function rng(){let n=parseInt(H['Crate starting no']);const ok=!isNaN(n);L.forEach((l,i)=>{const c=Math.max(0,parseInt(l.crates)||0);let t='';if(ok&&c>0){t=c==1?String(n):`${n} - ${n+c-1}`;n+=c}l.crt=t;const e=$('rg'+i);if(e){e.value=t;e.title=t}})}
 const ul=l=>String(l.uom||'').trim().toUpperCase()||'QTY';
 function cell(i,c){const l=L[i],k=c.k,req=['crates','crt','uom','rate'].includes(k);
@@ -219,9 +218,9 @@ function cell(i,c){const l=L[i],k=c.k,req=['crates','crt','uom','rate'].includes
  return`<td><input data-k="${k}" data-line="${i}" data-field="${k}" data-required="${req?1:0}" class="${c.num?'num':''}${k=='rate'&&!(+v)?' warn':''}" ${NUMK.includes(k)?'inputmode="decimal"':''} title="${esc(v)}" value="${esc(v)}" onchange="upd(${i},'${k}',this.value,this)" ${req?'required':''}></td>`}
 function ln(){if(!CW)initCW();tbl();rng();$('ln').innerHTML=L.map((l,i)=>`<tr>${COLS.map(c=>cell(i,c)).join('')}</tr>`).join('');tot()}
 function upd(i,k,v,el){const l=L[i];if(NUMK.includes(k)){if(v==='' ) l[k]=''; else {const n=safeNumber(v);l[k]=Number.isFinite(n)?n:0;}} else l[k]=v;if(el){el.title=el.value;const invalid=(k==='qty'||k==='crates')?(!isPositiveInteger(l[k])):((k==='net'||k==='gross'||k==='rate')?(!isPositiveNumber(l[k])):false);el.classList.toggle('warn',invalid);if(k==='rate')el.classList.toggle('warn',!isPositiveNumber(l[k]));}if(k==='crates')rng();$('a'+i).textContent=amt(l).toFixed(2);tot()}
-function addLine(){L.push({stone:'',finish:'',size:'',ref:'',crates:0,crt:'',qty:0,uom:'SF',net:0,gross:0,rate:0,kind:''});ln()}
+function addLine(){L.push({stone:'',finish:'',size:'',ref:'',crates:0,crt:'',qty:0,uom:'SF',net:'',gross:'',rate:0,kind:''});ln()}
 function tot(){const S=k=>L.reduce((a,l)=>a+(+l[k]||0),0),f=(n,d)=>n.toLocaleString('en-US',{maximumFractionDigits:d});
- $('tCr').textContent=S('crates')||'';{const us=new Set(L.map(l=>String(l.uom||'').toUpperCase()));$('tQty').textContent=us.size==1?f(S('qty'),2):''}$('tNet').textContent=f(S('net'),3);$('tGr').textContent=f(S('gross'),3);
+ $('tCr').textContent=S('crates')||'';{const us=new Set(L.map(l=>String(l.uom||'').toUpperCase()));$('tQty').textContent=us.size==1?f(S('qty'),2):''}$('tNet').textContent=f(S('net'),3);
  const t=total();$('tot').textContent=t.toLocaleString('en-US',{minimumFractionDigits:2});$('words').value=words(t)}
 let rz=null;const setW=()=>{$('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px'};
 document.addEventListener('pointerdown',e=>{const h=e.target.closest&&e.target.closest('.rz');if(!h)return;e.preventDefault();const i=+h.dataset.i;rz={i,x:e.clientX,w:CW[i],h};h.classList.add('on');try{h.setPointerCapture(e.pointerId)}catch(x){}});
@@ -238,7 +237,7 @@ const WD=wo!==undefined?wo:($('words')?$('words').value:words(total()));const h=
 const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase();
 const qd=l=>({v:+l.qty||0,nf:(Number.isInteger(+l.qty)?'#,##0':'#,##0.00')+' "'+(un(l.uom)||'QTY')+'"'});
 const rnf=l=>'0.00"/'+(un(l.uom)||'QTY')+'"';
-const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=lines.reduce((a,l)=>a+(+l.net||0),0),tg=lines.reduce((a,l)=>a+(+l.gross||0),0);
+const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=lines.reduce((a,l)=>a+(+l.net||0),0);
 const uk=new Set(lines.map(l=>un(l.uom))),uni=lines.length>0&&uk.size==1,tnf=uni?'#,##0.00 "'+(un(lines[0].uom)||'QTY')+'"':'#,##0.00';
 const wb=new ExcelJS.Workbook();wb.creator='Shriya Mining Industries';wb.title='Invoice '+h('Invoice no');
 const EARTH='FF7A5C3E',EARTH_LT='FFC49A6C',LIGHT='FFEDE6DA',MID='FFF1E5D7',LINE='FFC8BEAD',HAIR='FFE0D8CE',ZEB='FFF7F3EE',GOLD='FFF7E2A8';
@@ -280,10 +279,10 @@ function sheet(name,title,inv,tab){
  val(r,1,3,h('Port of discharge'),{b:1});val(r,4,5,h('Final delivery'),{b:1});ws.getRow(r).height=19;r++;
  const HD={b:1,h:'center',color:'FFFFFFFF',fill:NAVY,bd:{top:Ln,left:Ln,right:Ln,bottom:Ln}};
  put(r,1,2,"Marks & No's",HD);put(r,3,6,'Description of goods',HD);
- if(inv){put(r,7,7,'Quantity',HD);put(r,8,8,'Rate',HD);put(r,9,9,'Amount',HD)}else{put(r,7,7,'Quantity',HD);put(r,8,8,'Net Wt',HD);put(r,9,9,'Gross Wt',HD)}ws.getRow(r).height=22;r++;
+ put(r,7,7,'Quantity',HD);put(r,8,8,'Weight',HD);put(r,9,9,'Amount',HD);ws.getRow(r).height=22;r++;
  const SB={h:'center',b:1,size:9.5,color:NAVY,fill:MID,bd:{left:Ln,right:Ln,bottom:Ln}};
  put(r,1,2,'Container',SB);put(r,3,6,[tc?String(tc).padStart(2,'0')+' NOS':'',h('Packing'),h('Grade')].filter(Boolean).join('  ·  '),SB);
- if(inv){put(r,7,7,'Qty / Unit',SB);put(r,8,8,'USD / Unit',SB);put(r,9,9,'USD',SB)}else{put(r,7,7,'Qty',SB);put(r,8,8,'KGS',SB);put(r,9,9,'KGS',SB)}r++;
+ put(r,7,7,'Qty / Unit',SB);put(r,8,8,'Weight',SB);put(r,9,9,'USD',SB);r++;
  put(r,1,2,h('Marks code'),{b:1,color:NAVY,bd:VB});put(r,3,9,'',{bd:VB});ws.getRow(r).height=19;r++;
  const first=r;let lk=null,z=0;const fl=f=>f?{fill:f}:{};
  lines.forEach(l=>{
@@ -291,8 +290,9 @@ function sheet(name,title,inv,tab){
   const f=z++%2?ZEB:undefined,I={bd:VB,...fl(f)},q=qd(l);
   put(r,1,2,l.crt?'CRT NO  '+l.crt:'',{...I,b:1,color:NAVY});put(r,3,5,(l.stone+'  '+l.finish).trim(),{...I,b:1,size:11});put(r,6,6,l.size,{...I,h:'center',b:1});
   put(r,7,7,q.v,{...I,h:'right',nf:q.nf});
-  if(inv){put(r,8,8,+l.rate||0,{...I,h:'right',nf:rnf(l)});put(r,9,9,{formula:`ROUND(G${r}*H${r},2)`,result:l.amount},{...I,h:'right',b:1,nf:'#,##0.00',color:'FF0B5C45'})}
-  else{put(r,8,8,+l.net||'',{...I,h:'right',nf:'#,##0.000'});put(r,9,9,+l.gross||'',{...I,h:'right',nf:'#,##0.000'})}
+  const weightValue = l.net === '' || l.net === null || l.net === undefined ? '' : +l.net;
+  if(inv){put(r,8,8,weightValue || '',{...I,h:'right',nf:'#,##0.000'});put(r,9,9,{formula:`ROUND(G${r}*H${r},2)`,result:l.amount},{...I,h:'right',b:1,nf:'#,##0.00',color:'FF0B5C45'})}
+  else{put(r,8,8,weightValue || '',{...I,h:'right',nf:'#,##0.000'});put(r,9,9,weightValue || '',{...I,h:'right',nf:'#,##0.000'})}
   ws.getRow(r).height=20;r++;
   const cn=parseInt(l.crates)||0;
   put(r,1,2,cn>0?String(cn).padStart(2,'0')+(cn>1?' CRATES':' CRATE'):'',{...I,size:10,color:NAVY});
@@ -307,8 +307,8 @@ function sheet(name,title,inv,tab){
   put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',size:13,color:NAVY,nf:'$#,##0.00',fill:GOLD},r+1);
   put(r+1,1,6,WD,{b:1,i:1,wrap:1,color:NAVY,bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r+1).height=26;r+=2}
  else{put(r,1,6,'TOTAL',{...T,h:'left'});put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`}:'',{b:1,h:'right',nf:tnf,fill:LIGHT});
-  put(r,8,8,{formula:`SUM(H${first}:H${last})`,result:tn},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:tg},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});ws.getRow(r).height=24;r++;
-  put(r,1,9,'TOTAL GROSS WEIGHT :   '+tg.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++;put(r,1,9,'TOTAL NET WEIGHT :   '+tn.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++}
+  put(r,8,8,{formula:`SUM(H${first}:H${last})`,result:tn},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',nf:'$#,##0.00',fill:GOLD});ws.getRow(r).height=24;r++;
+  put(r,1,9,'TOTAL WEIGHT :   '+tn.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++}
  lab(r,1,5,'Declaration');lab(r,6,9,'Signature & Date');r++;
  put(r,1,5,'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.',{wrap:1,v:'top',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln}},r+2);
  put(r,6,9,'For SHRIYA MINING INDUSTRIES',{b:1,h:'center',color:NAVY,bd:{left:Ln,right:Ln}});put(r+1,6,9,'',{bd:{left:Ln,right:Ln}});ws.getRow(r+1).height=34;
@@ -422,7 +422,7 @@ function buildPrintHtml(title){
 const h=k=>H[k]||'',E=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),ml=v=>E(v).replace(/\n/g,'<br>');
 const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase()||'QTY',nf=(n,d)=>(+n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const qf=l=>(Number.isInteger(+l.qty)?nf(l.qty,0):nf(l.qty,2))+' '+un(l.uom);
-const tc=L.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=L.reduce((a,l)=>a+(+l.net||0),0),tg=L.reduce((a,l)=>a+(+l.gross||0),0);
+const tc=L.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=L.reduce((a,l)=>a+(+l.net||0),0);
 const uk=new Set(L.map(l=>un(l.uom))),uni=L.length>0&&uk.size==1,tq=uni?nf(L.reduce((a,l)=>a+(+l.qty||0),0),2)+' '+[...uk][0]:'';
 const d=h('Invoice date'),dd=d?d.split('-').reverse().join('-'):'',pd=h('Buyer PO date'),pdd=pd?pd.split('-').reverse().join('-'):'';
 const np=h('Notify party').split('\n'),WD=($('words')&&$('words').value)||words(total());
@@ -438,15 +438,15 @@ let lk=null,z=0;
 const body=(inv)=>{let o='';L.forEach(l=>{if(l.kind&&l.kind!==lk){o+=`<tr class="sec"><td colspan="5">${E(l.kind)}${l.kind=='GRANITE TILES'?'&emsp;&emsp;HSN CODE 68022310':''}</td></tr>`;lk=l.kind;z=0}
  const cn=parseInt(l.crates)||0,zb=z++%2?' zb':'';
  o+=`<tr class="it${zb}"><td class="mk"><b>${l.crt?'CRT NO '+E(l.crt):''}</b><br><span>${cn>0?String(cn).padStart(2,'0')+(cn>1?' CRATES':' CRATE'):''}</span></td><td class="ds"><b>${E((l.stone+'  '+l.finish).trim())}</b>${l.size?` &nbsp;<b>${E(l.size)}</b>`:''}<br><i>${E(l.ref)}</i></td>`+
-  (inv?`<td class="n">${qf(l)}</td><td class="n">${nf(l.rate,2)}/${un(l.uom)}</td><td class="n am">${nf(amt(l),2)}</td>`:`<td class="n">${qf(l)}</td><td class="n">${+l.net?nf(l.net,3):''}</td><td class="n">${+l.gross?nf(l.gross,3):''}</td>`)+'</tr>'});return o};
+  `<td class="n">${qf(l)}</td><td class="n">${+l.net?nf(l.net,3):''}</td><td class="n am">${nf(amt(l),2)}</td>`+'</tr>'});return o};
 lk=null;z=0;const B1=body(true);lk=null;z=0;const B2=body(false);
 const th=(a,b,c)=>`<thead><tr><th>Marks &amp; No's</th><th>Description of goods</th><th>${a[0]}</th><th>${a[1]}</th><th>${a[2]}</th></tr><tr class="sb"><th>Container</th><th>${[tc?String(tc).padStart(2,'0')+' NOS':'',h('Packing'),h('Grade')].filter(Boolean).map(E).join(' &middot; ')}</th><th>${b[0]}</th><th>${b[1]}</th><th>${b[2]}</th></tr></thead>`;
 const cont=`<tr class="ft"><td></td><td><b>${h('Container no')?'CONT # '+E(h('Container no')):''}</b></td><td colspan="3"></td></tr>`;
 const sign=`<div class="g2 dc"><div class="bx"><div class="lb">Declaration</div><div class="bv sm">We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.</div></div><div class="bx sg"><div class="lb">Signature &amp; Date</div><div class="bv" style="text-align:center"><b class="nm">For SHRIYA MINING INDUSTRIES</b><div style="height:34px"></div><span class="sm">Authorised Signatory</span></div></div></div>`;
-const p1=`<section class="pg">${top('INVOICE')}<table class="gd">${th(['Quantity','Rate','Amount'],['Qty / Unit','USD / Unit','USD'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B1}${cont}</tbody></table>
+const p1=`<section class="pg">${top('INVOICE')}<table class="gd">${th(['Quantity','Weight','Amount'],['Qty / Unit','Weight','USD'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B1}${cont}</tbody></table>
 <div class="tt"><div class="wd"><div class="lb">Amount chargeable in words</div><b>${E(WD)}</b></div><div class="tq">${tq}</div><div class="tl">TOTAL (USD)</div><div class="ta">$${nf(total(),2)}</div></div>${sign}</section>`;
-const p2=`<section class="pg">${top('PACKING LIST')}<table class="gd pk">${th(['Quantity','Net Wt','Gross Wt'],['Qty','KGS','KGS'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B2}${cont}<tr class="tr"><td colspan="2">TOTAL</td><td class="n">${tq}</td><td class="n">${nf(tn,3)}</td><td class="n">${nf(tg,3)}</td></tr></tbody></table>
-<div class="tw">TOTAL GROSS WEIGHT : ${nf(tg,3)} KGS</div><div class="tw">TOTAL NET WEIGHT : ${nf(tn,3)} KGS</div>${sign}</section>`;
+const p2=`<section class="pg">${top('PACKING LIST')}<table class="gd pk">${th(['Quantity','Weight','Amount'],['Qty','Weight','USD'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B2}${cont}<tr class="tr"><td colspan="2">TOTAL</td><td class="n">${tq}</td><td class="n">${nf(tn,3)}</td><td class="n">${nf(total(),2)}</td></tr></tbody></table>
+<div class="tw">TOTAL WEIGHT : ${nf(tn,3)} KGS</div>${sign}</section>`;
 const css=`@page{size:A4;margin:10mm 9mm 12mm}*{box-sizing:border-box}html,body{margin:0}body{font:10pt/1.35 Calibri,Carlito,Arial,sans-serif;color:#1b2430;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pg{page-break-after:always;border:2px solid #7a5c3e;border-radius:2px;overflow:hidden}.pg:last-child{page-break-after:auto}
 .ban{background:#7a5c3e;color:#fff;text-align:center;font-weight:700;font-size:19pt;letter-spacing:1.5px;padding:7px}.ttl{background:#f1e5d7;color:#7a5c3e;text-align:center;font-weight:700;font-size:13pt;padding:4px;border-bottom:1px solid #c8bead}
