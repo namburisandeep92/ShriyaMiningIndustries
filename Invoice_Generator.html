@@ -3,6 +3,7 @@
 <title>Shriya Mining Industries – Invoice Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 :root{--bg:#f7f3ee;--cream:#f7f3ee;--parchment:#ede6da;--sand:#d4c4a8;--sand-dk:#b8a888;--stone:#8a7d6e;--stone-dk:#5c5248;--earth:#7a5c3e;--earth-lt:#c49a6c;--olive:#6b7052;--olive-lt:#9aa070;--terracotta:#a85c3c;--tera-lt:#d4855c;--ink:#2a2520;--ink-mid:#3e3830;--ink-lt:#5a5248;--rule:#c8bead;--rule-lt:#e0d8ce;--white:#fdfaf6;--gold:#f7e2a8;--card:#fffdf9;--tx:var(--ink);--mut:var(--stone-dk);--ac:var(--earth);--bd:var(--rule);--hd:var(--earth);--fh:var(--parchment);--z:var(--cream);--hv:#efe4d4;--sl:#edf3e3;--qn:var(--earth);--cl:35%}
 @media(prefers-color-scheme:dark){:root{--bg:#201d1a;--card:#292420;--tx:#f4efe9;--mut:#c9bca9;--ac:var(--earth-lt);--bd:#574e45;--hd:#5c4333;--fh:#312d2a;--z:#26211e;--hv:#3b322e;--sl:#2e3a2b;--qn:var(--earth-lt);--cl:78%}}
@@ -84,7 +85,19 @@ button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--o
 .export-format button[aria-pressed="true"]{background:var(--earth);color:#fff;box-shadow:0 2px 5px rgba(42,37,32,.2)}
 button.preview-action{background:var(--terracotta);color:#fff;border:1px solid var(--terracotta);font-weight:600}
 button.preview-action:hover:not(:disabled){background:#914b31;border-color:#914b31}
-button.preview-action:focus-visible,.export-format button:focus-visible{outline:3px solid var(--earth-lt);outline-offset:2px}</style></head><body>
+button.preview-action:focus-visible,.export-format button:focus-visible{outline:3px solid var(--earth-lt);outline-offset:2px}
+#mailDialog{width:min(620px,calc(100% - 24px));max-height:90vh;padding:0;border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);box-shadow:0 18px 60px rgba(0,0,0,.35)}
+#mailDialog::backdrop{background:rgba(28,22,17,.58)}.mailbox{display:grid;grid-template-columns:78px minmax(0,1fr);gap:10px 12px;padding:20px}
+.mailhead,.mail-status,.mail-connect,.mail-actions{grid-column:1/-1}.mailhead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--bd);padding-bottom:10px}
+.mailhead h2{margin:0;color:var(--earth);font-size:20px}.mailhead p{margin:3px 0 0;color:var(--mut);font-size:12px}
+.mailbox>label{align-self:center;font-weight:650;color:var(--mut);font-size:13px}.mailbox>input,.mailbox>select,.mailbox>textarea{width:100%;min-width:0;background:var(--card)}
+.mail-connect{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px;border-radius:8px;background:var(--fh);font-size:12px;color:var(--mut)}
+.mail-photo-row,.mail-photo-list{grid-column:1/-1}.mail-photo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.mail-photo-row label{font-size:13px;font-weight:650;color:var(--mut)}
+.mail-photo-list{display:flex;flex-wrap:wrap;gap:6px}.mail-photo{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:5px 8px;border:1px solid var(--bd);border-radius:7px;background:var(--fh);font-size:12px}.mail-photo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mail-photo button{padding:0 4px;background:transparent;color:var(--terracotta);font-size:15px}
+.mail-status{display:none;padding:9px 11px;border:1px solid var(--bd);border-radius:7px;background:var(--fh);font-size:13px}.mail-status.show{display:block}.mail-status.error{color:#8a1f1f;background:#fff1f1;border-color:#d76a6a}
+.mail-actions{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid var(--bd);padding-top:12px}
+@media(max-width:520px){.mailbox{grid-template-columns:1fr;gap:6px}.mailbox>label{margin-top:5px}.mail-connect{align-items:flex-start;flex-direction:column}}
+</style></head><body>
 <header><h1>Shriya Mining Industries – Invoice Generator</h1>
 <div class="steps"><span id="t1" class="on" onclick="stepTo(1)">1 Upload</span><span id="t2" onclick="stepTo(2)">2 Select records</span><span id="t3" onclick="stepTo(3)">3 Edit &amp; download</span></div><button class="navb" id="navFul" onclick="showFul()">📊 PO fulfilment</button><button class="navb" id="navInv" style="margin-left:8px" onclick="showInv()">📁 Saved invoices <span id="invcnt"></span></button></header>
 <main>
@@ -98,12 +111,26 @@ button.preview-action:focus-visible,.export-format button:focus-visible{outline:
 
 <section id="s3" class="hide">
 <div id="reqBanner" class="req-banner" aria-live="polite"></div>
-<div class="bar noprint"><button class="sec" onclick="backBtn()">← Back to selection</button><span class="sp"></span><fieldset class="export-format" role="group" aria-label="Invoice download format"><legend>Format</legend><button type="button" data-export-format="xlsx" aria-pressed="true" onclick="setExportFormat('xlsx')">Excel</button><button type="button" data-export-format="pdf" aria-pressed="false" onclick="setExportFormat('pdf')">PDF</button></fieldset><button class="preview-action" onclick="previewInvoice()">👁 Preview</button><button class="gn" onclick="saveDownload()">⬇ Save &amp; download</button></div>
+<div class="bar noprint"><button class="sec" onclick="backBtn()">← Back to selection</button><span class="sp"></span><fieldset class="export-format" role="group" aria-label="Invoice download format"><legend>Format</legend><button type="button" data-export-format="xlsx" aria-pressed="true" onclick="setExportFormat('xlsx')">Excel</button><button type="button" data-export-format="pdf" aria-pressed="false" onclick="setExportFormat('pdf')">PDF</button></fieldset><button class="preview-action" onclick="previewInvoice()">👁 Preview</button><button class="gn" onclick="saveDownload()">⬇ Save &amp; download</button><button type="button" class="sec" onclick="openMailDialog()">✉ Email invoice</button></div>
 <div class="card svc noprint" id="svcard"><div id="curinfo"></div><div class="svrow"><label for="svstat">Status</label><select id="svstat"><option>Draft</option><option>In review</option></select><input id="svnote" placeholder="Note for this version (optional)"><button class="gn" id="svbtn" onclick="saveInv()">Save invoice (v1)</button></div></div>
 <div class="card hc"><div class="ch"><h3>Invoice details</h3><span class="chs">Edit any field – it flows into the downloaded invoice</span></div><div id="hdr"></div></div>
 <div class="card lc"><div class="ch"><h3>Line items</h3><span class="chs">Drag a column edge to resize · double-click an edge to fit</span><span class="sp"></span><button class="sec sm noprint" onclick="CW=null;ln()">↔ Reset widths</button><button class="gn sm noprint" onclick="addLine()">+ Add line</button></div>
 <div class="scroll" style="max-height:none"><table id="lt"><colgroup id="lcg"></colgroup><thead id="lth"></thead><tbody id="ln"></tbody><tfoot id="lft"></tfoot></table></div>
 <p class="noprint note">Crate ranges follow the Crate start # (above the Crate range column) and each line's crate count, in table order. Amount = Qty × Rate, where the rate is per the line's UOM (SF, Box, PC …). Rates of 0 are highlighted in amber.</p></div></section>
+<dialog id="mailDialog" aria-labelledby="mailTitle"><form method="dialog" class="mailbox" onsubmit="return false">
+<div class="mailhead"><div><h2 id="mailTitle">Email invoice</h2><p id="mailAttachment">Invoice attachment: Excel</p></div><button type="button" class="sec" onclick="$('mailDialog').close()">Close</button></div>
+<div id="mailStatus" class="mail-status" role="status" aria-live="polite"></div>
+<div class="mail-connect"><span id="mailConnection">Connect to Zoho Mail to load your sender account.</span><button type="button" class="gn" id="mailConnectBtn" onclick="connectZoho()">Connect Zoho Mail</button></div>
+<label for="mailFrom">From</label><select id="mailFrom" required></select>
+<label for="mailTo">To</label><input id="mailTo" type="text" value="namburisandeep92@gmail.com" placeholder="recipient@example.com" required>
+<label for="mailCc">CC</label><input id="mailCc" type="text" placeholder="Optional; separate addresses with commas">
+<label for="mailBcc">BCC</label><input id="mailBcc" type="text" placeholder="Optional; separate addresses with commas">
+<label for="mailSubject">Subject</label><input id="mailSubject" type="text" required>
+<label for="mailBody">Message</label><textarea id="mailBody" rows="8"></textarea>
+<div class="mail-photo-row"><label for="mailPhotos">Additional pictures</label><input id="mailPhotos" type="file" accept="image/*" multiple style="max-width:320px" onchange="addMailImages(this.files);this.value=''"></div>
+<div id="mailPhotoList" class="mail-photo-list" aria-live="polite"></div>
+<div class="mail-actions"><button type="button" class="sec" onclick="$('mailDialog').close()">Cancel</button><button type="button" class="gn" id="mailSendBtn" onclick="sendInvoiceEmail()" disabled>Send invoice</button></div>
+</form></dialog>
 <section id="s4" class="card hide"><div class="ch"><button class="sec sm" onclick="backFromInv()">← Back</button><h3>Saved invoices</h3><span class="chs">Status and every saved version of each invoice</span><span class="sp"></span><button class="gn sm" onclick="go(1)">+ New from PO file</button></div>
 <div class="bar"><input id="iq" placeholder="Search invoice no, PO…" oninput="renderInv()" style="max-width:240px"><select id="ifs" onchange="renderInv()" style="max-width:170px"></select><span class="sp"></span><button class="sec sm" onclick="exportLedger()">⬇ Export ledger</button><button class="sec sm" onclick="$('imp').click()">⬆ Import ledger</button><input id="imp" type="file" accept=".json" class="hide" onchange="importLedger(this.files[0]);this.value=''"></div>
 <div class="scroll" style="max-height:none"><table id="it"><thead><tr><th>Invoice no</th><th>Date</th><th>Buyer PO nos</th><th>Status</th><th>Version</th><th class="num">Total USD</th><th>Last saved</th><th>Actions</th></tr></thead><tbody id="ib"></tbody></table></div>
@@ -435,7 +462,119 @@ async function dl(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']|
  if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
  const nm=vname(inv,inv.versions[inv.versions.length-1])+'.xlsx';await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`)}
 let EXPORT_FORMAT='xlsx';
-function setExportFormat(format){if(!['xlsx','pdf'].includes(format))return;EXPORT_FORMAT=format;document.querySelectorAll('[data-export-format]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.exportFormat==format)))}
+function setExportFormat(format){if(!['xlsx','pdf'].includes(format))return;EXPORT_FORMAT=format;document.querySelectorAll('[data-export-format]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.exportFormat==format)));updateMailAttachment()}
+const ZOHO_CLIENT_ID='1000.SGZNKQIIGTM20R0A0E0C3R2XWBP1UR';
+const ZOHO_PRODUCTION_ORIGIN='https://www.shriyamining.com';
+const ZOHO_FROM_ADDRESS='Sandeepnamburi@shriyamining.com';
+const ZOHO_TO_ADDRESS='namburisandeep92@gmail.com';
+const ZOHO_ACCOUNTS_URL='https://accounts.zoho.com';
+const ZOHO_MAIL_URL='https://mail.zoho.com/api';
+let ZOHO_TOKEN='',ZOHO_TOKEN_EXPIRES=0,ZOHO_AUTH_STATE='',ZOHO_POPUP=null,ZOHO_ACCOUNTS=[],MAIL_IMAGES=[];
+function zohoRedirectUri(){return location.origin+location.pathname}
+function isZohoAllowedOrigin(){return location.origin===ZOHO_PRODUCTION_ORIGIN||location.protocol==='http:'&&['localhost','127.0.0.1'].includes(location.hostname)}
+function setZohoConnectHint(){if(!isZohoAllowedOrigin()){$('mailConnection').textContent='Use the deployed HTTPS site or a registered localhost development URL.';return}if(location.hostname==='localhost'||location.hostname==='127.0.0.1')$('mailConnection').textContent='Local test: Zoho must also have this exact localhost redirect and JavaScript domain registered.'}
+function mailStatus(message,error=false){const e=$('mailStatus');e.textContent=message;e.classList.toggle('show',!!message);e.classList.toggle('error',error)}
+function updateMailAttachment(){const e=$('mailAttachment');if(e)e.textContent=`Invoice attachment: ${EXPORT_FORMAT=='pdf'?'PDF':'Excel'} (${EXPORT_FORMAT=='pdf'?'.pdf':'.xlsx'})`}
+function mailApiError(data,response){return data?.status?.description||data?.message||data?.error||`Zoho Mail request failed (${response.status} ${response.statusText})`}
+async function zohoJson(response){let data;try{data=await response.json()}catch(e){throw Error(`Zoho returned an unreadable response (${response.status})`)}if(!response.ok||(data?.status?.code&&Number(data.status.code)!==200))throw Error(mailApiError(data,response));return data}
+function showMailAccounts(data){
+ if(!Array.isArray(data)||!data.length)throw Error('Zoho returned no mail accounts. Confirm the account-read permission was granted.');
+ const choices=[];
+ data.forEach(account=>{
+  if(!account.accountId)return;
+  const senders=(account.sendMailDetails||[]).filter(s=>s.status!==false&&s.fromAddress).map(s=>s.fromAddress);
+  const fallback=account.primaryEmailAddress||account.mailboxAddress||account.emailAddress?.find(e=>e.isPrimary)?.mailId;
+  if(!senders.length&&fallback)senders.push(fallback);
+  senders.forEach(address=>choices.push({id:String(account.accountId),address,account}));
+ });
+ if(!choices.length)throw Error('No usable sender address was returned for your Zoho Mail account.');
+ const select=$('mailFrom');select.innerHTML='<option value="">Select a sender address</option>'+choices.map(x=>`<option value="${esc(x.id)}|${esc(x.address)}">${esc(x.address)}</option>`).join('');
+ const desired=choices.find(x=>x.address.toLowerCase()===ZOHO_FROM_ADDRESS.toLowerCase());if(desired)select.value=`${desired.id}|${desired.address}`;
+ ZOHO_ACCOUNTS=data;$('mailConnection').textContent=desired?`Connected to Zoho Mail · ${desired.address}`:`${ZOHO_FROM_ADDRESS} is not available as a Zoho sender. Verify it as an address/alias first.`;$('mailConnectBtn').textContent='Reconnect';$('mailSendBtn').disabled=!desired
+}
+async function loadZohoAccounts(){
+ const response=await fetch(`${ZOHO_MAIL_URL}/accounts`,{headers:{Accept:'application/json',Authorization:`Zoho-oauthtoken ${ZOHO_TOKEN}`}});
+ const data=await zohoJson(response);showMailAccounts(data.data)
+}
+function connectZoho(){
+ if(!isZohoAllowedOrigin()){mailStatus('Open the deployed HTTPS site or use a registered http://localhost development URL. file:// pages cannot complete OAuth.',true);return}
+ if(!crypto?.getRandomValues){mailStatus('This browser cannot securely start Zoho authorization.',true);return}
+ const bytes=new Uint8Array(24);crypto.getRandomValues(bytes);ZOHO_AUTH_STATE=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ const params=new URLSearchParams({response_type:'token',client_id:ZOHO_CLIENT_ID,scope:'ZohoMail.accounts.READ,ZohoMail.messages.CREATE',redirect_uri:zohoRedirectUri(),state:ZOHO_AUTH_STATE,prompt:'consent'});
+ ZOHO_POPUP=window.open(`${ZOHO_ACCOUNTS_URL}/oauth/v2/auth?${params}`,'zoho-mail-oauth','popup,width=560,height=720');
+ if(!ZOHO_POPUP){mailStatus('Zoho authorization popup was blocked. Allow popups for this site and try again.',true);return}
+ mailStatus('Complete the Zoho authorization in the popup. Your short-lived access token stays in this page memory.',false)
+}
+window.addEventListener('message',async event=>{
+ if(event.origin!==location.origin||event.source!==ZOHO_POPUP||event.data?.type!=='smi-zoho-oauth'||event.data.state!==ZOHO_AUTH_STATE)return;
+ ZOHO_AUTH_STATE='';ZOHO_POPUP=null;
+ if(event.data.error){mailStatus(`Zoho authorization failed: ${event.data.error}`,true);return}
+ if(!event.data.accessToken){mailStatus('Zoho did not return an access token.',true);return}
+ ZOHO_TOKEN=event.data.accessToken;ZOHO_TOKEN_EXPIRES=Date.now()+Math.max(0,Number(event.data.expiresIn)||3600)*1000;
+ try{mailStatus('Loading your Zoho sender account…');await loadZohoAccounts();mailStatus(`Connected to Zoho Mail · ${$('mailFrom').selectedOptions[0]?.textContent||''}`)}
+ catch(e){ZOHO_TOKEN='';ZOHO_TOKEN_EXPIRES=0;mailStatus(`Could not load Zoho Mail accounts: ${e.message}`,true)}
+});
+function handleZohoOAuthCallback(){
+ if(!window.opener)return;
+ const params=new URLSearchParams(location.hash.slice(1)),accessToken=params.get('access_token'),state=params.get('state'),error=params.get('error')||params.get('error_description');
+ if(!accessToken&&!error)return;
+ try{window.opener.postMessage({type:'smi-zoho-oauth',accessToken,state,expiresIn:params.get('expires_in'),error},location.origin)}finally{history.replaceState(null,'',location.pathname+location.search);window.close()}
+}
+function openMailDialog(){
+ if(!invoiceReady())return;
+ updateMailAttachment();mailStatus('');
+ if(!$('mailTo').value)$('mailTo').value=ZOHO_TO_ADDRESS;
+ if(!$('mailSubject').value)$('mailSubject').value=`Invoice ${String(H['Invoice no']||'').trim()}`;
+ if(!$('mailBody').value)$('mailBody').value=`Hello,\n\nPlease find attached invoice ${String(H['Invoice no']||'').trim()}.\n\nBuyer PO: ${H['Buyer PO nos']||''}\nTotal: USD ${money(total())}\n\nThank you,\nShriya Mining Industries`;
+ $('mailDialog').showModal();
+ setZohoConnectHint();
+ if(ZOHO_TOKEN&&Date.now()<ZOHO_TOKEN_EXPIRES&&!ZOHO_ACCOUNTS.length)loadZohoAccounts().catch(e=>mailStatus(`Could not load Zoho Mail accounts: ${e.message}`,true));
+ if(!ZOHO_TOKEN||Date.now()>=ZOHO_TOKEN_EXPIRES){$('mailSendBtn').disabled=true;$('mailConnectBtn').textContent='Connect Zoho Mail';mailStatus('Connect your Zoho account to load the sender address and enable sending.')}
+}
+function renderMailImages(){
+ const list=$('mailPhotoList');list.replaceChildren();
+ MAIL_IMAGES.forEach((file,index)=>{const chip=document.createElement('div'),name=document.createElement('span'),remove=document.createElement('button');chip.className='mail-photo';name.textContent=`${file.name} (${(file.size/1048576).toFixed(2)} MB)`;remove.type='button';remove.setAttribute('aria-label',`Remove ${file.name}`);remove.textContent='×';remove.onclick=()=>{MAIL_IMAGES.splice(index,1);renderMailImages()};chip.append(name,remove);list.append(chip)})
+}
+function addMailImages(files){
+ const invalid=[...files].filter(file=>!file.type.startsWith('image/'));
+ if(invalid.length){mailStatus(`Only image files can be attached: ${invalid.map(file=>file.name).join(', ')}`,true);return}
+ MAIL_IMAGES.push(...files);renderMailImages();mailStatus(MAIL_IMAGES.length?`${MAIL_IMAGES.length} additional picture${MAIL_IMAGES.length==1?'':'s'} ready to attach.`:'')
+}
+function parseMailAddresses(value){const values=String(value||'').split(/[;,]+/).map(x=>x.trim()).filter(Boolean);if(values.some(a=>!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(a)))throw Error('Enter valid email addresses, separated by commas.');return values}
+async function invoiceAttachment(){
+ const base=invoiceFileBase();
+ if(EXPORT_FORMAT=='xlsx'){const buffer=await(await buildWb()).xlsx.writeBuffer();return{blob:new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),name:base+'.xlsx'}}
+ if(typeof html2pdf!=='function')throw Error('The PDF generator did not load. Check your internet connection and reload the page.');
+ const frame=document.createElement('iframe');frame.setAttribute('aria-hidden','true');frame.style.cssText='position:fixed;left:0;top:0;width:800px;height:1200px;opacity:.01;pointer-events:none;z-index:-1';document.body.appendChild(frame);
+ try{
+  const doc=frame.contentDocument;doc.open();doc.write(buildPrintHtml(base));doc.close();
+  if(doc.readyState!=='complete')await new Promise(resolve=>frame.addEventListener('load',resolve,{once:true}));
+  const blob=await html2pdf().set({margin:0,filename:base+'.pdf',image:{type:'jpeg',quality:.96},html2canvas:{scale:2,useCORS:true,logging:false},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css','legacy']}}).from(doc.body).toPdf().outputPdf('blob');
+  if(!(blob instanceof Blob)||!blob.size)throw Error('The PDF generator returned an empty attachment.');
+  return{blob,name:base+'.pdf'}
+ }finally{frame.remove()}
+}
+async function sendInvoiceEmail(){
+ if(!invoiceReady())return;
+ if(!ZOHO_TOKEN||Date.now()>=ZOHO_TOKEN_EXPIRES){$('mailSendBtn').disabled=true;mailStatus('Your Zoho session has expired. Reconnect before sending.',true);return}
+ let to,cc,bcc,selected;
+ try{to=parseMailAddresses($('mailTo').value);cc=parseMailAddresses($('mailCc').value);bcc=parseMailAddresses($('mailBcc').value);if(!to.length)throw Error('Enter at least one To address.');if(!$('mailSubject').value.trim())throw Error('Enter an email subject.');selected=$('mailFrom').selectedOptions[0];if(!selected)throw Error('Select a sender account.')}
+ catch(e){mailStatus(e.message,true);return}
+ const[accountId,fromAddress]=$('mailFrom').value.split('|');if(!accountId||!fromAddress){mailStatus('Select a valid Zoho sender account.',true);return}
+ const button=$('mailSendBtn');button.disabled=true;button.textContent='Sending…';
+ try{
+  mailStatus(`Preparing ${EXPORT_FORMAT=='pdf'?'PDF':'Excel'} attachment…`);
+  const attachment=await invoiceAttachment(),form=new FormData();form.append('attach',attachment.blob,attachment.name);MAIL_IMAGES.forEach(file=>form.append('attach',file,file.name));
+  const uploadResponse=await fetch(`${ZOHO_MAIL_URL}/accounts/${encodeURIComponent(accountId)}/messages/attachments?uploadType=multipart&isInline=false`,{method:'POST',headers:{Accept:'application/json',Authorization:`Zoho-oauthtoken ${ZOHO_TOKEN}`},body:form});
+   const upload=await zohoJson(uploadResponse),uploaded=Array.isArray(upload.data)?upload.data:[upload.data];
+   if(uploaded.length!==1+MAIL_IMAGES.length||uploaded.some(file=>!file?.storeName||!file?.attachmentPath||!file?.attachmentName))throw Error('Zoho did not return complete details for every attachment.');
+   const message={fromAddress,toAddress:to.join(','),subject:$('mailSubject').value.trim(),content:$('mailBody').value,mailFormat:'plaintext',attachments:uploaded.map(file=>({storeName:file.storeName,attachmentPath:file.attachmentPath,attachmentName:file.attachmentName}))};
+  if(cc.length)message.ccAddress=cc.join(',');if(bcc.length)message.bccAddress=bcc.join(',');
+  const sendResponse=await fetch(`${ZOHO_MAIL_URL}/accounts/${encodeURIComponent(accountId)}/messages`,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json',Authorization:`Zoho-oauthtoken ${ZOHO_TOKEN}`},body:JSON.stringify(message)});
+  await zohoJson(sendResponse);MAIL_IMAGES=[];renderMailImages();mailStatus('Invoice email sent successfully.');toast('Invoice email sent through Zoho Mail');setTimeout(()=>$('mailDialog').close(),1200)
+ }catch(e){mailStatus(`Could not send invoice email: ${e.message}`,true)}
+ finally{button.disabled=!ZOHO_TOKEN||Date.now()>=ZOHO_TOKEN_EXPIRES;button.textContent='Send invoice'}
+}
 function previewCellValue(value){
  if(value==null)return'';
  if(value instanceof Date)return value.toLocaleDateString();
@@ -571,4 +710,5 @@ async function dlVer(id,v){const inv=LEDGER.invoices.find(x=>x.id==id),ver=inv&&
 $('ifs').innerHTML='<option value="">All statuses</option>'+STAT.map(s=>`<option>${s}</option>`).join('');updInvCount();
 (function(){const hide=i=>{const e=$(i);if(e)e.style.display='none'};
  if(!FEATURES.savedInvoices){hide('navInv');hide('svcard')}if(!FEATURES.fulfilment)hide('navFul')})();
+handleZohoOAuthCallback();
 </script></body></html>
