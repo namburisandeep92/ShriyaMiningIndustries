@@ -71,7 +71,15 @@ button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--o
 .req-banner{display:none;background:#fff1f1;border:1px solid #d76a6a;color:#8a1f1f;border-radius:8px;padding:10px 12px;margin:0 0 14px;font-weight:600;box-shadow:0 1px 3px rgba(138,31,31,.08)}.req-banner.show{display:block}.req-banner strong{color:#9c1d1d}.invalid-field{border-color:#c33 !important;background:#fff3f3 !important;box-shadow:inset 0 0 0 1px rgba(195,51,51,.2) !important} .invalid-field.warn{background:hsl(40 100% 50%/.22) !important}
 .steps span{cursor:pointer}.steps span:hover{filter:brightness(1.12)}
 #s5{border-top:4px solid var(--terracotta)}.tiles{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.tile{flex:1;min-width:130px;border:1px solid var(--bd);border-left:5px solid hsl(var(--h) 60% 45%);border-radius:8px;padding:8px 12px;cursor:pointer;background:var(--z)}.tile b{display:block;font-size:22px}.tile span{font-size:12px;color:var(--mut)}
-#ft{width:100%;min-width:0}#ft td{white-space:nowrap}#ft td.wrap{white-space:normal;min-width:160px}</style></head><body>
+#ft{width:100%;min-width:0}#ft td{white-space:nowrap}#ft td.wrap{white-space:normal;min-width:160px}
+.export-format{display:inline-flex;align-items:center;gap:3px;margin:0;padding:4px;border:1px solid var(--rule);border-radius:9px;background:var(--parchment)}
+.export-format legend{font-size:11px;font-weight:700;color:var(--stone-dk);padding:0 5px}
+.export-format button{background:transparent;color:var(--stone-dk);padding:7px 14px;border:1px solid transparent;border-radius:6px;font-weight:600;transition:background .15s,color .15s,box-shadow .15s}
+.export-format button:hover:not(:disabled){background:var(--cream);color:var(--earth)}
+.export-format button[aria-pressed="true"]{background:var(--earth);color:#fff;box-shadow:0 2px 5px rgba(42,37,32,.2)}
+button.preview-action{background:var(--terracotta);color:#fff;border:1px solid var(--terracotta);font-weight:600}
+button.preview-action:hover:not(:disabled){background:#914b31;border-color:#914b31}
+button.preview-action:focus-visible,.export-format button:focus-visible{outline:3px solid var(--earth-lt);outline-offset:2px}</style></head><body>
 <header><h1>Shriya Mining Industries – Invoice Generator</h1>
 <div class="steps"><span id="t1" class="on" onclick="stepTo(1)">1 Upload</span><span id="t2" onclick="stepTo(2)">2 Select records</span><span id="t3" onclick="stepTo(3)">3 Edit &amp; download</span></div><button class="navb" id="navFul" onclick="showFul()">📊 PO fulfilment</button><button class="navb" id="navInv" style="margin-left:8px" onclick="showInv()">📁 Saved invoices <span id="invcnt"></span></button></header>
 <main>
@@ -85,7 +93,7 @@ button:hover:not(:disabled){filter:brightness(1.08)}button.gn{background:var(--o
 
 <section id="s3" class="hide">
 <div id="reqBanner" class="req-banner" aria-live="polite"></div>
-<div class="bar noprint"><button class="sec" onclick="backBtn()">← Back to selection</button><span class="sp"></span><button class="pr" onclick="pdf()">📄 Save &amp; download PDF</button><button class="gn" onclick="dl()">⬇ Save &amp; download Excel</button></div>
+<div class="bar noprint"><button class="sec" onclick="backBtn()">← Back to selection</button><span class="sp"></span><fieldset class="export-format" role="group" aria-label="Invoice download format"><legend>Format</legend><button type="button" data-export-format="xlsx" aria-pressed="true" onclick="setExportFormat('xlsx')">Excel</button><button type="button" data-export-format="pdf" aria-pressed="false" onclick="setExportFormat('pdf')">PDF</button></fieldset><button class="preview-action" onclick="previewInvoice()">👁 Preview</button><button class="gn" onclick="saveDownload()">⬇ Save &amp; download</button></div>
 <div class="card svc noprint" id="svcard"><div id="curinfo"></div><div class="svrow"><label for="svstat">Status</label><select id="svstat"><option>Draft</option><option>In review</option></select><input id="svnote" placeholder="Note for this version (optional)"><button class="gn" id="svbtn" onclick="saveInv()">Save invoice (v1)</button></div></div>
 <div class="card hc"><div class="ch"><h3>Invoice details</h3><span class="chs">Edit any field – it flows into the downloaded invoice</span></div><div id="hdr"></div></div>
 <div class="card lc"><div class="ch"><h3>Line items</h3><span class="chs">Drag a column edge to resize · double-click an edge to fit</span><span class="sp"></span><button class="sec sm noprint" onclick="CW=null;ln()">↔ Reset widths</button><button class="gn sm noprint" onclick="addLine()">+ Add line</button></div>
@@ -303,10 +311,10 @@ function sheet(name,title,inv,tab){
  const last=r;r++;
  const T={b:1,color:'FFFFFFFF',fill:NAVY,h:'center'};
  if(inv){lab(r,1,6,'Amount chargeable in words');ws.getRow(r).height=15;
-  put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`}:'',{b:1,h:'right',nf:tnf,fill:LIGHT},r+1);put(r,8,8,'TOTAL (USD)',{...T,size:9},r+1);
+  put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`,result:lines.reduce((a,l)=>a+(+l.qty||0),0)}:'',{b:1,h:'right',nf:tnf,fill:LIGHT},r+1);put(r,8,8,'TOTAL (USD)',{...T,size:9},r+1);
   put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',size:13,color:NAVY,nf:'$#,##0.00',fill:GOLD},r+1);
   put(r+1,1,6,WD,{b:1,i:1,wrap:1,color:NAVY,bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r+1).height=26;r+=2}
- else{put(r,1,6,'TOTAL',{...T,h:'left'});put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`}:'',{b:1,h:'right',nf:tnf,fill:LIGHT});
+ else{put(r,1,6,'TOTAL',{...T,h:'left'});put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`,result:lines.reduce((a,l)=>a+(+l.qty||0),0)}:'',{b:1,h:'right',nf:tnf,fill:LIGHT});
   put(r,8,8,{formula:`SUM(H${first}:H${last})`,result:tn},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',nf:'$#,##0.00',fill:GOLD});ws.getRow(r).height=24;r++;
   put(r,1,9,'TOTAL WEIGHT :   '+tn.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++}
  lab(r,1,5,'Declaration');lab(r,6,9,'Signature & Date');r++;
@@ -418,6 +426,71 @@ const sameAsLatest=inv=>{const lv=inv.versions[inv.versions.length-1];return !!l
 async function dl(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}if(!validateInvoiceFields())return;const nm=`Invoice_${fnm(no)}_${stamp(new Date())}.xlsx`;await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`);return}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
  if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
  const nm=vname(inv,inv.versions[inv.versions.length-1])+'.xlsx';await xlsxSave(await buildWb(),nm);toast(`Downloaded ${nm}`)}
+let EXPORT_FORMAT='xlsx';
+function setExportFormat(format){if(!['xlsx','pdf'].includes(format))return;EXPORT_FORMAT=format;document.querySelectorAll('[data-export-format]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.exportFormat==format)))}
+function previewCellValue(value){
+ if(value==null)return'';
+ if(value instanceof Date)return value.toLocaleDateString();
+ if(typeof value=='object'){
+  if(value.result!==undefined)return previewCellValue(value.result);
+  if(Array.isArray(value.richText))return value.richText.map(x=>x.text||'').join('');
+  if(value.text!==undefined)return String(value.text);
+  if(value.formula)return'';
+  return''
+ }
+ return String(value)
+}
+function excelPreviewHtml(wb,title){
+ const sections=wb.worksheets.map(ws=>{
+  const merges=ws._merges||{},rows=[];
+  const color=value=>{const hex=String(value?.argb||'').replace(/^FF/i,'');return/^[0-9A-F]{6}$/i.test(hex)?'#'+hex:''};
+  const styleOf=cell=>{
+   const s=cell.style||{},f=s.font||{},a=s.alignment||{},parts=[];
+   if(f.name&&/^[\w ,.-]+$/.test(f.name))parts.push(`font-family:${f.name}`);
+   if(Number.isFinite(+f.size))parts.push(`font-size:${Math.max(8,+f.size*4/3)}px`);
+   if(f.bold)parts.push('font-weight:700');if(f.italic)parts.push('font-style:italic');
+   const fc=color(f.color);if(fc)parts.push(`color:${fc}`);
+   const bg=color(s.fill?.fgColor);if(bg)parts.push(`background-color:${bg}`);
+   if(['left','center','right','justify'].includes(a.horizontal))parts.push(`text-align:${a.horizontal}`);
+   if(['top','middle','bottom'].includes(a.vertical))parts.push(`vertical-align:${a.vertical=='middle'?'middle':a.vertical}`);
+   if(a.wrapText)parts.push('white-space:pre-wrap');else parts.push('white-space:pre-wrap');
+   if(Number.isFinite(+a.indent)&&+a.indent>0)parts.push(`padding-left:${Math.min(32,+a.indent*8)}px`);
+   const widths={hair:1,thin:1,medium:2,thick:3,double:3};
+   for(const side of ['top','right','bottom','left']){const b=s.border?.[side];if(b){const bc=color(b.color)||'#c8bead';parts.push(`border-${side}:${widths[b.style]||1}px solid ${bc}`)}}
+   return parts.join(';')
+  };
+  for(let r=1;r<=ws.rowCount;r++){
+   const row=ws.getRow(r),cells=[];
+   for(let c=1;c<=ws.columnCount;c++){
+    const cell=row.getCell(c);if(cell.isMerged&&cell.master.address!==cell.address)continue;
+    const merge=merges[cell.address]?.model,cs=merge?merge.right-merge.left+1:1,rs=merge?merge.bottom-merge.top+1:1;
+    cells.push(`<td${cs>1?` colspan="${cs}"`:''}${rs>1?` rowspan="${rs}"`:''}${styleOf(cell)?` style="${styleOf(cell)}"`:''}>${esc(previewCellValue(cell.value))}</td>`)
+   }
+   const height=Number.isFinite(+row.height)?` style="height:${Math.max(12,+row.height*4/3)}px"`:'';
+   rows.push(`<tr${height}>${cells.join('')}</tr>`)
+  }
+  const widths=Array.from({length:ws.columnCount},(_,i)=>`<col style="width:${Math.max(48,Math.min(240,(ws.getColumn(i+1).width||12)*7))}px">`).join('');
+  return`<section><h2>${esc(ws.name)}</h2><div class="sheet"><table><colgroup>${widths}</colgroup><tbody>${rows.join('')}</tbody></table></div></section>`
+ }).join('');
+ return`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} — Preview</title><style>
+ *{box-sizing:border-box}body{margin:0;padding:24px;background:#f7f3ee;color:#2a2520;font:14px/1.35 Calibri,Arial,sans-serif}
+ h1{font-size:20px;margin:0 0 18px;color:#7a5c3e}h2{font-size:16px;margin:0 0 8px;color:#7a5c3e}
+ section{margin:0 0 24px}.sheet{overflow:auto;max-height:80vh;background:#fffdf9;border:1px solid #c8bead}
+ table{border-collapse:collapse;table-layout:fixed;background:#fffdf9}td{padding:3px 5px;overflow-wrap:anywhere;vertical-align:middle}
+ @media print{body{padding:0}.sheet{max-height:none;overflow:visible}section{break-after:page}}
+ </style></head><body><h1>${esc(title)}</h1>${sections}</body></html>`
+}
+function invoiceFileBase(){return`Invoice_${fnm(String(H['Invoice no']||'draft').trim())}_${stamp(new Date())}`}
+function invoiceReady(){if(!String(H['Invoice no']||'').trim()){toast('Enter an Invoice no first');return false}if(!L.length){toast('Add at least one line first');return false}return validateInvoiceFields()}
+async function previewInvoice(){
+ if(!invoiceReady())return;
+ const base=invoiceFileBase(),win=window.open('about:blank','_blank');if(!win){toast('Preview was blocked. Allow popups for this page and try again.');return}
+ try{
+  if(EXPORT_FORMAT=='pdf'){win.document.open();win.document.write(buildPrintHtml(base));win.document.close();return}
+  const wb=await buildWb(),html=excelPreviewHtml(wb,base);win.document.open();win.document.write(html);win.document.close()
+ }catch(e){win.close();console.error('Could not preview invoice',e);toast(`Could not preview invoice: ${e.message||'preview generation failed'}`)}
+}
+async function saveDownload(){if(!invoiceReady())return;return EXPORT_FORMAT=='pdf'?pdf():dl()}
 function buildPrintHtml(title){
 const h=k=>H[k]||'',E=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),ml=v=>E(v).replace(/\n/g,'<br>');
 const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase()||'QTY',nf=(n,d)=>(+n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -461,7 +534,20 @@ table.gd{width:100%;border-collapse:collapse;margin-top:-.6pt}.gd th{background:
 .pk td.n,.gd th:nth-child(n+3){text-align:right}.gd th:nth-child(2){text-align:left}.gd th:first-child{text-align:left}
 .tt{display:grid;grid-template-columns:1fr auto auto auto;align-items:stretch;border-top:.6pt solid #c8bead;border-bottom:.6pt solid #c8bead}.tt>div{padding:6px 8px;border-right:.6pt solid #c8bead}.tt .wd{color:#7a5c3e}.tt .wd .lb{margin:-6px -8px 4px;border-right:0}
 .tq{background:#f7f3ee;font-weight:700;display:flex;align-items:center}.tl{background:#7a5c3e;color:#fff;font-weight:700;font-size:8.5pt;display:flex;align-items:center}.ta{background:#f7e2a8;color:#7a5c3e;font-weight:700;font-size:13pt;display:flex;align-items:center;border-right:0!important}
-.tw{background:#f7f3ee;font-weight:700;padding:5px 8px;border-top:.6pt solid #c8bead}.dc{margin-top:0;page-break-inside:avoid}`;
+.tw{background:#f7f3ee;font-weight:700;padding:5px 8px;border-top:.6pt solid #c8bead}.dc{margin-top:0;page-break-inside:avoid}
+@media screen{
+ html{background:#e8e4de}
+ body{padding:24px 12px}
+ .pg{width:min(794px,100%);margin:0 auto 24px;background:#fff;box-shadow:0 6px 24px rgba(42,37,32,.18)}
+ table.gd{table-layout:fixed}
+ .gd th,.gd td{overflow-wrap:anywhere}
+ .gd td.n{overflow-wrap:normal}
+}
+@media print{
+ body{padding:0}
+ .pg{width:auto;margin:0 auto;box-shadow:none}
+ .gd th,.gd td{overflow-wrap:normal}
+}`;
 return`<!doctype html><html><head><meta charset="utf-8"><title>${E(title)}</title><style>${css}</style></head><body>${p1}${p2}</body></html>`}
 async function pdf(){if(!FEATURES.savedInvoices){const no=String(H['Invoice no']||'').trim();if(!no){toast('Enter an Invoice no first');return}if(!L.length){toast('Add at least one line first');return}if(!validateInvoiceFields())return;return printDoc(`Invoice_${fnm(no)}_${stamp(new Date())}`)}let inv=CUR&&LEDGER.invoices.find(x=>x.id==CUR.id);
  if(!inv||!sameAsLatest(inv)){if(!saveInv(true))return;inv=LEDGER.invoices.find(x=>x.id==CUR.id)}
