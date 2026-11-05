@@ -36,6 +36,11 @@ td input{min-width:60px}.num{text-align:right}.bar{display:flex;gap:10px;align-i
 #lt th:first-child,#lt td:first-child{position:sticky;left:0;z-index:2;box-shadow:2px 0 0 var(--bd)}#lt th:first-child{z-index:4;background:var(--earth)}
 #ln td{background:var(--card)}#ln tr:nth-child(even) td{background:var(--z)}#ln tr:hover td{background:var(--hv)}
 #ln td:first-child input{font-weight:600}#ln input{border-color:transparent;width:100%;min-width:0;padding:2px 4px}#ln input:hover{border-color:var(--bd)}#ln input:focus{border-color:var(--ac);background:var(--card)}
+#ln .stack-cell{display:flex;flex-direction:column;gap:3px}
+#ln .stack-field{display:block;min-width:0}
+#ln .stack-field input{display:block;width:100%;min-width:0}
+#ln .stack-field .secondary{font-size:11px;font-weight:400;color:var(--mut)}
+#ln .stack-field .secondary{font-size:11px;font-weight:400;color:var(--mut)}
 #ln input.warn{background:hsl(40 100% 50%/.22)}#ln td.amt{text-align:right;font-weight:700;color:var(--qn);font-variant-numeric:tabular-nums}
 #ln td:not(:first-child) input.num{color:var(--qn)}.tot{background:var(--fh);padding:8px 14px;border-radius:6px;color:var(--ac)}
 
@@ -133,7 +138,7 @@ function load(file){if(!file)return;const r=new FileReader();r.onload=e=>{try{
  if(!j.length||!('SPS Item' in j[0])||!('Qty' in j[0]))throw Error('Expected columns “SPS Item”, “Qty”, “UOM”, “PO#” … not found.');
  cols=Object.keys(j[0]); rows=j.map((o,i)=>({i,raw:o,all:cols.map(c=>fv(o[c])).join(' ').toLowerCase(),item:String(o['SPS Item']),sku:o.SKU,sup:o.Supplier,po:String(o['PO#']),date:fv(o['PO Date']),so:String(o['SO Ref#']),ship:o['Ship To Location'],qty:parseFloat(o.Qty)||0,uom:o.UOM}));
  {const kc={};rows.forEach(r=>{const b=[r.po,r.sku,r.so,r.qty].join('|');kc[b]=(kc[b]||0)+1;r.key=b+'#'+kc[b]})}
- snapPO(file.name);sel=new Set();colF={};selCols=new Set();$('q').value='';$('err').textContent='';
+ snapPO(file.name);L=[];sel=new Set();colF={};selCols=new Set();$('q').value='';$('err').textContent='';
  order=[PIN,...cols.filter(c=>c!==PIN)];hidden=new Set();opts={};widths={};
  const fam=getComputedStyle(document.body).fontFamily,cv=document.createElement('canvas').getContext('2d'),tw=(t,f)=>{cv.font=f+' '+fam;return cv.measureText(t).width};
  cols.forEach(c=>{let m=0;rows.forEach(r=>{const t=fv(r.raw[c]);if(t.length>m*0.5||true){const w=tw(t,'14px');if(w>m)m=w}});if(CHIP.includes(c))m+=20;widths[c]=Math.round(Math.min(560,Math.max(m+24,tw(c,'bold 12px')+40,90)))});
@@ -166,14 +171,16 @@ function parse(r){let s=r.item,code='';const m0=s.match(/^([A-Z]{2,4}) - /);if(m
  else{const w=s.split(' ');finish=w.slice(-3,-2)[0]||''}
  const kind=/granite/i.test(s)?'GRANITE TILES':/slate/i.test(s)?'SLATE STONE TILES':/lime/i.test(s)?'LIMESTONE':'';
  return{code,stone:stone.toUpperCase(),finish:finish.toUpperCase(),size,area,kind}}
-function build(){const picks=rows.filter(r=>sel.has(r.i));
+function build(){const picks=rows.filter(r=>sel.has(r.i)),previous=new Map(L.filter(l=>l.src).map(l=>[l.src,l])),crateStart=L.length?H['Crate starting no']:'';
  L=picks.map(r=>{const p=parse(r);
   const rate=r.uom=='SF'?({'12" X 12"':1.62,'12" X 24"':1.75}[p.size]||0):0;
-  return{stone:p.stone,finish:p.finish,size:p.size,
-   ref:`NSR PO # ${r.po}${r.so?` // SO # ${r.so}`:''} (${r.sku})`,crates:0,crt:'',qty:r.qty,uom:r.uom,net:'',gross:'',rate,code:p.code,kind:p.kind,src:r.key,poQty:r.qty,poUom:r.uom}});
+  const line={stone:p.stone,finish:p.finish,size:p.size,
+   ref:`NSR PO # ${r.po}${r.so?` // SO # ${r.so}`:''} (${r.sku})`,crates:0,crt:'',qty:r.qty,uom:r.uom,net:'',gross:'',rate,code:p.code,kind:p.kind,src:r.key,poQty:r.qty,poUom:r.uom};
+  return Object.assign(line,previous.get(r.key)||{});
+ });
  L.sort((a,b)=>(a.kind||'').localeCompare(b.kind||''));
  const pos=[...new Set(picks.map(r=>r.po))];const ds=picks.map(r=>new Date(r.date)).filter(d=>!isNaN(d)).sort((a,b)=>a-b);
- H=Object.assign({},DEF,{'Buyer PO nos':pos.join(', '),'Buyer PO date':ds.length?ds[0].toISOString().slice(0,10):'','Marks code':'CODE ; '+([...new Set(picks.map(r=>parse(r).code).filter(Boolean))].join(', ')||'')});
+ H=Object.assign({},DEF,{'Buyer PO nos':pos.join(', '),'Buyer PO date':ds.length?ds[0].toISOString().slice(0,10):'','Marks code':'CODE ; '+([...new Set(picks.map(r=>parse(r).code).filter(Boolean))].join(', ')||''),'Crate starting no':crateStart||''});
  CUR=null;renderEditor();$('svnote').value=''}
 function renderEditor(){
  const GR=[['Invoice details','#7a5c3e',['Invoice no','Invoice date','Buyer PO nos','Buyer PO date','Other reference']],['Parties','#6b7052',['Exporter','Consignee','Buyer (if other)','Notify party']],['Shipping','#c49a6c',['Country of origin','Final destination','Pre-carriage by','Place of receipt','Vessel / Flight','Port of loading','Port of discharge','Final delivery']],['Terms & packing','#8a7d6e',['Payment terms','Marks code','Container no','Packing','Grade']]];
@@ -183,7 +190,7 @@ function renderEditor(){
  $('hdr').innerHTML=GR.map(([n,c,ks])=>`<div class="grp" style="--g:${c}"><h4>${n}</h4><div class="fg">${ks.map(fieldH).join('')}</div></div>`).join('');
  document.querySelectorAll('#hdr [data-k]').forEach(e=>e.oninput=()=>{H[e.dataset.k]=e.value;if(e.dataset.k=='Crate starting no'){const v=e.value;const top=document.querySelector('#hdr [data-k="Crate starting no"]');const tblInput=document.getElementById('cstart');if(top)top.value=v;if(tblInput)tblInput.value=v;rng()}});
  CW=null;go(3);ln();saveUI()}
-const COLS=[{k:'stone',t:'Stone',w:190},{k:'finish',t:'Finish',w:90},{k:'size',t:'Size',w:95},{k:'ref',t:'PO / ref',w:300},
+const COLS=[{k:'stoneRef',t:'Stone / PO ref',w:260},{k:'finish',t:'Finish',w:90},{k:'size',t:'Size',w:95},
 {k:'crates',t:'Crate count',w:70,num:1},{k:'crt',t:'Crate range',w:105},{k:'qty',t:'Qty',w:85,num:1},{k:'uom',t:'UOM',w:60},
 {k:'net',t:'Weight',w:95,num:1},{k:'rate',t:'Rate / UOM',w:100,num:1},{k:'amt',t:'Amount USD',w:110,num:1},{k:'del',t:'',w:40}];
 const NUMK=['crates','qty','net','rate'];let CW=null;
@@ -213,14 +220,15 @@ L.forEach((l,i)=>{const lineNo=i+1;const checks=[];const qtyValue=fieldValueFrom
 if(missing.length){highlightRequiredFields(missing);toast(missing.length===1?`${missing[0]} is required`:`Required fields missing: ${missing.slice(0,3).join(' • ')}${missing.length>3?' • ...':''}`);return false}clearRequiredHighlights();return true}
 function initCW(){CW=COLS.map(c=>c.w);const av=($('lt').parentElement.clientWidth||0)-2,s=CW.reduce((a,b)=>a+b,0);if(av>s){const f=av/s;CW=CW.map(x=>Math.floor(x*f))}}
 function tbl(){$('lcg').innerHTML=COLS.map((c,i)=>`<col style="width:${CW[i]}px">`).join('');
- $('lth').innerHTML=`<tr class="pre"><th colspan="5"></th><th class="csh"><div class="cs"><span>Crate start #</span><input id="cstart" type="number" min="0" placeholder="e.g. 245" value="${esc(H['Crate starting no']||'')}" oninput="syncCrateStartValue(this.value)"></div></th><th colspan="${COLS.length-6}"></th></tr>`+'<tr>'+COLS.map((c,i)=>`<th class="${c.num?'num':''}">${c.t}${i<COLS.length-1?`<span class="rz" data-i="${i}" title="Drag to resize · double-click to fit"></span>`:''}</th>`).join('')+'</tr>';
+ $('lth').innerHTML=`<tr class="pre"><th colspan="4"></th><th class="csh"><div class="cs"><span>Crate start #</span><input id="cstart" type="number" min="0" placeholder="e.g. 245" value="${esc(H['Crate starting no']||'')}" oninput="syncCrateStartValue(this.value)"></div></th><th colspan="${COLS.length-5}"></th></tr>`+'<tr>'+COLS.map((c,i)=>`<th class="${c.num?'num':''}">${c.t}${i<COLS.length-1?`<span class="rz" data-i="${i}" title="Drag to resize · double-click an edge to fit"></span>`:''}</th>`).join('')+'</tr>';
  $('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px';
- $('lft').innerHTML=`<tr class="t1"><td colspan="4" style="text-align:right">TOTAL</td><td class="num" id="tCr"></td><td></td><td class="num" id="tQty"></td><td class="num" id="tNet">0</td><td class="num">TOTAL USD</td><td class="num amtT" id="tot">0.00</td><td></td></tr><tr class="t2"><td colspan="${COLS.length}"><span class="wl">Amount chargeable in words</span><input id="words" value="${esc($('words')?$('words').value:'')}"></td></tr>`}
+ $('lft').innerHTML=`<tr class="t1"><td colspan="3" style="text-align:right">TOTAL</td><td class="num" id="tCr"></td><td></td><td class="num" id="tQty"></td><td id="tUom"></td><td class="num" id="tNet">0</td><td class="num">TOTAL USD</td><td class="num amtT" id="tot">0.00</td><td></td></tr><tr class="t2"><td colspan="${COLS.length}"><span class="wl">Amount chargeable in words</span><input id="words" value="${esc($('words')?$('words').value:'')}"></td></tr>`}
 function rng(){let n=parseInt(H['Crate starting no']);const ok=!isNaN(n);L.forEach((l,i)=>{const c=Math.max(0,parseInt(l.crates)||0);let t='';if(ok&&c>0){t=c==1?String(n):`${n} - ${n+c-1}`;n+=c}l.crt=t;const e=$('rg'+i);if(e){e.value=t;e.title=t}})}
 const ul=l=>String(l.uom||'').trim().toUpperCase()||'QTY';
 function cell(i,c){const l=L[i],k=c.k,req=['crates','crt','uom','rate'].includes(k);
  if(k=='amt')return`<td class="amt" id="a${i}">${amt(l).toFixed(2)}</td>`;
  if(k=='del')return`<td><button class="x noprint" title="Remove line" onclick="L.splice(${i},1);ln()">✕</button></td>`;
+ if(k=='stoneRef')return`<td><div class="stack-cell"><label class="stack-field"><input aria-label="Stone" data-k="stone" data-line="${i}" data-field="stone" title="${esc(l.stone||'')}" value="${esc(l.stone||'')}" onchange="upd(${i},'stone',this.value,this)"></label><label class="stack-field"><input class="secondary" aria-label="PO / ref" data-k="ref" data-line="${i}" data-field="ref" title="${esc(l.ref||'')}" value="${esc(l.ref||'')}" onchange="upd(${i},'ref',this.value,this)"></label></div></td>`;
  let v=l[k]??'';if(['crates','net','gross'].includes(k)&&!v)v='';
  if(k=='crt')return`<td><input class="ro" id="rg${i}" data-line="${i}" data-field="${k}" data-required="${req?1:0}" readonly value="${esc(v)}" title="${esc(v)}" ${req?'required':''}></td>`;
  return`<td><input data-k="${k}" data-line="${i}" data-field="${k}" data-required="${req?1:0}" class="${c.num?'num':''}${k=='rate'&&!(+v)?' warn':''}" ${NUMK.includes(k)?'inputmode="decimal"':''} title="${esc(v)}" value="${esc(v)}" onchange="upd(${i},'${k}',this.value,this)" ${req?'required':''}></td>`}
@@ -228,14 +236,14 @@ function ln(){if(!CW)initCW();tbl();rng();$('ln').innerHTML=L.map((l,i)=>`<tr>${
 function upd(i,k,v,el){const l=L[i];if(NUMK.includes(k)){if(v==='' ) l[k]=''; else {const n=safeNumber(v);l[k]=Number.isFinite(n)?n:0;}} else l[k]=v;if(el){el.title=el.value;const invalid=(k==='qty'||k==='crates')?(!isPositiveInteger(l[k])):((k==='net'||k==='gross'||k==='rate')?(!isPositiveNumber(l[k])):false);el.classList.toggle('warn',invalid);if(k==='rate')el.classList.toggle('warn',!isPositiveNumber(l[k]));}if(k==='crates')rng();$('a'+i).textContent=amt(l).toFixed(2);tot()}
 function addLine(){L.push({stone:'',finish:'',size:'',ref:'',crates:0,crt:'',qty:0,uom:'SF',net:'',gross:'',rate:0,kind:''});ln()}
 function tot(){const S=k=>L.reduce((a,l)=>a+(+l[k]||0),0),f=(n,d)=>n.toLocaleString('en-US',{maximumFractionDigits:d});
- $('tCr').textContent=S('crates')||'';{const us=new Set(L.map(l=>String(l.uom||'').toUpperCase()));$('tQty').textContent=us.size==1?f(S('qty'),2):''}$('tNet').textContent=f(S('net'),3);
+ $('tCr').textContent=S('crates')||'';{const us=new Set(L.map(l=>String(l.uom||'').toUpperCase()));$('tQty').textContent=us.size==1?f(S('qty'),2):'';$('tUom').textContent=us.size==1?[...us][0]:''}$('tNet').textContent=f(S('net'),3);
  const t=total();$('tot').textContent=t.toLocaleString('en-US',{minimumFractionDigits:2});$('words').value=words(t)}
 let rz=null;const setW=()=>{$('lt').style.width=CW.reduce((a,b)=>a+b,0)+'px'};
 document.addEventListener('pointerdown',e=>{const h=e.target.closest&&e.target.closest('.rz');if(!h)return;e.preventDefault();const i=+h.dataset.i;rz={i,x:e.clientX,w:CW[i],h};h.classList.add('on');try{h.setPointerCapture(e.pointerId)}catch(x){}});
 document.addEventListener('pointermove',e=>{if(!rz)return;CW[rz.i]=Math.max(40,Math.round(rz.w+e.clientX-rz.x));$('lcg').children[rz.i].style.width=CW[rz.i]+'px';setW()});
 document.addEventListener('pointerup',()=>{if(rz){rz.h.classList.remove('on');rz=null}});
 document.addEventListener('dblclick',e=>{const h=e.target.closest&&e.target.closest('.rz');if(!h)return;const i=+h.dataset.i,c=COLS[i];let m=mw(c.t)+34;
- L.forEach(l=>{const t=c.k=='amt'?amt(l).toFixed(2):c.k=='basis'?'SQFT QTY':String(l[c.k]??'');m=Math.max(m,mw(t)+(c.k=='basis'?44:26))});CW[i]=Math.min(700,Math.ceil(m));$('lcg').children[i].style.width=CW[i]+'px';setW()});
+ L.forEach(l=>{const values=c.k=='amt'?[amt(l).toFixed(2)]:c.k=='stoneRef'?[l.stone,l.ref]:[l[c.k]];values.forEach(v=>{m=Math.max(m,mw(String(v??''))+26)})});CW[i]=Math.min(700,Math.ceil(m));$('lcg').children[i].style.width=CW[i]+'px';setW()});
 function w(n){const a='ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN'.split(' '),b='_ _ TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY'.split(' ');
  if(n<20)return a[n];if(n<100)return b[n/10|0]+(n%10?' '+a[n%10]:'');if(n<1000)return a[n/100|0]+' HUNDRED'+(n%100?' '+w(n%100):'');
  if(n<1e6)return w(n/1000|0)+' THOUSAND'+(n%1000?' '+w(n%1000):'');return w(n/1e6|0)+' MILLION'+(n%1e6?' '+w(n%1e6):'')}
