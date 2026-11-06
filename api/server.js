@@ -12,6 +12,31 @@ const authMw = require('./middleware/auth');
 const { errorHandler, asyncHandler } = require('./middleware/error-handler');
 const { getDatabase } = require('./services/database');
 
+// Import route handlers
+const {
+  handleUploadPO,
+  handleListPOImports,
+} = require('./functions/po-import');
+const {
+  handleCreateInvoice,
+  handleListInvoices,
+  handleGetInvoice,
+  handleUpdateInvoice,
+  handleDeleteInvoice,
+} = require('./functions/invoice-crud');
+const {
+  handleExportInvoice,
+} = require('./functions/invoice-export');
+const {
+  handleListVersions,
+  handleGetVersion,
+} = require('./functions/invoice-history');
+const {
+  handleListUsers,
+  handleCreateUser,
+  handleSearchErrorLog,
+} = require('./functions/admin');
+
 /**
  * Create and configure Express app
  */
@@ -125,64 +150,26 @@ paths:
     `);
   }));
 
-  // ========== PLACEHOLDER ROUTES ==========
-  // These will be implemented in Step 6b
+  // ========== PO IMPORT ==========
+  app.post('/api/po-import', handleUploadPO);
+  app.get('/api/po-import', handleListPOImports);
 
-  // PO Import
-  app.post('/api/po-import', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
+  // ========== INVOICE CRUD ==========
+  app.post('/api/invoices', handleCreateInvoice);
+  app.get('/api/invoices', handleListInvoices);
+  app.get('/api/invoices/:id', handleGetInvoice);
+  app.patch('/api/invoices/:id', handleUpdateInvoice);
+  app.delete('/api/invoices/:id', handleDeleteInvoice);
 
-  app.get('/api/po-import', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
+  // ========== EXPORT & HISTORY ==========
+  app.get('/api/invoices/:id/versions', handleListVersions);
+  app.get('/api/invoices/:id/versions/:version', handleGetVersion);
+  app.get('/api/invoices/:id/export', handleExportInvoice);
 
-  // Invoice CRUD
-  app.post('/api/invoices', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.get('/api/invoices', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.get('/api/invoices/:id', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.patch('/api/invoices/:id', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.delete('/api/invoices/:id', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  // Export & History
-  app.get('/api/invoices/:id/versions', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.get('/api/invoices/:id/versions/:version', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.get('/api/invoices/:id/export', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  // Admin
-  app.get('/api/admin/users', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.post('/api/admin/users', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
-
-  app.get('/api/admin/error-log', asyncHandler(async (req, res) => {
-    res.status(501).json({ error: 'Not implemented yet' });
-  }));
+  // ========== ADMIN ==========
+  app.get('/api/admin/users', handleListUsers);
+  app.post('/api/admin/users', handleCreateUser);
+  app.get('/api/admin/error-log', handleSearchErrorLog);
 
   // ========== 404 Handler ==========
   app.use((req, res) => {
