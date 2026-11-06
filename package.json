@@ -19,10 +19,17 @@
     "test:coverage": "vitest run --coverage",
     "migrate": "node database/migration-runner.js",
     "migrate:dry-run": "node database/migration-runner.js --dry-run",
+    "api:dev": "node api/index.js",
+    "api:test": "vitest run tests/api/integration/ --reporter=verbose",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
-  "dependencies": {},
+  "dependencies": {
+    "express": "^4.18.0",
+    "cors": "^2.8.0",
+    "uuid": "^9.0.0",
+    "mssql": "^9.1.1"
+  },
   "devDependencies": {
     "vitest": "^1.0.0",
     "@vitest/ui": "^1.0.0",
@@ -34,9 +41,6 @@
     "axe-core": "^4.7.0",
     "axios": "^1.6.0",
     "eslint": "^8.54.0"
-  },
-  "optionalDependencies": {
-    "mssql": "^9.1.1"
   },
   "browserslist": [
     "last 2 versions",
