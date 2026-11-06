@@ -19,6 +19,34 @@
 
 ---
 
+## Test Strategy: Frontend-Agnostic & Value-Focused
+
+### Principle 1: Same Tests Work for Legacy AND New Frontend
+
+**Baseline (Step 4):** All 77 tests pass green on `/legacy/Invoice_Generator.html`  
+**Step 7 (New Frontend):** Same 77 tests pass on Vue/React new frontend  
+**New Features in Step 7:** Add NEW test cases only if genuinely new business logic (not UI refactor)
+
+**Test Design:**
+- ✅ Test **business logic** (upload → parse → calculate → export)
+- ✅ Test **data contracts** (API requests/responses, Excel structure, JSON schema)
+- ✅ Test **workflows** (user journey from file to invoice)
+- ❌ NOT tied to implementation (CSS selectors, HTML structure, framework-specific code)
+
+### Principle 2: Golden Files Compare Values, Not Binary Format
+
+**Excel golden file strategy:** Compare **structure + values**, not exact binary match
+
+- ✓ Sheet names must match (INV, PACKING)
+- ✓ Cell values must match exactly (1000 SF → 1000.00)
+- ✓ Formulas must match structure (=SUM(F:F), not hardcoded)
+- ✓ Formatting (colors, fonts, number formats) must match
+- **✗ NOT byte-by-byte binary match** (allows library upgrades: ExcelJS → OpenPyXL → other)
+
+**Benefit:** Can upgrade Excel generation library without breaking golden file tests (Step 10+ modernization)
+
+---
+
 ## Layer 1: Unit Tests (Vitest)
 
 ### FC-001 to FC-004: File Upload & Validation (9 tests)
@@ -168,6 +196,36 @@
 | A11Y-FC-055-004 | Keyboard trap | Tab through UI | No trapped focus, all elements reachable |
 
 **Layer 6 Subtotal: 6 A11Y tests** | Estimated time: <1 min
+
+---
+
+## Frontend-Agnostic Test Methodology
+
+### Tests Must Work Against Both Legacy HTML and New Vue Frontend
+
+**Test Design Principle:** Focus on **business logic and data contracts**, not UI implementation.
+
+**Example: FC-013 (Header Auto-populate)**
+- ❌ WRONG: Assert `document.getElementById('invoiceNo').value === 'SMI-2025-01-001'`
+  (Breaks when Vue frontend uses `v-model` or shadow DOM)
+- ✅ RIGHT: Assert API POST `/invoices` returns JSON with `invoiceNo: 'SMI-2025-01-001'`
+  (Works for legacy, works for Vue, works for any frontend)
+
+**Test Categories by Frontend Coupling:**
+
+| Test Category | Frontend Coupling | Runs on Legacy | Runs on Vue | Vitest | Supertest |
+|---------------|-------------------|----------------|------------|--------|-----------|
+| **Data transformation** | None | ✓ | ✓ | ✓ | — |
+| **Parsing logic** (PO → objects) | None | ✓ | ✓ | ✓ | — |
+| **Calculation logic** (qty × rate) | None | ✓ | ✓ | ✓ | — |
+| **API contracts** (POST → JSON) | Via HTTP only | ✓ | ✓ | — | ✓ |
+| **Excel generation** (structure, formulas) | None | ✓ | ✓ | — | ✓ |
+| **E2E workflows** (UI navigation) | High coupling | ✓ legacy | ✓ Vue | — | ✓ (Playwright) |
+| **UI-specific** (dark mode, keyboard) | High coupling | ✓ legacy | ✓ Vue | — | ✓ (Playwright) |
+
+**Impact on Step 4 & 7:**
+- **Step 4:** Implement 77 tests on legacy. 60 pass unchanged on Step 7.
+- **Step 7:** Refactor high-coupling tests (E2E, UI) for Vue selectors. Add new tests if Vue adds features.
 
 ---
 
