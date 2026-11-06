@@ -1,0 +1,45 @@
+{
+  "name": "smi-invoice-platform",
+  "version": "1.0.0-alpha",
+  "description": "Shriya Mining Industries Invoice Platform - Cloud-native, zero-cost Azure",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "vitest run --reporter=verbose",
+    "test:watch": "vitest --reporter=verbose",
+    "test:unit": "vitest run tests/unit/ --reporter=verbose",
+    "test:api": "vitest run tests/api/ --reporter=verbose",
+    "test:output": "vitest run tests/output/ --reporter=verbose",
+    "test:db": "vitest run tests/db/ --reporter=verbose",
+    "test:e2e": "playwright test",
+    "test:a11y": "vitest run tests/a11y/ --reporter=verbose",
+    "test:all": "npm run test:unit && npm run test:api && npm run test:output && npm run test:db",
+    "test:coverage": "vitest run --coverage",
+    "migrate": "node database/migration-runner.js",
+    "migrate:dry-run": "node database/migration-runner.js --dry-run",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "@vitest/ui": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@playwright/test": "^1.40.0",
+    "playwright": "^1.40.0",
+    "exceljs": "^4.4.0",
+    "jsdom": "^23.0.0",
+    "axe-core": "^4.7.0",
+    "axios": "^1.6.0",
+    "eslint": "^8.54.0"
+  },
+  "optionalDependencies": {
+    "mssql": "^9.1.1"
+  },
+  "browserslist": [
+    "last 2 versions",
+    "not dead"
+  ]
+}
