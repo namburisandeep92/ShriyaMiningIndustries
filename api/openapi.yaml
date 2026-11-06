@@ -1,0 +1,787 @@
+openapi: 3.1.0
+info:
+  title: SMI Invoice Platform API
+  description: Cloud-native invoice management system for Shriya Mining Industries
+  version: 1.0.0-alpha
+  contact:
+    name: API Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+  - url: https://swa-smi-invoice-test.azurestaticapps.net/api
+    description: Test environment
+  - url: https://swa-smi-invoice-prod.azurestaticapps.net/api
+    description: Production
+
+security:
+  - AzureStaticWebApps: []
+
+components:
+  securitySchemes:
+    AzureStaticWebApps:
+      type: apiKey
+      in: header
+      name: x-ms-client-principal
+      description: Azure Static Web Apps authentication token
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+        - referenceId
+      properties:
+        code:
+          type: string
+          description: Error code (LAYER-ENTITY-STATUS format)
+          example: API-INV-400
+        message:
+          type: string
+          description: User-friendly error message
+          example: Invoice number is required
+        referenceId:
+          type: string
+          format: uuid
+          description: Correlation ID for tracing
+          example: 550e8400-e29b-41d4-a716-446655440000
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context
+
+    Invoice:
+      type: object
+      required:
+        - invoiceId
+        - invoiceNumber
+        - vendorId
+        - buyerId
+      properties:
+        invoiceId:
+          type: string
+          example: INV-001
+        invoiceNumber:
+          type: string
+          pattern: ^SMI-\d{4}-\d{2}-\d{3}$
+          example: SMI-2025-11-001
+        vendorId:
+          type: string
+          example: VENDOR-001
+        buyerId:
+          type: string
+          example: BUYER-001
+        status:
+          type: string
+          enum: [draft, submitted, approved, rejected]
+          example: draft
+        totalAmount:
+          type: number
+          format: double
+          example: 5900.00
+        currency:
+          type: string
+          enum: [INR, USD]
+          default: INR
+        createdOn:
+          type: string
+          format: date-time
+        modifiedOn:
+          type: string
+          format: date-time
+        rowVersion:
+          type: string
+          description: Binary timestamp for optimistic concurrency
+          example: 0x000000000000001C
+        isDeleted:
+          type: boolean
+          default: false
+
+    InvoiceDetail:
+      allOf:
+        - $ref: '#/components/schemas/Invoice'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/InvoiceLineItem'
+            taxTotal:
+              type: number
+              format: double
+            subtotal:
+              type: number
+              format: double
+
+    InvoiceLineItem:
+      type: object
+      required:
+        - lineId
+        - description
+        - quantity
+        - unitRate
+      properties:
+        lineId:
+          type: string
+          example: IL-001
+        description:
+          type: string
+          example: Steel Plates (50x100mm)
+        quantity:
+          type: number
+          format: double
+          example: 5
+        unitRate:
+          type: number
+          format: double
+          example: 1000
+        taxRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          example: 0.18
+        lineAmount:
+          type: number
+          format: double
+          example: 5000
+
+    PaginatedResponse:
+      type: object
+      required:
+        - data
+        - pagination
+      properties:
+        data:
+          type: array
+        pagination:
+          type: object
+          required:
+            - page
+            - pageSize
+            - totalCount
+            - totalPages
+          properties:
+            page:
+              type: integer
+              minimum: 1
+              example: 1
+            pageSize:
+              type: integer
+              minimum: 1
+              maximum: 100
+              example: 50
+            totalCount:
+              type: integer
+              example: 127
+            totalPages:
+              type: integer
+              example: 3
+
+    User:
+      type: object
+      required:
+        - userId
+        - email
+      properties:
+        userId:
+          type: string
+          example: USR-001
+        email:
+          type: string
+          format: email
+          example: user@shriyamining.com
+        name:
+          type: string
+          example: John Doe
+        roles:
+          type: array
+          items:
+            type: string
+          example: [invoice.create, po.import]
+        isActive:
+          type: boolean
+          default: true
+        createdOn:
+          type: string
+          format: date-time
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the API and its dependencies
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: API and all dependencies healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+
+  /invoices:
+    post:
+      summary: Create a new invoice
+      tags:
+        - Invoices
+      operationId: createInvoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vendorId
+                - buyerId
+                - items
+              properties:
+                vendorId:
+                  type: string
+                buyerId:
+                  type: string
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/InvoiceLineItem'
+      responses:
+        '201':
+          description: Invoice created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: List invoices with pagination
+      tags:
+        - Invoices
+      operationId: listInvoices
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, submitted, approved, rejected]
+        - name: search
+          in: query
+          schema:
+            type: string
+            description: Search by invoice number or vendor name
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /invoices/{invoiceId}:
+    get:
+      summary: Get invoice details
+      tags:
+        - Invoices
+      operationId: getInvoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invoice found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update invoice
+      tags:
+        - Invoices
+      operationId: updateInvoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Current rowVersion for optimistic locking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [draft, submitted, approved, rejected]
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/InvoiceLineItem'
+      responses:
+        '200':
+          description: Invoice updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Conflict - invoice has been modified by another user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    properties:
+                      currentRowVersion:
+                        type: string
+                      yourRowVersion:
+                        type: string
+
+    delete:
+      summary: Delete invoice (soft delete)
+      tags:
+        - Invoices
+      operationId: deleteInvoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Invoice deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoices/{invoiceId}/versions:
+    get:
+      summary: List invoice versions
+      tags:
+        - Version History
+      operationId: listInvoiceVersions
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of invoice versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        version:
+                          type: integer
+                        status:
+                          type: string
+                        totalAmount:
+                          type: number
+                        modifiedOn:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Invoice not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /invoices/{invoiceId}/export:
+    get:
+      summary: Export invoice
+      tags:
+        - Export
+      operationId: exportInvoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [excel, pdf]
+        - name: version
+          in: query
+          schema:
+            type: integer
+            description: Export specific version (default is latest)
+      responses:
+        '200':
+          description: Export successful
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Invoice or version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /po/import:
+    post:
+      summary: Upload and import PO file
+      tags:
+        - PO Import
+      operationId: importPO
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel file (.xlsx)
+      responses:
+        '201':
+          description: PO imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  importId:
+                    type: string
+                  rowsImported:
+                    type: integer
+                  preview:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InvoiceLineItem'
+        '400':
+          description: Invalid file or missing required columns
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /po/list:
+    get:
+      summary: List imported POs
+      tags:
+        - PO Import
+      operationId: listPOs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of imported POs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            importId:
+                              type: string
+                            fileName:
+                              type: string
+                            rowCount:
+                              type: integer
+                            importedOn:
+                              type: string
+                              format: date-time
+
+  /admin/users:
+    get:
+      summary: List users
+      tags:
+        - Admin
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      summary: Create new user
+      tags:
+        - Admin
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - roles
+              properties:
+                email:
+                  type: string
+                  format: email
+                roles:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/logs:
+    get:
+      summary: Search error logs
+      tags:
+        - Admin
+      operationId: searchErrorLogs
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: code
+          in: query
+          schema:
+            type: string
+            description: Filter by error code
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [Info, Warning, Error, Critical]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Error log entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            errorLogId:
+                              type: string
+                            code:
+                              type: string
+                            message:
+                              type: string
+                            severity:
+                              type: string
+                            correlationId:
+                              type: string
+                              format: uuid
+                            occurredOn:
+                              type: string
+                              format: date-time
+
+components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

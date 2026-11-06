@@ -85,69 +85,68 @@ const createApp = async () => {
 
   // ========== OpenAPI / Swagger (placeholder) ==========
   app.get('/api/openapi.yaml', asyncHandler(async (req, res) => {
-    // TODO: Generate OpenAPI spec from route definitions
-    res.type('text/yaml').send(`
-openapi: 3.1.0
-info:
-  title: SMI Invoice Platform API
-  version: 1.0.0-alpha
-  description: |
-    Backend API for Shriya Mining Industries invoice platform.
-    
-    **Authentication**: Requires x-ms-client-principal header (set by Azure Static Web Apps)
-    **Error Handling**: All errors include correlation ID in response headers
-servers:
-  - url: https://swa-smi-invoice-test.azurestaticapps.net/api
-    description: Test environment
-  - url: https://swa-smi-invoice-prod.azurestaticapps.net/api
-    description: Production environment
-paths:
-  /health:
-    get:
-      summary: Health check
-      tags: [System]
-      responses:
-        200:
-          description: System is healthy
-  /me:
-    get:
-      summary: Current user info
-      tags: [Auth]
-      responses:
-        200:
-          description: User profile
-        401:
-          description: Not authenticated
-`);
+    res.type('text/yaml').sendFile('./api/openapi.yaml');
   }));
 
   app.get('/api/docs', asyncHandler(async (req, res) => {
-    // TODO: Serve Swagger UI
-    res.html(`
+    // Swagger UI HTML - served from CDN
+    const html = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>SMI Invoice API</title>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3/swagger-ui.css" />
+  <meta name="description" content="SMI Invoice Platform - API Documentation" />
+  <title>SMI Invoice API - Swagger UI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css" />
+  <style>
+    html {
+      box-sizing: border-box;
+      overflow: -moz-scrollbars-vertical;
+      overflow-y: scroll;
+    }
+    *, *:before, *:after {
+      box-sizing: inherit;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    .topbar {
+      background-color: #2c3e50;
+      border-bottom: 1px solid #0b1217;
+    }
+    .info .title {
+      color: #2c3e50;
+    }
+  </style>
 </head>
 <body>
   <div id="swagger-ui"></div>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui-bundle.js"></script>
   <script>
-    SwaggerUIBundle({
+    const ui = SwaggerUIBundle({
       url: '/api/openapi.yaml',
       dom_id: '#swagger-ui',
       presets: [
         SwaggerUIBundle.presets.apis,
         SwaggerUIBundle.SwaggerUIStandalonePreset,
       ],
+      layout: 'StandaloneLayout',
+      deepLinking: true,
+      preloadContent: false,
+      onFailure: function(error) {
+        console.error('Failed to load Swagger UI:', error);
+      },
     });
+    window.ui = ui;
   </script>
 </body>
 </html>
-    `);
+    `;
+    res.header('Content-Type', 'text/html');
+    res.send(html);
+  }));
   }));
 
   // ========== PO IMPORT ==========
