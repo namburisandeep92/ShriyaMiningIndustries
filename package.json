@@ -1,0 +1,40 @@
+{
+  "name": "smi-invoice-platform",
+  "version": "0.1.0",
+  "description": "Shriya Mining Industries Invoice Platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:api && npm run test:output",
+    "test:unit": "vitest run tests/unit/ --reporter=verbose",
+    "test:unit:watch": "vitest watch tests/unit/",
+    "test:api": "vitest run tests/api/ --reporter=verbose",
+    "test:api:watch": "vitest watch tests/api/",
+    "test:output": "vitest run tests/output/ --reporter=verbose",
+    "test:output:watch": "vitest watch tests/output/",
+    "test:e2e": "playwright test tests/e2e/",
+    "test:e2e:ui": "playwright test tests/e2e/ --ui",
+    "test:a11y": "playwright test tests/a11y/",
+    "test:all": "npm run test && npm run test:e2e && npm run test:a11y",
+    "test:coverage": "vitest run --coverage tests/unit/ tests/api/ tests/output/",
+    "lint": "eslint . --ext .js,.mjs --fix",
+    "format": "prettier --write \"tests/**/*.js\""
+  },
+  "keywords": ["invoice", "excel", "pdf", "generator"],
+  "author": "Shriya Mining Industries",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.8.0",
+    "@playwright/test": "^1.40.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "@vitest/ui": "^1.0.0",
+    "exceljs": "^4.4.0",
+    "jsdom": "^23.0.0",
+    "prettier": "^3.1.0",
+    "vitest": "^1.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
