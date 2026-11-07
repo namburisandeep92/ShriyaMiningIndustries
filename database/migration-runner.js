@@ -163,6 +163,7 @@ const executeSqlBatches = async (pool, sqlContent, migrationId) => {
 
   if (batches.length === 1) {
     // No GO statements, execute as is
+    log(`Executing ${migrationId} as single batch (no GO statements found)`);
     return pool.request().query(sqlContent);
   }
 
@@ -170,7 +171,7 @@ const executeSqlBatches = async (pool, sqlContent, migrationId) => {
   log(`Executing ${batches.length} batch(es) for ${migrationId}`);
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
-    log(`  Batch ${i + 1}/${batches.length}...`);
+    log(`  Batch ${i + 1}/${batches.length}: ${batch.substring(0, 80).replace(/\n/g, ' ')}...`);
     await pool.request().query(batch);
   }
 };
