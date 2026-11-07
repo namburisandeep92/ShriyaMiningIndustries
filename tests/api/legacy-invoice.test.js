@@ -96,6 +96,19 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(lineAmount({ qty: 1, rate: 1.005 })).toBe(1.01);
   });
 
+  it('defaults new invoices to crate 1001, recalculates counts, and preserves an edited start', async () => {
+    const po = await parsePendingOrders(await readFile(fixture), 'PendingOrders.xlsx');
+    const document = createLegacyInvoice(po.rows.slice(0, 2));
+    expect(document.header['Crate starting no']).toBe('1001');
+    document.lines[0].crates = 2;
+    document.lines[1].crates = 3;
+    expect(crateRanges(document.lines, document.header['Crate starting no'])).toEqual(['1001 - 1002', '1003 - 1005']);
+    document.lines[0].crates = 1;
+    expect(crateRanges(document.lines, '1001')).toEqual(['1001', '1002 - 1004']);
+    expect(createLegacyInvoice(po.rows.slice(0, 2), document.lines, { 'Crate starting no': '700' }).header['Crate starting no']).toBe('700');
+    expect(createLegacyInvoice(po.rows.slice(0, 2), document.lines, { 'Crate starting no': '' }).header['Crate starting no']).toBe('');
+  });
+
   it('writes genuine INV/PACKING sheets with legacy layout, signatures, crates, UOM and corrected monetary cells', async () => {
     const document = await validDocument();
     const bytes = await (await buildLegacyWorkbook(document)).xlsx.writeBuffer();

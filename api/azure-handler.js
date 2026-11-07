@@ -18,7 +18,13 @@ export default async function (context, req) {
         code = 'DB-CONNECT-503';
         await getDatabase().connect();
         code = 'API-ADAPTER-503';
-        return serverlessExpress({ app, eventSourceName: 'AZURE_HTTP_FUNCTION_V4' });
+        return serverlessExpress({
+          app, eventSourceName: 'AZURE_HTTP_FUNCTION_V4',
+          binarySettings: {
+            contentTypes: ['image/*', 'application/pdf', 'application/octet-stream',
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+          },
+        });
       } catch (cause) {
         const error = new Error('API initialization failed', { cause });
         error.code = code;

@@ -6,7 +6,7 @@ export const headerDefaults = {
   'Pre-carriage by': 'BY ROAD', 'Place of receipt': 'CHENNAI', 'Vessel / Flight': 'BY SEA',
   'Port of loading': 'CHENNAI', 'Port of discharge': 'HOUSTON', 'Final delivery': 'HOUSTON',
   'Payment terms': 'D.P AT SIGHT', 'Marks code': 'CODE ; DAL', 'Container no': '',
-  Packing: 'WOODEN CRATES', Grade: 'FIRST GRADE', 'Crate starting no': '',
+  Packing: 'WOODEN CRATES', Grade: 'FIRST GRADE', 'Crate starting no': '1001',
 };
 
 export const headerGroups = [
@@ -102,7 +102,7 @@ export function createLegacyInvoice(rows, previousLines = [], previousHeader = {
     'Buyer PO nos': [...new Set(rows.map(row => row.po))].join(', '),
     'Buyer PO date': dates.length ? dates[0].toISOString().slice(0, 10) : '',
     'Marks code': `CODE ; ${[...new Set(rows.map(row => parseItem({ item: row.item }).code).filter(Boolean))].join(', ')}`,
-    'Crate starting no': previousHeader['Crate starting no'] || '',
+    'Crate starting no': previousHeader['Crate starting no'] ?? headerDefaults['Crate starting no'],
   };
   crateRanges(lines, header['Crate starting no']).forEach((range, index) => { lines[index].crt = range; });
   return { header, lines, words: amountWords(invoiceTotal(lines)) };

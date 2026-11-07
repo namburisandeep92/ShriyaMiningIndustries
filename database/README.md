@@ -103,6 +103,16 @@ shipping fields and both `INV`/`PACKING` sheets derive from the legacy source.
 PDF uses its two-page A4 print layout: choose **Save as PDF** in the print
 dialog. Saved documents and their immutable versions preserve every field.
 Reopening **Edit** on a PO invoice returns to the detailed editor.
+New PO invoices default to crate start **1001**. Each line's range is computed
+from its crate count and the preceding counts; changing a count recalculates
+all subsequent ranges. Existing/edited starting numbers are retained.
+The import table freezes the selection checkbox and `SPS Item` columns, with
+both heading/filter rows sticky. Line editing freezes the combined Stone/PO
+reference column and its heading, matching the legacy editor.
+Azure Functions explicitly treats XLSX/PDF responses as binary; sending them
+as UTF-8 text corrupts bytes and causes gateway/backend download failures.
+If download fails after saving, the editor reports that the invoice is already
+saved and retrying downloads does not create another invoice.
 
 Intentional differences from legacy:
 - A database vendor/buyer association and invoice-create/update permission

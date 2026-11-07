@@ -39,6 +39,7 @@
       </div>
       <div class="table-scroll">
         <table class="po-table">
+          <colgroup><col class="select-column" /><col v-for="column in visibleColumns" :key="column" /></colgroup>
           <thead>
             <tr>
               <th class="pinned-check">Select</th>
@@ -87,8 +88,12 @@
           </label>
         </div>
       </fieldset>
-      <div class="table-scroll">
+      <div class="table-scroll line-scroll">
         <table class="line-table">
+          <colgroup>
+            <col v-for="(field, index) in lineFields" :key="field.key" :style="{ width: `${lineWidths[index]}px` }" />
+            <col style="width:140px" /><col style="width:100px" />
+          </colgroup>
           <thead><tr>
             <th v-for="(field, index) in lineFields" :key="field.key" :style="{ minWidth: `${lineWidths[index]}px`, width: `${lineWidths[index]}px` }">
               {{ field.label }} <span class="resize" @pointerdown.prevent="resizeColumn($event, index)" title="Drag to resize"></span>
@@ -97,7 +102,13 @@
           <tbody>
             <tr v-for="(line, index) in invoice.lines" :key="index">
               <td v-for="field in lineFields" :key="field.key">
-                <input v-model="line[field.key]" :aria-label="`Line ${index + 1} ${field.label}`"
+                <div v-if="field.key === 'stone'" class="stone-ref">
+                  <input v-model="line.stone" :aria-label="`Line ${index + 1} Stone`" :disabled="busy || !canEdit"
+                         :aria-invalid="invalid('stone', index)" :class="{ invalid: invalid('stone', index) }" />
+                  <input v-model="line.ref" :aria-label="`Line ${index + 1} PO / ref`" :disabled="busy || !canEdit"
+                         :aria-invalid="invalid('ref', index)" :class="{ invalid: invalid('ref', index) }" />
+                </div>
+                <input v-else v-model="line[field.key]" :aria-label="`Line ${index + 1} ${field.label}`"
                        :inputmode="field.numeric ? 'decimal' : undefined" :readonly="field.key === 'crt'"
                        :disabled="busy || !canEdit" :aria-invalid="invalid(field.key, index)" :class="{ invalid: invalid(field.key, index) }" />
               </td>
@@ -188,7 +199,7 @@ const quantityTotal = computed(() => {
 const money = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'Invalid'
 const message = (value: unknown) => value && typeof value === 'object' && 'message' in value ? String(value.message) : String(value)
 const lineFields: { key: keyof LegacyLine; label: string; numeric?: boolean }[] = [
-  { key: 'stone', label: 'Stone' }, { key: 'ref', label: 'PO / ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
+  { key: 'stone', label: 'Stone / PO ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
   { key: 'crates', label: 'Crate count', numeric: true }, { key: 'crt', label: 'Crate range' }, { key: 'qty', label: 'Qty', numeric: true },
   { key: 'uom', label: 'UOM' }, { key: 'net', label: 'Weight', numeric: true }, { key: 'rate', label: 'Rate / UOM', numeric: true },
   { key: 'kind', label: 'Goods group' },
@@ -312,7 +323,12 @@ async function saveDownload() {
       toastManager.info('Choose Save as PDF in the print dialog; both invoice and packing list are included')
     }
     toastManager.success('Invoice saved')
-  } catch (cause) { error.value = message(cause); toastManager.error(error.value) }
+  } catch (cause) {
+    error.value = saved.value && JSON.stringify(invoice.value) === savedJson.value
+      ? `Invoice is saved, but download failed: ${message(cause)}. Retry Save & download to download it without creating another invoice.`
+      : message(cause)
+    toastManager.error(error.value)
+  }
   finally { busy.value = false }
 }
 onMounted(async () => {
@@ -327,9 +343,9 @@ onBeforeRouteLeave(() => !invoice.value || JSON.stringify(invoice.value) === sav
 </script>
 
 <style scoped>
-.po-flow { display: grid; gap: 1rem; }
+.po-flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
-.panel { padding: 1.5rem; background: white; border: 1px solid #c8bead; border-radius: 5px; }
+.panel { padding: 1.5rem; background: white; border: 1px solid #c8bead; border-radius: 5px; min-width: 0; }
 fieldset { border: 1px solid #c8bead; margin: 1rem 0; }
 legend { color: #7a5c3e; font-weight: bold; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
@@ -343,14 +359,21 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 table { border-collapse: separate; border-spacing: 0; }
 th, td { border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: .5rem; text-align: left; }
 th { background: #ede6da; position: relative; }
-.po-table th { position: sticky; top: 0; z-index: 2; }
-.po-table thead tr:nth-child(2) th { top: 37px; }
+.po-table { width: max-content; min-width: 100%; }
+.po-table th { position: sticky; top: 0; z-index: 2; height: 40px; box-sizing: border-box; white-space: nowrap; }
+.po-table thead tr:nth-child(2) th { top: 40px; height: auto; }
 .po-table td { white-space: nowrap; }
-.pinned-check { position: sticky; left: 0; background: white; min-width: 65px; z-index: 1; }
+.select-column { width: 65px; }
+.pinned-check { position: sticky; left: 0; background: white; width: 65px; min-width: 65px; max-width: 65px; box-sizing: border-box; z-index: 1; }
+.pinned-check input { width: auto; min-width: 0; }
 .pinned { position: sticky; left: 65px; background: white; z-index: 1; }
 .po-table th.pinned, .po-table th.pinned-check { z-index: 3; background: #ede6da; }
 .chosen td { background: #f1e5d7; }
 .line-table { table-layout: fixed; width: max-content; }
+.line-table th { position: sticky; top: 0; z-index: 2; }
+.line-table th:first-child, .line-table td:first-child { position: sticky; left: 0; background: white; z-index: 1; box-shadow: 2px 0 0 #c8bead; }
+.line-table th:first-child { background: #ede6da; z-index: 3; }
+.stone-ref { display: grid; gap: .3rem; }
 .line-table input { width: 100%; box-sizing: border-box; }
 .resize { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: col-resize; touch-action: none; }
 .column-option { display: flex; padding: .2rem; }

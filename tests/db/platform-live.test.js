@@ -242,6 +242,22 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.getByRole('heading', { name: 'Select PO lines' }).waitFor();
       expect(await page.locator('.po-table tbody tr').count()).toBe(82);
       expect(await page.locator('.error').count()).toBe(0);
+      const frozenPO = await page.locator('.po-table').evaluate(async table => {
+        const scroller = table.parentElement;
+        const cells = table.querySelector('tbody tr').children;
+        const before = [cells[0], cells[1], cells[2]].map(cell => cell.getBoundingClientRect().left);
+        scroller.scrollLeft = 300;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const after = [cells[0], cells[1], cells[2]].map(cell => cell.getBoundingClientRect().left);
+        const header = table.querySelector('thead tr').getBoundingClientRect().height;
+        const filterTop = parseFloat(getComputedStyle(table.querySelector('thead tr:nth-child(2) th')).top);
+        scroller.scrollLeft = 0;
+        return { before, after, header, filterTop };
+      });
+      expect(Math.abs(frozenPO.after[0] - frozenPO.before[0])).toBeLessThan(1);
+      expect(Math.abs(frozenPO.after[1] - frozenPO.before[1])).toBeLessThan(1);
+      expect(frozenPO.before[2] - frozenPO.after[2]).toBeGreaterThan(100);
+      expect(Math.abs(frozenPO.header - frozenPO.filterTop)).toBeLessThan(1);
       await page.getByPlaceholder('Search item, SKU, PO#...').fill('172203');
       const shown = await page.locator('.po-table tbody tr').count();
       expect(shown).toBeGreaterThan(0);
@@ -257,14 +273,33 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.getByRole('button', { name: 'Create invoice', exact: true }).click();
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
       expect(await page.locator('.line-table tbody tr').count()).toBe(2);
+      const frozenLine = await page.locator('.line-table').evaluate(async table => {
+        const scroller = table.parentElement;
+        const cells = table.querySelector('tbody tr').children;
+        const before = [cells[0], cells[1]].map(cell => cell.getBoundingClientRect().left);
+        scroller.scrollLeft = 400;
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const after = [cells[0], cells[1]].map(cell => cell.getBoundingClientRect().left);
+        const referenceFrozen = cells[0].querySelectorAll('input').length === 2;
+        scroller.scrollLeft = 0;
+        return { before, after, referenceFrozen };
+      });
+      expect(frozenLine.referenceFrozen).toBe(true);
+      expect(Math.abs(frozenLine.after[0] - frozenLine.before[0])).toBeLessThan(1);
+      expect(frozenLine.before[1] - frozenLine.after[1]).toBeGreaterThan(100);
+      expect(await page.getByLabel('Crate starting no', { exact: true }).inputValue()).toBe('1001');
       expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
       expect(await page.getByRole('button', { name: 'Save & download', exact: true }).isDisabled()).toBe(true);
       await page.getByLabel('Invoice no', { exact: true }).fill(`B-${randomUUID().slice(0, 18)}`);
-      await page.getByLabel('Crate starting no', { exact: true }).fill('245');
       for (let index = 1; index <= 2; index++) {
         await page.getByLabel(`Line ${index} Crate count`, { exact: true }).fill('2');
         await page.getByLabel(`Line ${index} Rate / UOM`, { exact: true }).fill('1.625');
       }
+      expect(await page.getByLabel('Line 1 Crate range', { exact: true }).inputValue()).toBe('1001 - 1002');
+      expect(await page.getByLabel('Line 2 Crate range', { exact: true }).inputValue()).toBe('1003 - 1004');
+      await page.getByLabel('Line 1 Crate count', { exact: true }).fill('3');
+      expect(await page.getByLabel('Line 2 Crate range', { exact: true }).inputValue()).toBe('1004 - 1005');
+      await page.getByLabel('Line 1 Crate count', { exact: true }).fill('2');
       await page.getByLabel('Line 1 Qty', { exact: true }).fill('1.5');
       expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
       expect(await page.getByLabel('Line 1 Qty', { exact: true }).getAttribute('aria-invalid')).toBe('true');
@@ -300,7 +335,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.readFile(await download.path());
       expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['INV', 'PACKING']);
-      expect(created.document.lines.map(line => line.crt)).toEqual(['245 - 246', '247 - 248']);
+      expect(created.document.lines.map(line => line.crt)).toEqual(['1001 - 1002', '1003 - 1004']);
       expect(created.document.words).toBe('CUSTOM WORDS');
       await page.goto(`${origin}/invoices/${created.id}/edit`);
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
