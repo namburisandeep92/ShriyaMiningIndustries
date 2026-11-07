@@ -150,7 +150,7 @@ const readMigrations = () => {
  * GO is a batch separator in SQL Server; the mssql driver doesn't recognize it,
  * so we split the content into batches and execute them sequentially.
  */
-const executeSqlBatches = async (pool, sqlContent, migrationId) => {
+export const executeSqlBatches = async (pool, sqlContent, migrationId) => {
   // Split on GO (case-insensitive, as standalone statement on its own line)
   const batches = sqlContent
     .split(/^\s*GO\s*$/gim)  // Split on GO at start of line
@@ -325,5 +325,7 @@ const simulateMigrations = () => {
   }
 };
 
-// Run migrations
-runMigrations();
+// Run migrations when invoked directly, not when imported by tests.
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  runMigrations();
+}
