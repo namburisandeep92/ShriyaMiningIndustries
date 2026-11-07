@@ -55,7 +55,11 @@ class DatabaseService {
 
     const parts = connStr.split(';').filter(p => p.trim());
     parts.forEach(part => {
-      const [key, value] = part.split('=').map(s => s.trim());
+      // Split on the FIRST '=' only, so passwords containing '=' are preserved
+      const idx = part.indexOf('=');
+      if (idx === -1) return;
+      const key = part.slice(0, idx).trim();
+      const value = part.slice(idx + 1).trim();
       
       if (key.toLowerCase() === 'server') {
         config.server = value.replace('tcp:', '').split(',')[0];

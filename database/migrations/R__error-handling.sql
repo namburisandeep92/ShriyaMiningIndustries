@@ -78,21 +78,27 @@ BEGIN
 
   -- Soft-delete Info and Warning errors older than 90 days
   SET @PurgeDate = DATEADD(DAY, -90, GETUTCDATE());
-  UPDATE log.ErrorLog
+  -- log.ErrorLog has no Severity column; severity comes from log.ErrorCode.
+  -- Rows with no/unknown ErrorCode are treated as 'Error' (1-year retention).
+  UPDATE el
   SET IsDeleted = 1, ModifiedOn = GETUTCDATE()
-  WHERE IsDeleted = 0 
-    AND Severity IN ('Info', 'Warning')
-    AND CreatedOn < @PurgeDate;
+  FROM log.ErrorLog el
+  LEFT JOIN log.ErrorCode ec ON ec.ErrorCode = el.ErrorCode
+  WHERE el.IsDeleted = 0
+    AND ISNULL(ec.Severity, 'Error') IN ('Info', 'Warning')
+    AND el.CreatedOn < @PurgeDate;
   
   SET @RowsDeleted = @@ROWCOUNT;
 
   -- Soft-delete Error and Critical errors older than 1 year
   SET @PurgeDate = DATEADD(YEAR, -1, GETUTCDATE());
-  UPDATE log.ErrorLog
+  UPDATE el
   SET IsDeleted = 1, ModifiedOn = GETUTCDATE()
-  WHERE IsDeleted = 0 
-    AND Severity IN ('Error', 'Critical')
-    AND CreatedOn < @PurgeDate;
+  FROM log.ErrorLog el
+  LEFT JOIN log.ErrorCode ec ON ec.ErrorCode = el.ErrorCode
+  WHERE el.IsDeleted = 0
+    AND ISNULL(ec.Severity, 'Error') IN ('Error', 'Critical')
+    AND el.CreatedOn < @PurgeDate;
   
   SET @RowsDeleted = @RowsDeleted + @@ROWCOUNT;
 

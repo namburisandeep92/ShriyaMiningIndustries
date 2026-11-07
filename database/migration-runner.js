@@ -74,7 +74,11 @@ const parseConnectionString = (connStr) => {
   if (!connStr) return null;
   
   const parts = connStr.split(';').reduce((acc, part) => {
-    const [key, value] = part.split('=');
+    // Split on the FIRST '=' only, so passwords containing '=' are preserved
+    const idx = part.indexOf('=');
+    if (idx === -1) return acc;
+    const key = part.slice(0, idx);
+    const value = part.slice(idx + 1);
     if (key && value) {
       acc[key.trim().toLowerCase()] = value.trim();
     }
