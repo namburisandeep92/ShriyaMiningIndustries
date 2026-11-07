@@ -58,7 +58,7 @@ END;
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('log') AND name = 'ErrorCode')
 BEGIN
   CREATE TABLE log.ErrorCode (
-    ErrorCode NVARCHAR(20) PRIMARY KEY,
+    ErrorCode NVARCHAR(25) PRIMARY KEY,
     Title NVARCHAR(100) NOT NULL,
     Description NVARCHAR(500) NOT NULL,
     Severity NVARCHAR(20) NOT NULL CHECK (Severity IN ('Critical', 'Error', 'Warning', 'Info')),
@@ -88,7 +88,7 @@ BEGIN
   CREATE TABLE log.ErrorLog (
     ErrorLogId BIGINT PRIMARY KEY IDENTITY(1,1),
     CorrelationId UNIQUEIDENTIFIER NOT NULL,
-    ErrorCode NVARCHAR(20) NULL FOREIGN KEY REFERENCES log.ErrorCode(ErrorCode),
+    ErrorCode NVARCHAR(25) NULL FOREIGN KEY REFERENCES log.ErrorCode(ErrorCode),
     Layer NVARCHAR(20) NOT NULL CHECK (Layer IN ('Database', 'API', 'Client')),
     SqlErrorNumber INT NULL,
     SqlProcedureName NVARCHAR(255) NULL,
