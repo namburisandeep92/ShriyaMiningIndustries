@@ -36,6 +36,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import sql from 'mssql';
+import { splitSqlBatches } from './sql-batches.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -151,11 +152,7 @@ const readMigrations = () => {
  * so we split the content into batches and execute them sequentially.
  */
 const executeSqlBatches = async (pool, sqlContent, migrationId) => {
-  // Split on GO (case-insensitive, as standalone statement on its own line)
-  const batches = sqlContent
-    .split(/^\s*GO\s*$/gim)  // Split on GO at start of line
-    .map(batch => batch.trim())
-    .filter(batch => batch.length > 0);  // Remove empty batches
+  const batches = splitSqlBatches(sqlContent);
 
   if (batches.length === 0) {
     throw new Error('No SQL content to execute');
