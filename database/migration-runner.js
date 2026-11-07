@@ -146,6 +146,36 @@ const readMigrations = () => {
 };
 
 /**
+ * Execute SQL content, splitting on GO statements
+ * GO is a batch separator in SQL Server; the mssql driver doesn't recognize it,
+ * so we split the content into batches and execute them sequentially.
+ */
+const executeSqlBatches = async (pool, sqlContent, migrationId) => {
+  // Split on GO (case-insensitive, as standalone statement on its own line)
+  const batches = sqlContent
+    .split(/^\s*GO\s*$/gim)  // Split on GO at start of line
+    .map(batch => batch.trim())
+    .filter(batch => batch.length > 0);  // Remove empty batches
+
+  if (batches.length === 0) {
+    throw new Error('No SQL content to execute');
+  }
+
+  if (batches.length === 1) {
+    // No GO statements, execute as is
+    return pool.request().query(sqlContent);
+  }
+
+  // Execute each batch separately
+  log(`Executing ${batches.length} batch(es) for ${migrationId}`);
+  for (let i = 0; i < batches.length; i++) {
+    const batch = batches[i];
+    log(`  Batch ${i + 1}/${batches.length}...`);
+    await pool.request().query(batch);
+  }
+};
+
+/**
  * Main migration runner
  */
 const runMigrations = async () => {
@@ -233,7 +263,7 @@ const runMigrations = async () => {
       log(`EXEC: ${migration.id}`);
       if (!config.dryRun) {
         try {
-          await pool.request().query(migration.content);
+          await executeSqlBatches(pool, migration.content, migration.id);
           
           // Record migration in history
           const historyInsert = `
@@ -255,7 +285,7 @@ const runMigrations = async () => {
       log(`EXEC (repeatable): ${migration.id}`);
       if (!config.dryRun) {
         try {
-          await pool.request().query(migration.content);
+          await executeSqlBatches(pool, migration.content, migration.id);
           log(`OK: ${migration.id} completed`);
         } catch (e) {
           log(`ERROR in ${migration.id}: ${e.message}`, 'ERROR');
