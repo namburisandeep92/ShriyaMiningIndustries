@@ -59,6 +59,7 @@ BEGIN
 END;
 
 PRINT 'Procedure log.usp_ErrorLog_Insert created/altered successfully';
+GO
 
 -- ============================================================================
 -- usp_ErrorLog_Purge
@@ -104,6 +105,7 @@ BEGIN
 END;
 
 PRINT 'Procedure log.usp_ErrorLog_Purge created/altered successfully';
+GO
 
 -- ============================================================================
 -- usp_Invoice_Create
@@ -184,6 +186,7 @@ BEGIN
 END;
 
 PRINT 'Procedure app.usp_Invoice_Create created/altered successfully';
+GO
 
 -- ============================================================================
 -- usp_Invoice_UpdateStatus
@@ -274,6 +277,7 @@ BEGIN
 END;
 
 PRINT 'Procedure app.usp_Invoice_UpdateStatus created/altered successfully';
+GO
 
 -- ============================================================================
 -- usp_Invoice_GetVersionHistory
@@ -313,3 +317,4 @@ BEGIN
 END;
 
 PRINT 'Procedure app.usp_Invoice_GetVersionHistory created/altered successfully';
+GO
