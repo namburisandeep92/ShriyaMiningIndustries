@@ -219,7 +219,8 @@ BEGIN
     -- First-write-wins: check rowversion
     IF @RowVersion <> @CurrentRowVersion
     BEGIN
-      DECLARE @ErrorMessage NVARCHAR(MAX) = 'Concurrent modification detected for invoice ' + CAST(@InvoiceId AS NVARCHAR(36));
+      DECLARE @ErrorMessage NVARCHAR(MAX);
+      SET @ErrorMessage = 'Concurrent modification detected for invoice ' + CAST(@InvoiceId AS NVARCHAR(36));
       INSERT INTO log.ErrorLog (CorrelationId, ErrorCode, Layer, SqlErrorNumber, SqlMessage, CreatedBy, CreatedOn)
       VALUES (@CorrelationId, 'INV-UPDATE-409', 'Database', 50409, 
               @ErrorMessage, 
