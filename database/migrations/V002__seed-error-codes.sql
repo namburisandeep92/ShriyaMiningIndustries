@@ -209,10 +209,7 @@ VALUES ('DB-DEADLOCK', 'Database Deadlock',
 
 -- ============================================================================
 -- MARK MIGRATION COMPLETE
+-- (Handled by migration runner - not needed here)
 -- ============================================================================
-
-DELETE FROM __MigrationHistory WHERE MigrationId = 'V002__seed-error-codes';
-INSERT INTO __MigrationHistory (MigrationId, ProductVersion) 
-VALUES ('V002__seed-error-codes', '1.0.0');
 
 PRINT 'Migration V002__seed-error-codes completed successfully';
