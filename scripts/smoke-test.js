@@ -8,8 +8,9 @@
  *   VITE_API_BASE_URL=https://swa-smi-invoice-prod.azurestaticapps.net node scripts/smoke-test.js
  */
 
-const http = require('http');
-const https = require('https');
+import http from 'http';
+import https from 'https';
+import { URL } from 'url';
 
 const baseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:3000';
 const timeout = 30000; // 30 seconds
