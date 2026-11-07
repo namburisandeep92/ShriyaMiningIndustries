@@ -1,66 +1,10 @@
 {
-  "routes": [
-    {
-      "route": "/api/*",
-      "serve": null,
-      "statusCode": 200
-    },
-    {
-      "route": "/assets/*",
-      "serve": "/assets/*"
-    },
-    {
-      "route": "/*.json",
-      "serve": "/*.json"
-    },
-    {
-      "route": "/*.js",
-      "serve": "/*.js"
-    },
-    {
-      "route": "/*.css",
-      "serve": "/*.css"
-    },
-    {
-      "route": "/*.svg",
-      "serve": "/*.svg"
-    },
-    {
-      "route": "/*.png",
-      "serve": "/*.png"
-    },
-    {
-      "route": "/*.jpg",
-      "serve": "/*.jpg"
-    },
-    {
-      "route": "/*.ico",
-      "serve": "/*.ico"
-    },
-    {
-      "route": "/login",
-      "serve": "/app/index.html",
-      "statusCode": 200
-    },
-    {
-      "route": "/*",
-      "serve": "/app/index.html",
-      "statusCode": 200
-    }
-  ],
-  "responseOverrides": {
-    "401": {
-      "redirect": "/login",
-      "statusCode": 302
-    },
-    "403": {
-      "rewrite": "/app/index.html",
-      "statusCode": 403
-    },
-    "404": {
-      "rewrite": "/app/index.html",
-      "statusCode": 200
-    }
+  "platform": {
+    "apiRuntime": "node:22"
+  },
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/api/*", "/.auth/*", "/assets/*", "/*.{json,js,css,svg,png,jpg,ico}"]
   },
   "globalHeaders": {
     "Content-Security-Policy": "default-src 'self' https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",

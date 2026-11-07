@@ -50,7 +50,7 @@ const request = (url, method = 'GET', headers = {}) => {
     });
 
     req.on('error', reject);
-    req.on('timeout', () => reject(new Error('Request timeout')));
+    req.on('timeout', () => req.destroy(new Error('Request timeout')));
     req.end();
   });
 };
@@ -69,7 +69,7 @@ const testHealthCheck = async () => {
     }
 
     const body = JSON.parse(res.body);
-    if (body.status !== 'healthy' && body.status !== 'degraded') {
+    if (body.status !== 'healthy' || body.database !== 'connected') {
       console.log(`❌ Health check: invalid status '${body.status}'`);
       failCount++;
       return;
@@ -195,6 +195,17 @@ const runTests = async () => {
   await testHealthCheck();
   await testMeEndpoint();
   await testFrontendLoads();
+  try {
+    const res = await request(`${baseUrl}/invoices`);
+    if (res.status !== 200 || !res.body.includes('id="app"')) {
+      throw new Error(`SPA deep link failed: HTTP ${res.status}`);
+    }
+    console.log('SPA deep link: loads');
+    passCount++;
+  } catch (err) {
+    console.error(err.message);
+    failCount++;
+  }
   
   console.log('\nRunning optional tests...\n');
   

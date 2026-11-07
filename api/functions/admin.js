@@ -5,8 +5,8 @@
  * GET /api/admin/error-log - Search error log
  */
 
-const { asyncHandler, Errors } = require('../middleware/error-handler');
-const { getDatabase } = require('../services/database');
+import { asyncHandler, Errors } from '../middleware/error-handler.js';
+import { getDatabase } from '../services/database.js';
 
 /**
  * GET /api/admin/users
@@ -226,7 +226,7 @@ const handleSearchErrorLog = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = {
+export {
   handleListUsers,
   handleCreateUser,
   handleSearchErrorLog,

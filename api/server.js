@@ -5,37 +5,38 @@
  * Entry point for Azure Functions or local server
  */
 
-const express = require('express');
-const cors = require('cors');
-const correlationIdMw = require('./middleware/correlation-id');
-const authMw = require('./middleware/auth');
-const { errorHandler, asyncHandler } = require('./middleware/error-handler');
-const { getDatabase } = require('./services/database');
+import express from 'express';
+import cors from 'cors';
+import * as correlationIdMw from './middleware/correlation-id.js';
+import * as authMw from './middleware/auth.js';
+import { errorHandler, asyncHandler } from './middleware/error-handler.js';
+import { getDatabase } from './services/database.js';
+import { fileURLToPath } from 'node:url';
 
 // Import route handlers
-const {
+import {
   handleUploadPO,
   handleListPOImports,
-} = require('./functions/po-import');
-const {
+} from './functions/po-import.js';
+import {
   handleCreateInvoice,
   handleListInvoices,
   handleGetInvoice,
   handleUpdateInvoice,
   handleDeleteInvoice,
-} = require('./functions/invoice-crud');
-const {
+} from './functions/invoice-crud.js';
+import {
   handleExportInvoice,
-} = require('./functions/invoice-export');
-const {
+} from './functions/invoice-export.js';
+import {
   handleListVersions,
   handleGetVersion,
-} = require('./functions/invoice-history');
-const {
+} from './functions/invoice-history.js';
+import {
   handleListUsers,
   handleCreateUser,
   handleSearchErrorLog,
-} = require('./functions/admin');
+} from './functions/admin.js';
 
 /**
  * Validate required environment variables at startup
@@ -43,9 +44,14 @@ const {
  */
 const validateEnvironment = () => {
   const requiredEnv = [
-    'DB_CONNECTION_STRING',
     'ENVIRONMENT',
     'NODE_ENV',
+    ...(process.env.DB_CONNECTION_STRING ? [] : [
+      'DB_SERVER',
+      'DB_DATABASE',
+      'DB_USERNAME',
+      'DB_PASSWORD',
+    ]),
   ];
 
   const missing = requiredEnv.filter(key => !process.env[key]);
@@ -156,7 +162,7 @@ const createApp = async () => {
 
   // ========== OpenAPI / Swagger (placeholder) ==========
   app.get('/api/openapi.yaml', asyncHandler(async (req, res) => {
-    res.type('text/yaml').sendFile('./api/openapi.yaml');
+    res.type('text/yaml').sendFile(fileURLToPath(new URL('./openapi.yaml', import.meta.url)));
   }));
 
   app.get('/api/docs', asyncHandler(async (req, res) => {
@@ -218,7 +224,6 @@ const createApp = async () => {
     res.header('Content-Type', 'text/html');
     res.send(html);
   }));
-  }));
 
   // ========== PO IMPORT ==========
   app.post('/api/po-import', authMw.requireAuth, handleUploadPO);
@@ -261,8 +266,10 @@ const createApp = async () => {
 /**
  * Start local server (for development)
  */
-const startServer = async (port = 3000) => {
+const startServer = async (port = 7071) => {
   try {
+    validateEnvironment();
+
     // Initialize database
     const db = getDatabase();
     console.log('[STARTUP] Connecting to database...');
@@ -302,7 +309,7 @@ const createAppForFunctions = async () => {
   return createApp();
 };
 
-module.exports = {
+export {
   createApp,
   createAppForFunctions,
   startServer,

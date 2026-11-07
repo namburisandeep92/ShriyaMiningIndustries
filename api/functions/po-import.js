@@ -4,10 +4,10 @@
  * GET /api/po-import - List imports with paging
  */
 
-const { asyncHandler, Errors } = require('../middleware/error-handler');
-const { getDatabase } = require('../services/database');
-const ExcelJS = require('exceljs');
-const invoiceUtils = require('../../tests/utils/invoice-utils');
+import { asyncHandler, Errors } from '../middleware/error-handler.js';
+import { getDatabase } from '../services/database.js';
+import ExcelJS from 'exceljs';
+import * as invoiceUtils from '../services/invoice-utils.js';
 
 // Required columns for PO import
 const REQUIRED_COLUMNS = [
@@ -216,7 +216,7 @@ const handleListPOImports = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = {
+export {
   handleUploadPO,
   handleListPOImports,
 };

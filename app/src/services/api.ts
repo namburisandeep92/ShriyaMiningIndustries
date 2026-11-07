@@ -21,7 +21,7 @@ class ApiClient {
   private correlationId: string = ''
 
   constructor() {
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7071/api'
+    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
     
     this.instance = axios.create({
       baseURL,

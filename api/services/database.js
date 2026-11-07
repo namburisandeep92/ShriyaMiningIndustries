@@ -9,7 +9,7 @@
  * - Error logging with correlation ID
  */
 
-const sql = require('mssql');
+import sql from 'mssql';
 
 class DatabaseService {
   constructor() {
@@ -248,7 +248,7 @@ const getDatabase = () => {
   return dbInstance;
 };
 
-module.exports = {
+export {
   DatabaseService,
   getDatabase,
 };

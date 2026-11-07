@@ -22,3 +22,4 @@ coverage/
 .nyc_output/
 public/app/
 app/node_modules/
+.swa-api/

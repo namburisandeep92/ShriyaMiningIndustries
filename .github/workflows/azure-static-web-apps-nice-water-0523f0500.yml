@@ -32,9 +32,14 @@ jobs:
       - name: Build Vue frontend
         run: npm run app:build
 
+      - name: Package Azure Functions API
+        run: |
+          npm run api:package
+          npm ci --prefix .swa-api --omit=dev
+
       - name: Verify frontend build
         run: |
-          if [ ! -f public/app/index.html ]; then
+          if [ ! -f public/app/index.html ] || [ ! -f public/app/staticwebapp.config.json ]; then
             echo "❌ Frontend build failed - index.html not found"
             exit 1
           fi
@@ -83,19 +88,21 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_NICE_WATER_0523F0500 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "/"
-          api_location: "api"
-          output_location: "public/app"
-          skip_app_build: false
-          app_build_command: "npm run app:build"
+          app_location: "public/app"
+          api_location: ".swa-api"
+          output_location: ""
+          skip_app_build: true
+          skip_api_build: true
 
       - name: Run post-deploy smoke tests (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
+        env:
+          VITE_API_BASE_URL: ${{ steps.builddeploy.outputs.static_web_app_url }}
         run: |
           echo "🧪 Running post-deployment smoke tests..."
           
           # Get the SWA URL from the deployment output or use default
-          SWA_URL="https://swa-smi-invoice-prod.azurestaticapps.net"
+          SWA_URL="$VITE_API_BASE_URL"
           
           echo "Testing: $SWA_URL"
           

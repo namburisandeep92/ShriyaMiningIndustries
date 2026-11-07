@@ -4,7 +4,7 @@
   "description": "Shriya Mining Industries Invoice Platform - Cloud-native, zero-cost Azure",
   "type": "module",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "test": "vitest run --reporter=verbose",
@@ -21,6 +21,7 @@
     "migrate": "node database/migration-runner.js",
     "migrate:dry-run": "node database/migration-runner.js --dry-run",
     "api:dev": "node api/index.js",
+    "api:package": "node scripts/package-api.js",
     "api:test": "vitest run tests/api/integration/ --reporter=verbose",
     "app:dev": "cd app && npm run dev",
     "app:build": "cd app && npm run build",
@@ -29,6 +30,8 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@codegenie/serverless-express": "^4.17.1",
+    "exceljs": "^4.4.0",
     "express": "^4.18.0",
     "cors": "^2.8.0",
     "uuid": "^9.0.0",
@@ -40,7 +43,6 @@
     "@vitest/coverage-v8": "^1.0.0",
     "@playwright/test": "^1.40.0",
     "playwright": "^1.40.0",
-    "exceljs": "^4.4.0",
     "jsdom": "^23.0.0",
     "axe-core": "^4.7.0",
     "axios": "^1.6.0",

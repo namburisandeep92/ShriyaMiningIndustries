@@ -7,7 +7,7 @@ export interface Config {
 }
 
 const config: Config = {
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:7071/api',
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
   appTitle: import.meta.env.VITE_APP_TITLE || 'SMI Invoice Platform',
   environment: (import.meta.env.VITE_ENVIRONMENT || 'development') as any,
   enableSwaggerUI: import.meta.env.VITE_ENVIRONMENT !== 'production',

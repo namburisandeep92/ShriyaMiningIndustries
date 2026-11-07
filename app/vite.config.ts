@@ -1,9 +1,22 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import fs from 'node:fs'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    {
+      name: 'static-web-app-config',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'staticwebapp.config.json',
+          source: fs.readFileSync(path.resolve(__dirname, '../staticwebapp.config.json'), 'utf8'),
+        })
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -15,7 +28,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:7071',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

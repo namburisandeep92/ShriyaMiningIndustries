@@ -10,7 +10,7 @@
  * - Technical details in logs only
  */
 
-const correlationId = require('./correlation-id');
+import * as correlationId from './correlation-id.js';
 
 /**
  * Error response structure
@@ -130,7 +130,7 @@ const Errors = {
     new ApiError(500, 'API-ERROR-500', 'An unexpected error occurred', detail),
 };
 
-module.exports = {
+export {
   ApiError,
   errorHandler,
   asyncHandler,

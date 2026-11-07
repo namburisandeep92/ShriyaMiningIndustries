@@ -5,8 +5,8 @@
  * Provides role-based access control
  */
 
-const { Errors } = require('./error-handler');
-const { getDatabase } = require('../services/database');
+import { Errors } from './error-handler.js';
+import { getDatabase } from '../services/database.js';
 
 /**
  * Parse x-ms-client-principal header (set by Azure Static Web Apps)
@@ -72,14 +72,14 @@ const loadUserRoles = async (email) => {
 const middleware = async (req, res, next) => {
   const principal = parseUserHeader(req.headers['x-ms-client-principal']);
   
-  if (!principal || !principal.userPrincipalName) {
+  if (!principal || !(principal.userPrincipalName || principal.userDetails)) {
     // No auth header: let routes handle what's allowed
     // (e.g., /api/health and /api/docs don't need auth)
     req.user = null;
     return next();
   }
 
-  const email = principal.userPrincipalName;
+  const email = principal.userPrincipalName || principal.userDetails;
   const { roles, permissions } = await loadUserRoles(email);
 
   req.user = {
@@ -137,7 +137,7 @@ const requireRole = (requiredRole) => (req, res, next) => {
   next();
 };
 
-module.exports = {
+export {
   middleware,
   requireAuth,
   requirePermission,

@@ -3,9 +3,9 @@
  * GET /api/invoices/:id/export - Download invoice as Excel or PDF
  */
 
-const { asyncHandler, Errors } = require('../middleware/error-handler');
-const { getDatabase } = require('../services/database');
-const ExcelJS = require('exceljs');
+import { asyncHandler, Errors } from '../middleware/error-handler.js';
+import { getDatabase } from '../services/database.js';
+import ExcelJS from 'exceljs';
 
 /**
  * GET /api/invoices/:id/export
@@ -175,6 +175,6 @@ Total: ${items.reduce((sum, item) => sum + item.LineAmount + item.Tax, 0)}
   res.send(pdfContent);
 }
 
-module.exports = {
+export {
   handleExportInvoice,
 };

@@ -4,8 +4,8 @@
  * GET /api/invoices/:id/versions/:version - Get specific version
  */
 
-const { asyncHandler, Errors } = require('../middleware/error-handler');
-const { getDatabase } = require('../services/database');
+import { asyncHandler, Errors } from '../middleware/error-handler.js';
+import { getDatabase } from '../services/database.js';
 
 /**
  * GET /api/invoices/:id/versions
@@ -118,7 +118,7 @@ const handleGetVersion = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = {
+export {
   handleListVersions,
   handleGetVersion,
 };

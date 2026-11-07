@@ -192,6 +192,54 @@ git push origin main
 
 ## Verification
 
+### Deployment packaging
+
+The workflows build the frontend once and deploy `public/app` directly.
+Vite emits the root `staticwebapp.config.json` into that output, so
+deep links such as `/invoices` fall back to `/index.html`. API and Azure
+authentication paths are excluded from the HTML fallback.
+
+`npm run api:package` stages an isolated Functions application in `.swa-api`.
+Install its locked runtime dependencies with
+`npm ci --prefix .swa-api --omit=dev`. The HTTP trigger uses the Express
+adapter in `api/azure-handler.js`; runtime business utilities live under
+`api/services`, not the test directory.
+
+Each Static Web App needs its own Azure application settings:
+`DB_CONNECTION_STRING`, `ENVIRONMENT` (`test` or `production`), and
+`NODE_ENV=production`. GitHub migration secrets do not automatically
+configure Azure runtime settings. Never commit these credentials.
+Post-deployment smoke tests use the URL returned by Azure, require a
+healthy database, and check direct navigation to `/invoices`.
+
+Test UI: https://victorious-grass-078778700.3.azurestaticapps.net/
+Sign in using `/.auth/login/aad?post_login_redirect_uri=/invoices`.
+
+### Local UI and API
+
+Use Node.js 22 or newer. Configure the `DB_TEST_HOST`, `DB_TEST_NAME`,
+`DB_TEST_USER`, and `DB_TEST_PASSWORD` values in the untracked root `.env`
+file (see `.env.example`). Never commit credentials.
+
+In separate terminals at the repository root:
+
+```powershell
+npm run api:dev
+npm run app:dev
+```
+
+Open http://localhost:3000. Vite proxies `/api` requests to
+http://localhost:7071 without removing the `/api` prefix.
+The API loads the root `.env` using Node's built-in environment loader
+and defaults to the test database configuration in development.
+An explicitly supplied `DB_CONNECTION_STRING` takes precedence.
+Production never falls back to test credentials.
+
+Verify http://localhost:3000/api/health reports `healthy`.
+The `/api/me` endpoint should return `authenticated: false` until an
+authenticated principal is supplied by Static Web Apps. Local Vite alone
+does not provide Azure login; protected endpoints remain protected.
+
 ### After Deployment
 
 **Test the API**:

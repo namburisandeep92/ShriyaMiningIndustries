@@ -7,9 +7,9 @@
  * DELETE /api/invoices/:id - Delete invoice
  */
 
-const { asyncHandler, Errors } = require('../middleware/error-handler');
-const { getDatabase } = require('../services/database');
-const invoiceUtils = require('../../tests/utils/invoice-utils');
+import { asyncHandler, Errors } from '../middleware/error-handler.js';
+import { getDatabase } from '../services/database.js';
+import * as invoiceUtils from '../services/invoice-utils.js';
 
 /**
  * POST /api/invoices
@@ -344,7 +344,7 @@ const handleDeleteInvoice = asyncHandler(async (req, res) => {
   res.status(204).send();
 });
 
-module.exports = {
+export {
   handleCreateInvoice,
   handleListInvoices,
   handleGetInvoice,
