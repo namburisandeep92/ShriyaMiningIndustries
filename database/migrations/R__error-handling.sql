@@ -78,21 +78,25 @@ BEGIN
 
   -- Soft-delete Info and Warning errors older than 90 days
   SET @PurgeDate = DATEADD(DAY, -90, GETUTCDATE());
-  UPDATE log.ErrorLog
+  UPDATE errorLog
   SET IsDeleted = 1, ModifiedOn = GETUTCDATE()
-  WHERE IsDeleted = 0 
-    AND Severity IN ('Info', 'Warning')
-    AND CreatedOn < @PurgeDate;
+  FROM log.ErrorLog AS errorLog
+  INNER JOIN log.ErrorCode AS errorCode ON errorCode.ErrorCode = errorLog.ErrorCode
+  WHERE errorLog.IsDeleted = 0
+    AND errorCode.Severity IN ('Info', 'Warning')
+    AND errorLog.CreatedOn < @PurgeDate;
   
   SET @RowsDeleted = @@ROWCOUNT;
 
   -- Soft-delete Error and Critical errors older than 1 year
   SET @PurgeDate = DATEADD(YEAR, -1, GETUTCDATE());
-  UPDATE log.ErrorLog
+  UPDATE errorLog
   SET IsDeleted = 1, ModifiedOn = GETUTCDATE()
-  WHERE IsDeleted = 0 
-    AND Severity IN ('Error', 'Critical')
-    AND CreatedOn < @PurgeDate;
+  FROM log.ErrorLog AS errorLog
+  INNER JOIN log.ErrorCode AS errorCode ON errorCode.ErrorCode = errorLog.ErrorCode
+  WHERE errorLog.IsDeleted = 0
+    AND errorCode.Severity IN ('Error', 'Critical')
+    AND errorLog.CreatedOn < @PurgeDate;
   
   SET @RowsDeleted = @RowsDeleted + @@ROWCOUNT;
 
@@ -237,7 +241,9 @@ BEGIN
        OR @CurrentStatus = 'In Review' AND @NewStatus NOT IN ('Approved')
        OR @CurrentStatus = 'Approved' AND @NewStatus NOT IN ('Shipped')
     BEGIN
-      THROW 50400, 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus, 1;
+      DECLARE @StatusTransitionMessage NVARCHAR(2048);
+      SET @StatusTransitionMessage = 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus;
+      THROW 50400, @StatusTransitionMessage, 1;
     END;
 
     -- Record history before update
