@@ -95,7 +95,8 @@ BEGIN
   
   SET @RowsDeleted = @RowsDeleted + @@ROWCOUNT;
 
-  DECLARE @PurgeMessage NVARCHAR(MAX) = 'Purged ' + CAST(@RowsDeleted AS NVARCHAR(20)) + ' error log rows';
+  DECLARE @PurgeMessage NVARCHAR(MAX);
+  SET @PurgeMessage = 'Purged ' + CAST(@RowsDeleted AS NVARCHAR(20)) + ' error log rows';
   INSERT INTO log.ApplicationEvent (CorrelationId, EventType, Severity, Message, CreatedOn)
   VALUES (NEWID(), 'ErrorLogPurge', 'Info', 
           @PurgeMessage,
@@ -144,7 +145,8 @@ BEGIN
     IF EXISTS (SELECT 1 FROM app.Invoice WHERE InvoiceNumber = @NewInvoiceNumber AND IsDeleted = 0)
     BEGIN
       -- Return 409-like error
-      DECLARE @DuplicateMessage NVARCHAR(MAX) = 'Duplicate invoice number: ' + @NewInvoiceNumber;
+      DECLARE @DuplicateMessage NVARCHAR(MAX);
+      SET @DuplicateMessage = 'Duplicate invoice number: ' + @NewInvoiceNumber;
       INSERT INTO log.ErrorLog (CorrelationId, ErrorCode, Layer, SqlErrorNumber, SqlMessage, CreatedBy, CreatedOn)
       VALUES (@CorrelationId, 'INV-SAVE-409', 'Database', 50409, 
               @DuplicateMessage, @CreatedBy, GETUTCDATE());
@@ -162,7 +164,8 @@ BEGIN
             'Draft', @CreatedBy, @CreatedBy, GETUTCDATE(), GETUTCDATE());
 
     -- Log event
-    DECLARE @InvoiceCreatedMessage NVARCHAR(MAX) = 'Invoice ' + @InvoiceNumber + ' created';
+    DECLARE @InvoiceCreatedMessage NVARCHAR(MAX);
+    SET @InvoiceCreatedMessage = 'Invoice ' + @InvoiceNumber + ' created';
     INSERT INTO log.ApplicationEvent (CorrelationId, EventType, Severity, Message, UserId, CreatedOn)
     VALUES (@CorrelationId, 'InvoiceCreated', 'Info', 
             @InvoiceCreatedMessage, @CreatedBy, GETUTCDATE());
@@ -249,7 +252,8 @@ BEGIN
         Version = Version + 1
     WHERE InvoiceId = @InvoiceId;
 
-    DECLARE @StatusChangeMessage NVARCHAR(MAX) = 'Invoice status changed from ' + @CurrentStatus + ' to ' + @NewStatus;
+    DECLARE @StatusChangeMessage NVARCHAR(MAX);
+    SET @StatusChangeMessage = 'Invoice status changed from ' + @CurrentStatus + ' to ' + @NewStatus;
     INSERT INTO log.ApplicationEvent (CorrelationId, EventType, Severity, Message, UserId, CreatedOn)
     VALUES (@CorrelationId, 'InvoiceStatusChanged', 'Info', 
             @StatusChangeMessage, 
