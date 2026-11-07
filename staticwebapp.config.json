@@ -44,9 +44,6 @@
       "statusCode": 200
     }
   ],
-  "auth": {
-    "rolesSource": "/api/me"
-  },
   "responseOverrides": {
     "401": {
       "redirect": "/login",
