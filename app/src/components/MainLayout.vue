@@ -5,10 +5,10 @@
         <h1 class="app-title">{{ config.appTitle }}</h1>
         <nav class="app-nav">
           <router-link to="/invoices" class="nav-link">Invoices</router-link>
-          <router-link to="/po-import" class="nav-link" v-if="hasPermission('po.import')">
+          <router-link to="/po-import" class="nav-link" v-if="hasPermission('file.upload')">
             PO Import
           </router-link>
-          <router-link to="/admin" class="nav-link" v-if="hasPermission('admin.manage')">
+          <router-link to="/admin" class="nav-link" v-if="hasPermission('user.manage') && apiClient.getAuthContext()?.roles?.includes('Admin')">
             Admin
           </router-link>
           <a href="/.auth/logout?post_logout_redirect_uri=/" class="nav-link logout">

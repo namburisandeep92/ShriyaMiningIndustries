@@ -76,7 +76,7 @@
               <button
                 @click="downloadExcel(invoice.id, invoice.invoiceNumber)"
                 class="action-link"
-                v-if="hasPermission('invoice.export')"
+                v-if="hasPermission('invoice.read')"
               >
                 Export
               </button>

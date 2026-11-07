@@ -36,20 +36,20 @@ const loadUserRoles = async (email) => {
         r.RoleName,
         p.PermissionName
       FROM [security].[User] u
-      LEFT JOIN [security].[UserRole] ur ON u.UserId = ur.UserId
-      LEFT JOIN [security].[Role] r ON ur.RoleId = r.RoleId
-      LEFT JOIN [security].[RolePermission] rp ON r.RoleId = rp.RoleId
-      LEFT JOIN [security].[Permission] p ON rp.PermissionId = p.PermissionId
-      WHERE u.Email = @email
+      LEFT JOIN [security].[UserRole] ur ON u.UserId = ur.UserId AND ur.IsDeleted = 0
+      LEFT JOIN [security].[Role] r ON ur.RoleId = r.RoleId AND r.IsDeleted = 0
+      LEFT JOIN [security].[RolePermission] rp ON r.RoleId = rp.RoleId AND rp.IsDeleted = 0
+      LEFT JOIN [security].[Permission] p ON rp.PermissionId = p.PermissionId AND p.IsDeleted = 0
+      WHERE u.Email = @email AND u.IsActive = 1 AND u.IsDeleted = 0
       ORDER BY r.RoleName, p.PermissionName
     `, { email });
 
     const roles = new Set();
     const permissions = new Set();
 
-    result.recordset.forEach(row => {
+    result.forEach(row => {
       if (row.RoleName) roles.add(row.RoleName);
-      if (row.PermissionName) permissions.add(row.PermissionName);
+      if (row.RoleName && row.PermissionName) permissions.add(row.PermissionName.toLowerCase());
     });
 
     return {
@@ -58,8 +58,7 @@ const loadUserRoles = async (email) => {
     };
   } catch (err) {
     console.error('[AUTH] Failed to load user roles:', err);
-    // Fallback: return empty roles (user stays authenticated but has no permissions)
-    return { roles: [], permissions: [] };
+    throw Errors.DatabaseError('Unable to load user roles and permissions');
   }
 };
 
@@ -80,7 +79,13 @@ const middleware = async (req, res, next) => {
   }
 
   const email = principal.userPrincipalName || principal.userDetails;
-  const { roles, permissions } = await loadUserRoles(email);
+  let roles;
+  let permissions;
+  try {
+    ({ roles, permissions } = await loadUserRoles(email));
+  } catch (error) {
+    return next(error);
+  }
 
   req.user = {
     email,

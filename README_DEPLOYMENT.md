@@ -122,8 +122,8 @@ All production-critical fixes have been implemented and committed. Your SMI Invo
 Navigate to: Azure Portal → swa-smi-invoice-prod → Environment variables
 
 ```
-CONNECTION_STRING = Server=shriyamining-sql.database.windows.net;
-                    Initial Catalog=shriyamining-db;  ← MUST be shriyamining-db
+DB_CONNECTION_STRING = Server=shriyamining-sql.database.windows.net;
+                    Initial Catalog=shriyaminingdb;  ← MUST be shriyaminingdb
                     User ID=...;
                     Password=...;
                     Encrypt=true;
@@ -138,15 +138,15 @@ NODE_ENV           = production
 Navigate to: Azure Portal → swa-smi-invoice-test → Environment variables
 
 ```
-CONNECTION_STRING = Server=shriyamining-sql.database.windows.net;
-                    Initial Catalog=shriyamining-db-test;  ← MUST be shriyamining-db-test
+DB_CONNECTION_STRING = Server=shriyamining-sql.database.windows.net;
+                    Initial Catalog=shriyaminingdbtest;  ← MUST be shriyaminingdbtest
                     User ID=...;
                     Password=...;
                     Encrypt=true;
 
 ENVIRONMENT        = test
 LOG_LEVEL          = debug
-NODE_ENV           = development
+NODE_ENV           = production
 ```
 
 ### GitHub Secrets
@@ -282,13 +282,23 @@ User Browser
            └─→ Database (mssql, either prod or test)
 
 Environment Isolation:
-- Prod SWA → Prod Database (shriyamining-db)
-- Test SWA → Test Database (shriyamining-db-test)
+- Prod SWA → Prod Database (shriyaminingdb)
+- Test SWA → Test Database (shriyaminingdbtest)
 ```
 
 ---
 
 ## Success Criteria
+
+### Application authorization
+
+Microsoft sign-in authenticates a user but does not assign database application
+roles. Only active, non-deleted users and role/permission mappings are used.
+Seeded permission names such as `Invoice.Read` are returned by `/api/me` in
+lowercase (`invoice.read`); API and UI checks use these names. Role lookup
+failures return a logged database error rather than a misleading HTTP 403.
+An authenticated user with no assigned database role still receives HTTP 403
+on protected actions. Role assignment requires administrator approval.
 
 ### API startup diagnostics
 

@@ -21,7 +21,7 @@ Since you've already added GitHub secrets, now we need to add the same connectio
 
 ```
 Setting 1:
-Name: CONNECTION_STRING
+Name: DB_CONNECTION_STRING
 Value: [PASTE YOUR PRODUCTION DATABASE CONNECTION STRING]
 
 Setting 2:
@@ -55,7 +55,7 @@ Value: production
 
 ```
 Setting 1:
-Name: CONNECTION_STRING
+Name: DB_CONNECTION_STRING
 Value: [PASTE YOUR TEST DATABASE CONNECTION STRING]
 
 Setting 2:
@@ -68,7 +68,7 @@ Value: debug
 
 Setting 4:
 Name: NODE_ENV
-Value: development
+Value: production
 ```
 
 6. After adding all 4 settings, click **OK**
@@ -81,8 +81,15 @@ Value: development
 
 Once saved, you should see both SWA instances with all 4 application settings configured.
 
+Use **Environment variables → Production** on each resource for its main-branch
+deployment. `CONNECTION_STRING` is not recognized by the API; the exact key is
+`DB_CONNECTION_STRING`. GitHub migration secrets do not update runtime settings.
+Enter credentials privately, never in chat or source control. Use SQL server
+`shriyamining-sql.database.windows.net` and the database names listed below,
+not the outdated names in historical examples.
+
 If you need to find your connection strings:
-1. Azure Portal → Search: `shriyamining-db` (or `shriyamining-db-test`)
+1. Azure Portal → Search: `shriyaminingdb` (production) or `shriyaminingdbtest` (test)
 2. Click on the database
 3. Left sidebar → **Connection strings**
 4. Copy the **ADO.NET (SQL authentication)** string

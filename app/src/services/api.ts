@@ -89,6 +89,12 @@ class ApiClient {
     return this.authContext.value
   }
 
+  async refreshAuthContext(): Promise<void> {
+    this.authContext.value = null
+    const response = await this.instance.get<{ authenticated: boolean; user: AuthContext | null }>('/me')
+    this.authContext.value = response.data.authenticated ? response.data.user : null
+  }
+
   hasPermission(permission: string): boolean {
     return this.authContext.value?.permissions?.includes(permission) ?? false
   }

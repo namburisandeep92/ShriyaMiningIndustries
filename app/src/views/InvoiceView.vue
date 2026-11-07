@@ -6,7 +6,7 @@
         <button
           @click="downloadExcel"
           class="btn btn-secondary"
-          v-if="hasPermission('invoice.export')"
+          v-if="hasPermission('invoice.read')"
         >
           📄 Export Excel
         </button>
@@ -106,7 +106,7 @@
       </section>
 
       <!-- History -->
-      <section class="invoice-section" v-if="hasPermission('invoice.history')">
+      <section class="invoice-section" v-if="hasPermission('invoice.read')">
         <h2>Version History</h2>
         <div v-if="historyLoading" class="text-center">
           <div class="loading"></div>

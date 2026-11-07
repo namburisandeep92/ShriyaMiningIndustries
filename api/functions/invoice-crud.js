@@ -229,7 +229,7 @@ const handleUpdateInvoice = asyncHandler(async (req, res) => {
   const { items, status, notes, rowVersion } = req.body;
 
   // Check permission
-  if (!req.user?.permissions?.includes('invoice.edit')) {
+  if (!req.user?.permissions?.includes('invoice.update')) {
     throw Errors.Forbidden('edit invoice');
   }
 

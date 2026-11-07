@@ -8,9 +8,11 @@
 import { onMounted } from 'vue'
 import MainLayout from '@/components/MainLayout.vue'
 import { GlobalErrorHandler } from '@/services/notifications'
+import { apiClient } from '@/services/api'
 
 onMounted(() => {
   GlobalErrorHandler.setup()
+  void apiClient.refreshAuthContext()
 })
 </script>
 

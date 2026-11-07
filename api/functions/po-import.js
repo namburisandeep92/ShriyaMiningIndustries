@@ -40,7 +40,7 @@ const handleUploadPO = asyncHandler(async (req, res) => {
   }
 
   // Check permission
-  if (!req.user?.permissions?.includes('po.import')) {
+  if (!req.user?.permissions?.includes('file.upload')) {
     throw Errors.Forbidden('upload PO');
   }
 
@@ -172,7 +172,7 @@ const handleListPOImports = asyncHandler(async (req, res) => {
   const { vendorId, page = 1, pageSize = 50, status } = req.query;
 
   // Check permission
-  if (!req.user?.permissions?.includes('po.import')) {
+  if (!req.user?.permissions?.includes('file.upload')) {
     throw Errors.Forbidden('list PO imports');
   }
 

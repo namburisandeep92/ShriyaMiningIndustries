@@ -17,7 +17,7 @@ const handleListUsers = asyncHandler(async (req, res) => {
   const { role, status, page = 1, pageSize = 50 } = req.query;
 
   // Check permission
-  if (!req.user?.permissions?.includes('user.admin.read')) {
+  if (!req.user?.permissions?.includes('user.manage')) {
     throw Errors.Forbidden('list users');
   }
 
@@ -69,7 +69,7 @@ const handleCreateUser = asyncHandler(async (req, res) => {
   const { email, name, roles = [] } = req.body;
 
   // Check permission
-  if (!req.user?.permissions?.includes('user.admin.write')) {
+  if (!req.user?.permissions?.includes('user.manage')) {
     throw Errors.Forbidden('create users');
   }
 
@@ -150,7 +150,7 @@ const handleSearchErrorLog = asyncHandler(async (req, res) => {
   } = req.query;
 
   // Check permission
-  if (!req.user?.permissions?.includes('error.log.read')) {
+  if (!req.user?.permissions?.includes('errorlog.view')) {
     throw Errors.Forbidden('view error log');
   }
 

@@ -6,19 +6,19 @@ Since you're already logged into Azure Portal, follow these exact steps to get y
 
 ## 📋 Part 1: Get Connection Strings
 
-### For Production Database (shriyamining-db)
+### For Production Database (shriyaminingdb)
 
 1. Go to **Azure Portal** → **SQL databases** (search bar at top)
-2. Click **shriyamining-db**
+2. Click **shriyaminingdb**
 3. In left sidebar, click **Connection strings**
 4. Copy the **ADO.NET (SQL authentication)** string
    - It looks like: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=smiadmin;Password=YOUR_PASSWORD;...`
 5. **Save this** in a text file - you'll need it shortly
 
-### For Test Database (shriyamining-db-test)
+### For Test Database (shriyaminingdbtest)
 
 1. Go back to **SQL databases**
-2. Click **shriyamining-db-test**
+2. Click **shriyaminingdbtest**
 3. In left sidebar, click **Connection strings**
 4. Copy the **ADO.NET (SQL authentication)** string
 5. **Save this** in a text file as well
@@ -35,7 +35,7 @@ Since you're already logged into Azure Portal, follow these exact steps to get y
 
 | Setting Name | Value |
 |--------------|-------|
-| `CONNECTION_STRING` | Paste your **production** connection string from Part 1 |
+| `DB_CONNECTION_STRING` | Paste your **production** connection string from Part 1 |
 | `ENVIRONMENT` | `production` |
 | `LOG_LEVEL` | `info` |
 | `NODE_ENV` | `production` |
@@ -56,10 +56,10 @@ Since you're already logged into Azure Portal, follow these exact steps to get y
 
 | Setting Name | Value |
 |--------------|-------|
-| `CONNECTION_STRING` | Paste your **test** connection string from Part 1 |
+| `DB_CONNECTION_STRING` | Paste your **test** connection string from Part 1 |
 | `ENVIRONMENT` | `test` |
 | `LOG_LEVEL` | `debug` |
-| `NODE_ENV` | `development` |
+| `NODE_ENV` | `production` |
 
 6. Click **OK** to close the dialog
 7. Click **Save** button at the top
