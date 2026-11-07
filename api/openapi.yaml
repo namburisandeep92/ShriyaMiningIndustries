@@ -11,9 +11,9 @@ info:
 servers:
   - url: http://localhost:3000/api
     description: Local development
-  - url: https://swa-smi-invoice-test.azurestaticapps.net/api
+  - url: https://nice-water-0523f0500.3.azurestaticapps.net/api
     description: Test environment
-  - url: https://swa-smi-invoice-prod.azurestaticapps.net/api
+  - url: https://victorious-grass-078778700.3.azurestaticapps.net/api
     description: Production
 
 security:
@@ -26,6 +26,26 @@ components:
       in: header
       name: x-ms-client-principal
       description: Azure Static Web Apps authentication token
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Permission denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
   schemas:
     Error:
@@ -63,20 +83,21 @@ components:
       properties:
         invoiceId:
           type: string
-          example: INV-001
+          format: uuid
         invoiceNumber:
           type: string
-          pattern: ^SMI-\d{4}-\d{2}-\d{3}$
+          maxLength: 20
+          description: Auto-generated for generic invoices; manually entered for PO invoices
           example: SMI-2025-11-001
         vendorId:
-          type: string
-          example: VENDOR-001
+          type: integer
+          example: 1
         buyerId:
-          type: string
-          example: BUYER-001
+          type: integer
+          example: 1
         status:
           type: string
-          enum: [draft, submitted, approved, rejected]
+          enum: [draft, in review, approved, shipped]
           example: draft
         totalAmount:
           type: number
@@ -94,11 +115,47 @@ components:
           format: date-time
         rowVersion:
           type: string
-          description: Binary timestamp for optimistic concurrency
-          example: 0x000000000000001C
+          description: 16-character hexadecimal timestamp for optimistic concurrency
+          example: '000000000000001c'
         isDeleted:
           type: boolean
           default: false
+        document:
+          $ref: '#/components/schemas/LegacyInvoiceDocument'
+
+    LegacyInvoiceDocument:
+      type: object
+      required: [header, lines, words]
+      description: Complete editable legacy exporter, consignee, shipping, packing and invoice fields. USD without tax.
+      properties:
+        header:
+          type: object
+          additionalProperties:
+            type: string
+          description: All header keys from the legacy generator (including optional fields as empty strings). Invoice no is required, unique and at most 20 characters; Invoice date must be valid YYYY-MM-DD; Crate starting no must be a positive integer.
+        words:
+          type: string
+          description: Editable amount chargeable in words
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: object
+            required: [stone, finish, size, ref, kind, qty, crates, crt, uom, net, rate]
+            properties:
+              stone: { type: string }
+              finish: { type: string }
+              size: { type: string }
+              ref: { type: string }
+              kind: { type: string }
+              src: { type: string, description: Stable source PO row key }
+              qty: { type: [number, string], description: Positive integer }
+              crates: { type: [number, string], description: Positive integer }
+              crt: { type: string, description: Sequential range computed from crate start and count }
+              uom: { type: string, minLength: 1, maxLength: 10 }
+              net: { type: [number, string], description: Optional positive net weight in KGS; blank allowed }
+              rate: { type: [number, string], description: Positive rate per UOM, at most six decimal places }
 
     InvoiceDetail:
       allOf:
@@ -249,12 +306,16 @@ paths:
               required:
                 - vendorId
                 - buyerId
-                - items
               properties:
                 vendorId:
-                  type: string
+                  type: integer
                 buyerId:
+                  type: integer
+                invoiceDate:
                   type: string
+                  format: date
+                document:
+                  $ref: '#/components/schemas/LegacyInvoiceDocument'
                 items:
                   type: array
                   minItems: 1
@@ -309,7 +370,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [draft, submitted, approved, rejected]
+            enum: [draft, in review, approved, shipped]
         - name: search
           in: query
           schema:
@@ -375,12 +436,12 @@ paths:
           required: true
           schema:
             type: string
-        - name: If-Match
+        - name: X-Row-Version
           in: header
           required: true
           schema:
             type: string
-          description: Current rowVersion for optimistic locking
+          description: Current 16-character hexadecimal rowVersion for optimistic locking
       requestBody:
         required: true
         content:
@@ -395,6 +456,8 @@ paths:
                   type: array
                   items:
                     $ref: '#/components/schemas/InvoiceLineItem'
+                document:
+                  $ref: '#/components/schemas/LegacyInvoiceDocument'
       responses:
         '200':
           description: Invoice updated successfully
@@ -513,7 +576,8 @@ paths:
           required: true
           schema:
             type: string
-            enum: [excel, pdf]
+            enum: [excel, pdf, print]
+          description: PO invoices use excel (INV and PACKING sheets) or print (two-page HTML to Save as PDF). Direct binary PDF is for generic invoices.
         - name: version
           in: query
           schema:
@@ -531,6 +595,9 @@ paths:
               schema:
                 type: string
                 format: binary
+            text/html:
+              schema:
+                type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -540,43 +607,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /po/import:
+  /po-import:
     post:
-      summary: Upload and import PO file
+      summary: Read PO file for line selection without invoice validation
+      description: Also available at /po-import/parse. No required invoice columns, vendor, buyer, rate, quantity or tax checks occur at upload. Does not save a batch or invoice.
       tags:
         - PO Import
       operationId: importPO
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
               type: object
               required:
                 - file
+                - fileName
               properties:
                 file:
                   type: string
-                  format: binary
-                  description: Excel file (.xlsx)
+                  contentEncoding: base64
+                  description: Base64 encoded .xlsx or .csv file, up to 10 MB
+                fileName:
+                  type: string
+                  maxLength: 255
       responses:
-        '201':
-          description: PO imported successfully
+        '200':
+          description: All readable source rows returned for selection and later invoice validation
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  importId:
+                  fileName:
                     type: string
-                  rowsImported:
+                  itemsCount:
                     type: integer
-                  preview:
+                  columns:
                     type: array
                     items:
-                      $ref: '#/components/schemas/InvoiceLineItem'
+                      type: string
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        key: { type: string }
+                        raw:
+                          type: object
+                          additionalProperties: { type: string }
+                        item: { type: string }
+                        sku: { type: string }
+                        po: { type: string }
+                        date: { type: string }
+                        so: { type: string }
+                        qty: { type: number }
+                        uom: { type: string }
+                        all: { type: string }
         '400':
-          description: Invalid file or missing required columns
+          description: Unreadable, empty, unsupported or oversized file (not missing invoice fields)
           content:
             application/json:
               schema:
@@ -586,9 +676,8 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
-  /po/list:
     get:
-      summary: List imported POs
+      summary: List historical imported PO batches
       tags:
         - PO Import
       operationId: listPOs
@@ -762,26 +851,3 @@ paths:
                             occurredOn:
                               type: string
                               format: date-time
-
-components:
-  responses:
-    BadRequest:
-      description: Bad request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    Unauthorized:
-      description: Unauthorized
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'
-
-    Forbidden:
-      description: Permission denied
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/Error'

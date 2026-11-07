@@ -289,6 +289,10 @@ const reloadInvoice = async () => {
   try {
     const response = await apiClient.getInvoice(invoiceId.value)
     const invoice = response.data
+    if (invoice.document) {
+      await router.replace({ path: '/po-import', query: { invoice: invoice.id } })
+      return
+    }
     form.value = {
       invoiceNumber: invoice.invoiceNumber,
       poNumber: invoice.poNumber || '',

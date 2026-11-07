@@ -1,4 +1,20 @@
-import { Errors } from '../middleware/error-handler.js';
+import { ApiError, Errors } from '../middleware/error-handler.js';
+import { validateLegacyInvoice } from './legacy-invoice.js';
+
+export function legacyInvoiceInput(document) {
+  const issues = validateLegacyInvoice(document);
+  if (issues.length) throw new ApiError(400, 'INV-VALIDATE-400', issues.map(issue => issue.message).join('; '), issues);
+  return {
+    documentJson: JSON.stringify(document),
+    requestedInvoiceNumber: document.header['Invoice no'].trim(),
+    invoiceDate: new Date(document.header['Invoice date']),
+    poNumber: document.header['Buyer PO nos'] || null,
+    items: document.lines.map(line => ({
+      description: `${line.stone} ${line.finish} ${line.size}\n${line.ref}`.trim() || 'Invoice line',
+      quantity: Number(line.qty), rate: Number(line.rate), taxRate: 0, unitOfMeasure: line.uom,
+    })),
+  };
+}
 
 export function positiveInteger(value, name, maximum = Number.MAX_SAFE_INTEGER) {
   const number = Number(value);
@@ -66,6 +82,7 @@ export function invoiceResponse(header, lines = []) {
     invoiceDate: header.InvoiceDate, poNumber: header.PONumber,
     vendorId: header.VendorId, buyerId: header.BuyerId, vendorName: header.VendorName, buyerName: header.BuyerName,
     status: header.Status.toLowerCase(), notes: header.Notes, version: header.Version,
+    document: header.DocumentJson ? JSON.parse(header.DocumentJson) : undefined,
     totalAmount: header.FinalAmount, items, lineItems: items,
     totals: { subtotal: header.TotalAmount, tax: header.TaxAmount, total: header.FinalAmount },
     rowVersion: Buffer.isBuffer(header.RowVersion) ? header.RowVersion.toString('hex') : undefined,

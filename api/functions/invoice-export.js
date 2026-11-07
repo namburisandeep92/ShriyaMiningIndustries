@@ -7,6 +7,7 @@ import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
 import ExcelJS from 'exceljs';
 import { invoiceId as validateInvoiceId, positiveInteger } from '../services/api-contracts.js';
+import { buildLegacyWorkbook, buildLegacyPrintHtml, validateLegacyInvoice } from '../services/legacy-invoice.js';
 
 /**
  * GET /api/invoices/:id/export
@@ -26,8 +27,8 @@ const handleExportInvoice = asyncHandler(async (req, res) => {
 
   validateInvoiceId(invoiceId);
 
-  if (typeof format !== 'string' || !['excel', 'pdf'].includes(format.toLowerCase())) {
-    throw Errors.InvalidInput('format must be "excel" or "pdf"');
+  if (typeof format !== 'string' || !['excel', 'pdf', 'print'].includes(format.toLowerCase())) {
+    throw Errors.InvalidInput('format must be "excel", "pdf" or "print"');
   }
 
   const db = getDatabase();
@@ -53,6 +54,19 @@ const handleExportInvoice = asyncHandler(async (req, res) => {
 
   const invoice = result.recordset[0];
   const items = result.recordsets[1] || [];
+  if (invoice.DocumentJson) {
+    const document = JSON.parse(invoice.DocumentJson);
+    if (validateLegacyInvoice(document).length) throw Errors.InvalidInput('Correct invoice document before export');
+    if (format.toLowerCase() === 'excel') {
+      const buffer = Buffer.from(await (await buildLegacyWorkbook(document)).xlsx.writeBuffer());
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="Invoice_${invoice.InvoiceNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}.xlsx"`);
+      return res.send(buffer);
+    }
+    if (format.toLowerCase() === 'print') return res.type('html').send(buildLegacyPrintHtml(document, invoice.InvoiceNumber));
+    throw Errors.InvalidInput('Use the legacy print preview to save both pages as PDF');
+  }
+  if (format.toLowerCase() === 'print') throw Errors.InvalidInput('Print layout is available for PO invoices');
 
   if (format.toLowerCase() === 'excel') {
     return await generateExcelExport(res, invoice, items);

@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import {
   handleUploadPO,
   handleListPOImports,
+  handleParsePendingOrders,
 } from './functions/po-import.js';
 import {
   handleCreateInvoice,
@@ -230,6 +231,7 @@ const createApp = async () => {
 
   // ========== PO IMPORT ==========
   app.post('/api/po-import', authMw.requireAuth, handleUploadPO);
+  app.post('/api/po-import/parse', authMw.requireAuth, handleParsePendingOrders);
   app.get('/api/po-import', authMw.requireAuth, handleListPOImports);
 
   // ========== INVOICE CRUD ==========

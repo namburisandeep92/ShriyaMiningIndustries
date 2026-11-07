@@ -1,6 +1,6 @@
 import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
-import { invoiceId, invoiceResponse, invoiceStatus, pagedResponse, paging, positiveInteger, rowVersion, validateItems } from '../services/api-contracts.js';
+import { invoiceId, invoiceResponse, invoiceStatus, legacyInvoiceInput, pagedResponse, paging, positiveInteger, rowVersion, validateItems } from '../services/api-contracts.js';
 
 function requirePermission(req, permission) {
   if (!req.user?.permissions?.includes(permission)) throw Errors.Forbidden(permission);
@@ -9,13 +9,15 @@ function requirePermission(req, permission) {
 const handleCreateInvoice = asyncHandler(async (req, res) => {
   requirePermission(req, 'invoice.create');
   const { vendorId, buyerId, notes, poNumber } = req.body;
-  const date = new Date(req.body.invoiceDate);
+  const legacy = req.body.document ? legacyInvoiceInput(req.body.document) : null;
+  const date = legacy?.invoiceDate || new Date(req.body.invoiceDate);
   if (Number.isNaN(date.getTime())) throw Errors.InvalidInput('invoiceDate must be a valid date');
   const result = await getDatabase().execute('app.usp_Invoice_Create', {
     correlationId: req.correlationId, vendorId: positiveInteger(vendorId, 'vendorId'),
     buyerId: positiveInteger(buyerId, 'buyerId'), invoiceDate: date,
-    itemsJson: JSON.stringify(validateItems(req.body.items ?? req.body.lineItems)),
-    notes: notes ?? null, poNumber: poNumber || null, createdByEmail: req.user.email,
+    itemsJson: JSON.stringify(validateItems(legacy?.items ?? req.body.items ?? req.body.lineItems)),
+    notes: notes ?? null, poNumber: legacy?.poNumber ?? (poNumber || null), createdByEmail: req.user.email,
+    ...(legacy && { documentJson: legacy.documentJson, requestedInvoiceNumber: legacy.requestedInvoiceNumber }),
   });
   if (!result.recordset[0]) throw Errors.DatabaseError('Invoice creation returned no data');
   res.status(201).json(invoiceResponse(result.recordset[0], result.recordsets[1]));
@@ -54,12 +56,20 @@ const handleUpdateInvoice = asyncHandler(async (req, res) => {
     throw Errors.Forbidden('approve invoices');
   }
   const items = req.body.items ?? req.body.lineItems;
+  const legacy = req.body.document ? legacyInvoiceInput(req.body.document) : null;
+  if (items != null && !legacy) {
+    const current = await getDatabase().execute('app.usp_Invoice_GetById', { invoiceId: invoiceId(req.params.id) });
+    if (!current.recordset[0]) throw Errors.NotFound('Invoice');
+    if (current.recordset[0].DocumentJson) throw Errors.InvalidInput('Edit this invoice through the PO invoice editor to preserve its document');
+  }
   const result = await getDatabase().execute('app.usp_Invoice_Update', {
     correlationId: req.correlationId, invoiceId: invoiceId(req.params.id),
     currentRowVersion: rowVersion(req.body.rowVersion ?? req.headers['x-row-version']),
-    itemsJson: items == null ? null : JSON.stringify(validateItems(items)),
+    itemsJson: legacy ? JSON.stringify(validateItems(legacy.items)) : items == null ? null : JSON.stringify(validateItems(items)),
     status, notes: req.body.notes ?? null, notesProvided: Object.hasOwn(req.body, 'notes'),
     modifiedByEmail: req.user.email,
+    ...(legacy && { documentJson: legacy.documentJson, invoiceDate: legacy.invoiceDate,
+      poNumber: legacy.poNumber, requestedInvoiceNumber: legacy.requestedInvoiceNumber }),
   });
   if (!result.recordset[0]) throw Errors.DatabaseError('Invoice update returned no data');
   res.json(invoiceResponse(result.recordset[0], result.recordsets[1]));

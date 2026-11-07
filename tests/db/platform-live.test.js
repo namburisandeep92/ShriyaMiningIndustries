@@ -2,11 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import ExcelJS from 'exceljs';
+import { crateRanges, createLegacyInvoice, invoiceTotal } from '../../api/services/legacy-invoice.js';
 
 const enabled = process.env.SMI_LIVE_DB_TEST === 'test';
 
 describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
   let db, server, base, vendorId, buyerId, invoice, importId, createdUserId, adminId, errorLogId, originalRoles;
+  const legacyIds = new Set();
   const marker = `contract-${randomUUID()}`;
   const adminEmail = `${marker}@example.invalid`;
   const userEmail = `viewer-${marker}@example.invalid`;
@@ -41,6 +43,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     expect((await db.query('SELECT DB_NAME() db'))[0].db).toBe('shriyaminingdbtest');
     originalRoles = await db.query('SELECT RoleId,RoleName FROM security.Role ORDER BY RoleId');
     await apply('V004__api-contract-data.sql');
+    await apply('V005__legacy-invoice-document.sql');
     await apply('R__platform-procedures.sql');
     const admin = await db.execute('security.usp_User_Create', {
       email: adminEmail, name: marker, createdByEmail: marker, rolesJson: '["Admin"]',
@@ -66,9 +69,9 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     }
     if (db?.pool) {
-      if (invoice) {
+      for (const id of [invoice?.id, ...legacyIds].filter(Boolean)) {
         for (const table of ['InvoiceSnapshot', 'InvoiceHistory', 'InvoiceLine', 'Invoice']) {
-          await db.query(`DELETE app.${table} WHERE InvoiceId=@id`, { id: invoice.id });
+          await db.query(`DELETE app.${table} WHERE InvoiceId=@id`, { id });
         }
       }
       if (importId) {
@@ -104,6 +107,57 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     expect((await call('/invoices?pageSize=0')).status).toBe(400);
     expect((await call('/master-data')).data.vendors.some(vendor => vendor.id === vendorId)).toBe(true);
   }, 60000);
+
+  it('parses the real PendingOrders workbook and persists/export/reopens its complete selected invoice', async () => {
+    const file = await readFile(new URL('../fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.xlsx', import.meta.url));
+    const parsed = await call('/po-import/parse', 'POST', { fileName: 'PendingOrders.xlsx', file: file.toString('base64') });
+    expect(parsed.status).toBe(200);
+    expect(parsed.data.rows).toHaveLength(82);
+    expect((await call('/po-import/parse', 'POST', { fileName: 'PendingOrders.xlsx', file: file.toString('base64') }, userEmail)).status).toBe(403);
+    const document = createLegacyInvoice(parsed.data.rows);
+    document.header['Invoice no'] = `L-${randomUUID().slice(0, 18)}`;
+    document.header['Crate starting no'] = '245';
+    document.lines.forEach(line => { line.rate = 1.234567; line.crates = 2; });
+    crateRanges(document.lines, '245').forEach((range, index) => { document.lines[index].crt = range; });
+    expect((await call('/invoices', 'POST', { vendorId, buyerId, document })).status).toBe(400);
+    document.lines.forEach(line => { line.qty = Math.ceil(line.qty); });
+    document.lines[0].qty = 7;
+    document.lines[0].rate = 1.005;
+    const created = await call('/invoices', 'POST', { vendorId, buyerId, document });
+    expect(created.status).toBe(201);
+    legacyIds.add(created.data.id);
+    expect(created.data.document).toEqual(document);
+    expect(created.data.poNumber).toBe(document.header['Buyer PO nos']);
+    expect(created.data.invoiceNumber).toBe(document.header['Invoice no']);
+    expect(created.data.totals.total).toBe(invoiceTotal(document.lines));
+    expect(created.data.lineItems[0].unitPrice).toBe(1.005);
+    expect(created.data.totals.total).toBe(invoiceTotal(document.lines));
+    const id = created.data.id;
+    expect((await call(`/invoices/${id}`)).data.document).toEqual(document);
+    expect((await call(`/invoices/${id}/versions/1`)).data.document).toEqual(document);
+    document.header['Port of discharge'] = 'NEW YORK';
+    document.header['Invoice no'] = `E-${randomUUID().slice(0, 18)}`;
+    document.header['Invoice date'] = '2026-12-01';
+    const edited = await call(`/invoices/${id}`, 'PATCH', { document, rowVersion: created.data.rowVersion });
+    expect(edited.status).toBe(200);
+    expect(edited.data.document).toEqual(document);
+    expect(edited.data.invoiceNumber).toBe(document.header['Invoice no']);
+    expect(edited.data.invoiceDate.slice(0, 10)).toBe('2026-12-01');
+    expect((await call(`/invoices/${id}`, 'PATCH', { document, rowVersion: created.data.rowVersion })).status).toBe(409);
+    const comparison = await call(`/invoices/${id}/history/compare?v1=1&v2=2`);
+    expect(comparison.data.changes.map(change => change.field)).toContain('document');
+    const headers = { 'x-ms-client-principal': principal(adminEmail) };
+    const excel = await fetch(`${base}/api/invoices/${id}/export?format=excel&version=1`, { headers });
+    expect(excel.status).toBe(200);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(Buffer.from(await excel.arrayBuffer()));
+    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['INV', 'PACKING']);
+    const print = await fetch(`${base}/api/invoices/${id}/export?format=print`, { headers });
+    expect(print.status).toBe(200);
+    expect(await print.text()).toContain('NEW YORK');
+    document.lines[0].rate = 0;
+    expect((await call('/invoices', 'POST', { vendorId, buyerId, document })).status).toBe(400);
+  }, 120000);
 
   it('updates atomically, rejects stale versions and retains historical line snapshots', async () => {
     const token = invoice.rowVersion;
@@ -145,26 +199,131 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     }
   }, 60000);
 
-  it('imports workbook columns correctly and lists completed batches', async () => {
+  it('reads uploads without invoice validation or creating a batch, preserving historical import listing', async () => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('PO');
     sheet.addRow(['Line Number', 'Product Code', 'Description', 'Quantity', 'Unit Rate', 'Tax Rate']);
     sheet.addRow([1, 'PRODUCT-A', marker, 3, 12.34, 18]);
     const file = Buffer.from(await workbook.xlsx.writeBuffer()).toString('base64');
     const imported = await call('/po-import', 'POST', { vendorId, poNumber: marker, fileName: 'fixture.xlsx', file });
-    expect(imported.status).toBe(201);
-    importId = imported.data.importId;
-    expect(imported.data).toMatchObject({ status: 'completed', itemsCount: 1 });
-    const rows = await db.query('SELECT SKU,Quantity,RawData FROM sales.POLine WHERE POImportBatchId=@id', { id: importId });
-    expect(rows[0].SKU).toBe('PRODUCT-A');
-    expect(JSON.parse(rows[0].RawData).rate).toBe(12.34);
+    expect(imported.status).toBe(200);
+    expect(imported.data.itemsCount).toBe(1);
+    expect(imported.data.rows[0].raw['Product Code']).toBe('PRODUCT-A');
+    expect(imported.data.rows[0].raw['Unit Rate']).toBe('12.34');
     const batches = await call(`/po-import?vendorId=${vendorId}`);
-    expect(batches.data.imports.some(value => value.importId === importId)).toBe(true);
+    expect(batches.status).toBe(200);
+    expect(batches.data.imports).toEqual([]);
     sheet.addRow([2, 'PRODUCT-B', 'Invalid', -1, 10, 0]);
     const invalid = Buffer.from(await workbook.xlsx.writeBuffer()).toString('base64');
-    expect((await call('/po-import', 'POST', { vendorId, poNumber: marker, fileName: 'fixture.xlsx', file: invalid })).status).toBe(400);
-    expect((await db.query('SELECT COUNT(*) n FROM sales.POImportBatch WHERE VendorId=@id', { id: vendorId }))[0].n).toBe(1);
+    expect((await call('/po-import', 'POST', { fileName: 'fixture.xlsx', file: invalid })).status).toBe(200);
+    expect((await db.query('SELECT COUNT(*) n FROM sales.POImportBatch WHERE VendorId=@id', { id: vendorId }))[0].n).toBe(0);
   }, 60000);
+
+  it.skipIf(process.env.SMI_BROWSER_TEST !== 'test')('runs upload/select/edit/validate/preview/download/reopen in a real browser and Test SQL', async () => {
+    const { chromium } = await import('playwright');
+    const { createServer } = await import('vite');
+    const { fileURLToPath } = await import('node:url');
+    const vite = await createServer({
+      configFile: fileURLToPath(new URL('../../app/vite.config.ts', import.meta.url)),
+      root: fileURLToPath(new URL('../../app', import.meta.url)),
+      server: { host: '127.0.0.1', port: 0, proxy: { '/api': { target: base, changeOrigin: true } } },
+    });
+    let browser;
+    try {
+      await vite.listen();
+      browser = await chromium.launch({ channel: process.env.SMI_BROWSER_CHANNEL || 'msedge', headless: true });
+      const context = await browser.newContext({ extraHTTPHeaders: { 'x-ms-client-principal': principal(adminEmail) }, acceptDownloads: true });
+      const page = await context.newPage();
+      const pageErrors = [];
+      page.on('pageerror', error => pageErrors.push(error.message));
+      const origin = `http://127.0.0.1:${vite.httpServer.address().port}`;
+      await page.goto(`${origin}/po-import`);
+      await page.getByLabel('PO file', { exact: true }).setInputFiles(fileURLToPath(new URL('../fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.xlsx', import.meta.url)));
+      await page.getByRole('heading', { name: 'Select PO lines' }).waitFor();
+      expect(await page.locator('.po-table tbody tr').count()).toBe(82);
+      expect(await page.locator('.error').count()).toBe(0);
+      await page.getByPlaceholder('Search item, SKU, PO#...').fill('172203');
+      const shown = await page.locator('.po-table tbody tr').count();
+      expect(shown).toBeGreaterThan(0);
+      await page.getByRole('button', { name: 'Select shown', exact: true }).click();
+      expect(await page.locator('.po-table tbody input:checked').count()).toBe(shown);
+      await page.getByRole('button', { name: 'Clear shown', exact: true }).click();
+      await page.getByLabel('Select PO line 1', { exact: true }).check();
+      await page.getByPlaceholder('Search item, SKU, PO#...').fill('172360');
+      await page.getByLabel('Select PO line 2', { exact: true }).check();
+      await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+      await page.getByLabel('Filter UOM', { exact: true }).selectOption('PC');
+      expect(await page.locator('.po-table tbody input:checked').count()).toBe(2);
+      await page.getByRole('button', { name: 'Create invoice', exact: true }).click();
+      await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
+      expect(await page.locator('.line-table tbody tr').count()).toBe(2);
+      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
+      expect(await page.getByRole('button', { name: 'Save & download', exact: true }).isDisabled()).toBe(true);
+      await page.getByLabel('Invoice no', { exact: true }).fill(`B-${randomUUID().slice(0, 18)}`);
+      await page.getByLabel('Crate starting no', { exact: true }).fill('245');
+      for (let index = 1; index <= 2; index++) {
+        await page.getByLabel(`Line ${index} Crate count`, { exact: true }).fill('2');
+        await page.getByLabel(`Line ${index} Rate / UOM`, { exact: true }).fill('1.625');
+      }
+      await page.getByLabel('Line 1 Qty', { exact: true }).fill('1.5');
+      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
+      expect(await page.getByLabel('Line 1 Qty', { exact: true }).getAttribute('aria-invalid')).toBe('true');
+      await page.getByLabel('Line 1 Qty', { exact: true }).fill('250');
+      await page.getByLabel('Port of discharge', { exact: true }).fill('NEW YORK');
+      await page.getByLabel('Amount chargeable in words', { exact: true }).fill('CUSTOM WORDS');
+      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      const previewFrame = page.frameLocator('iframe[title="Invoice and packing list preview"]');
+      await previewFrame.getByRole('heading', { name: 'INV', exact: true }).waitFor();
+      expect(await previewFrame.locator('body').textContent()).toContain('CUSTOM WORDS');
+      await page.getByLabel('Format', { exact: true }).selectOption('pdf');
+      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('iframe')?.getAttribute('srcdoc')?.includes('PACKING LIST'));
+      const html = await page.locator('iframe[title="Invoice and packing list preview"]').getAttribute('srcdoc');
+      const printPage = await context.newPage();
+      await printPage.setContent(html);
+      const pdf = await printPage.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+      expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+      expect((pdf.toString('latin1').match(/\/Type \/Page\b/g) || [])).toHaveLength(2);
+      await printPage.close();
+      await page.getByLabel('Format', { exact: true }).selectOption('excel');
+      await page.getByLabel('Vendor', { exact: true }).selectOption(String(vendorId));
+      await page.getByLabel('Buyer', { exact: true }).selectOption(String(buyerId));
+      const createdResponse = page.waitForResponse(response => response.url().endsWith('/api/invoices') && response.request().method() === 'POST');
+      const downloading = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Save & download', exact: true }).click();
+      const response = await createdResponse;
+      expect(response.status()).toBe(201);
+      const created = await response.json();
+      legacyIds.add(created.id);
+      const download = await downloading;
+      expect(download.suggestedFilename()).toMatch(/^Invoice_.*\.xlsx$/);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(await download.path());
+      expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['INV', 'PACKING']);
+      expect(created.document.lines.map(line => line.crt)).toEqual(['245 - 246', '247 - 248']);
+      expect(created.document.words).toBe('CUSTOM WORDS');
+      await page.goto(`${origin}/invoices/${created.id}/edit`);
+      await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
+      expect(await page.getByLabel('Port of discharge', { exact: true }).inputValue()).toBe('NEW YORK');
+      expect(await page.getByLabel('Line 1 Rate / UOM', { exact: true }).inputValue()).toBe('1.625');
+      expect(await page.getByLabel('Amount chargeable in words', { exact: true }).inputValue()).toBe('CUSTOM WORDS');
+      await page.getByLabel('Port of discharge', { exact: true }).fill('HOUSTON');
+      const updating = page.waitForResponse(response => response.url().endsWith(`/api/invoices/${created.id}`) && response.request().method() === 'PATCH');
+      const redownloading = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Save & download', exact: true }).click();
+      const updated = await updating;
+      expect(updated.status()).toBe(200);
+      expect((await updated.json()).version).toBe(2);
+      await redownloading;
+      await page.goto(`${origin}/po-import?invoice=${created.id}`);
+      await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
+      expect(await page.getByLabel('Port of discharge', { exact: true }).inputValue()).toBe('HOUSTON');
+      expect(pageErrors).toEqual([]);
+    } finally {
+      if (browser) await browser.close();
+      await vite.close();
+    }
+  }, 180000);
 
   it('creates users with atomic roles, enforces permissions, grants roles and deletes safely', async () => {
     const result = await call('/admin/users', 'POST', { email: userEmail, role: 'Viewer' });

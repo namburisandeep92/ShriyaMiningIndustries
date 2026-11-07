@@ -32,7 +32,7 @@ const handleCompareVersions = asyncHandler(async (req, res) => {
     getVersion(req.params.id, req.query.v1, req.correlationId),
     getVersion(req.params.id, req.query.v2, req.correlationId),
   ]);
-  const changes = ['status', 'notes', 'totalAmount', 'lineItems'].filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+  const changes = ['status', 'notes', 'totalAmount', 'lineItems', 'document'].filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
     .map(field => ({ field, before: before[field], after: after[field] }));
   res.json({ before, after, changes });
 });

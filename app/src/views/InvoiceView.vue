@@ -10,6 +10,7 @@
         >
           📄 Export Excel
         </button>
+        <button v-if="invoiceData?.document && hasPermission('invoice.read')" @click="downloadLegacyPdf" class="btn btn-secondary">Save PDF</button>
         <router-link
           :to="`/invoices/${invoiceId}/edit`"
           class="btn btn-primary"
@@ -32,6 +33,10 @@
     </div>
 
     <div v-else-if="invoiceData" class="invoice-content">
+      <section v-if="invoiceData.document" class="invoice-section">
+        <h2>Invoice &amp; packing list</h2>
+        <iframe title="Invoice and packing list" :srcdoc="legacyPreview" sandbox="" style="width:100%;height:800px;border:1px solid #c8bead"></iframe>
+      </section>
       <!-- Invoice Header -->
       <section class="invoice-section">
         <div class="section-row">
@@ -177,10 +182,19 @@ import { useRoute } from 'vue-router'
 import { useAsync } from '@/composables/useAsync'
 import { apiClient } from '@/services/api'
 import { toastManager } from '@/services/notifications'
+import { buildLegacyPrintHtml } from '../../../api/services/legacy-invoice.js'
+import { printInvoice } from '@/services/invoice-download'
 
 const route = useRoute()
 const invoiceId = computed(() => route.params.id as string)
 const comparison = ref<{ changes: { field: string; before: unknown; after: unknown }[] } | null>(null)
+const legacyPreview = computed(() => invoiceData.value?.document ? buildLegacyPrintHtml(invoiceData.value.document, invoiceData.value.invoiceNumber) : '')
+async function downloadLegacyPdf() {
+  try {
+    await printInvoice(await apiClient.legacyPrintHtml(invoiceId.value), `Invoice_${invoiceData.value!.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}`)
+    toastManager.info('Choose Save as PDF to download the invoice and packing list')
+  } catch (error) { toastManager.error(error instanceof Error ? error.message : 'Failed to open PDF print document') }
+}
 
 const { data: invoiceData, loading, error, execute: reloadInvoice } = useAsync(
   async () => {
@@ -227,7 +241,7 @@ const formatDate = (dateString: string) => {
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'INR',
+    currency: invoiceData.value?.document ? 'USD' : 'INR',
   }).format(amount)
 }
 

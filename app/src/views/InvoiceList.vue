@@ -57,7 +57,7 @@
             <td>{{ invoice.poNumber || '-' }}</td>
             <td>{{ invoice.vendorName || '-' }}</td>
             <td>{{ formatDate(invoice.createdAt) }}</td>
-            <td class="text-right">{{ formatCurrency(invoice.totalAmount) }}</td>
+            <td class="text-right">{{ formatCurrency(invoice.totalAmount, !!invoice.document) }}</td>
             <td>
               <span :class="['status-badge', `status-${invoice.status}`]">
                 {{ invoice.status }}
@@ -119,7 +119,7 @@ const searchQuery = ref('')
 const statusFilter = ref('')
 
 const { items, page, pageSize, total, loading, error, nextPage, prevPage, hasPrevPage, hasNextPage, goToPage, refresh } = usePagination<{
-  id: string; invoiceNumber: string; vendorName: string; poNumber: string | null; createdAt: string; status: string; totalAmount: number
+  id: string; invoiceNumber: string; vendorName: string; poNumber: string | null; createdAt: string; status: string; totalAmount: number; document?: unknown
 }>(
   async (pageNum, size) => {
     const response = await apiClient.listInvoices({
@@ -148,10 +148,10 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number, legacy = false) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'INR',
+    currency: legacy ? 'USD' : 'INR',
   }).format(amount)
 }
 

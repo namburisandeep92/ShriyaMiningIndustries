@@ -11,6 +11,7 @@ database/
 │   ├── V002__seed-error-codes.sql  # Error code catalogue
 │   ├── V003__seed-initial-data.sql # Roles, permissions, test data
 │   ├── V004__api-contract-data.sql # Invoice taxes, PO metadata, version snapshots
+│   ├── V005__legacy-invoice-document.sql # Complete PO invoice document, precise rates
 │   ├── R__error-handling.sql       # Logging and legacy procedure signatures
 │   └── R__platform-procedures.sql  # Complete API procedure contracts
 ├── migration-runner.js             # Node.js migration runner (mssql dependency)
@@ -63,6 +64,9 @@ Run once in order. Idempotent checks prevent re-running.
 - `V002__seed-error-codes.sql`: Inserts 18 error codes with user messages and resolution steps
 - `V003__seed-initial-data.sql`: Seeds roles, permissions, test vendor/buyer, and preflight check
 - `V004__api-contract-data.sql`: Adds invoice-line taxes, PO number metadata and invoice snapshots
+- `V005__legacy-invoice-document.sql`: Preserves all legacy invoice header/line
+  fields in checked `Invoice.DocumentJson`, expands buyer PO numbers and
+  retains rates to six decimal places. Existing invoices remain unchanged.
 
 Versioned migrations are recorded once and must never be forcibly removed from
 `__MigrationHistory`. Schema creation uses existence checks, not table drops.
@@ -76,7 +80,59 @@ Run every time. Idempotent by design (CREATE OR ALTER).
   It runs after the legacy repeatable so the API contracts remain authoritative.
 
 Versioned migrations track completion in `__MigrationHistory`; repeatables run
-every deployment. Apply V004 before the platform repeatable.
+every deployment. Apply V004 and V005 before the platform repeatable.
+
+## PO to invoice workflow
+
+The PO Import page follows [the legacy generator](../legacy/Invoice_Generator.html):
+upload PendingOrders, search/filter/select rows, review/edit the selected
+invoice, correct highlighted errors, preview and save/download. The supplied
+[PendingOrders fixture](../tests/fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.xlsx)
+has 82 lines and 11 columns; uploads return all lines, not a five-row sample.
+Uploading/previewing does not create an invoice or import batch. Both
+`POST /api/po-import` and `/api/po-import/parse` only read the file and return
+its rows. The obsolete six-column invoice-heading check is removed from both.
+Required invoice fields are checked only after selecting **Create invoice**
+and when saving/exporting, not while uploading. Even incomplete source columns
+can be displayed and corrected in review. Unreadable/empty/oversized files
+remain upload errors; historical import batches remain available via GET.
+
+Header defaults, item parsing, rate defaults, USD calculations, integer
+quantity/crate validation, sequential crate ranges, editable amount words,
+shipping fields and both `INV`/`PACKING` sheets derive from the legacy source.
+PDF uses its two-page A4 print layout: choose **Save as PDF** in the print
+dialog. Saved documents and their immutable versions preserve every field.
+Reopening **Edit** on a PO invoice returns to the detailed editor.
+
+Intentional differences from legacy:
+- A database vendor/buyer association and invoice-create/update permission
+  are required for **Save & download**, not for PO parsing or preview.
+  Documents are saved in the cloud rather than the disabled legacy ledger.
+- Supported inputs are `.xlsx` and `.csv`; convert old binary `.xls` files
+  to `.xlsx`. No CDN scripts are loaded.
+- Invoice numbers are unique and limited to the database's 20 characters;
+  dates must be real calendar dates, rates have at most six decimals, and
+  unsafe/oversized numeric values are blocked rather than rounded silently.
+  Legacy-required fields remain required; optional weights may be blank.
+- The legacy invoice formula mistakenly multiplied quantity by **weight**.
+  Monetary cells now contain the correctly rounded quantity-times-rate
+  amount; totals still use SUM formulas. Packing-sheet amounts likewise
+  match the PDF and invoice instead of repeating weight under the USD label.
+  Decimal rounding matches SQL exactly (e.g. 7 × 1.005 = 7.04), avoiding binary
+  floating-point under-rounding in preview versus saved totals.
+- Re-selecting rows retains header and line edits, while updating PO numbers
+  and dates. Preview is invalidated immediately after any edit.
+
+Tests: `npx vitest run tests/api/legacy-invoice.test.js`.
+Guarded real-SQL verification:
+`SMI_LIVE_DB_TEST=test npx vitest run tests/db/platform-live.test.js`.
+The latter creates uniquely named fixtures only in `shriyaminingdbtest` and
+cleans them up; it never writes to production.
+For the browser-driven upload/selection/edit/preview/XLSX download/PDF output
+and reopen test, also set `SMI_BROWSER_TEST=test`. It starts a temporary Vite
+server connected to the real API/Test SQL fixture and closes it after testing.
+It uses installed Microsoft Edge by default; set `SMI_BROWSER_CHANNEL=chrome`
+to use installed Chrome instead.
 
 Production uses `shriyaminingdb`; test uses `shriyaminingdbtest`.
 Azure Overview confirms the resource/hostname mapping:

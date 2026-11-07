@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios'
 import { ref } from 'vue'
+import type { LegacyDocument, PORow } from '../../../api/services/legacy-invoice.js'
 
 export interface ApiError {
   statusCode: number
@@ -23,6 +24,7 @@ export interface InvoiceInput {
   poNumber?: string
   notes?: string
   lineItems: InvoiceLine[]
+  document?: LegacyDocument
 }
 export interface InvoiceDocument extends Omit<InvoiceInput, 'poNumber' | 'notes'> {
   id: string
@@ -143,18 +145,22 @@ class ApiClient {
   }
 
   // ========== PO Import ==========
-  async uploadPO(file: File, vendorId: number, poNumber: string): Promise<AxiosResponse<POImportResult>> {
+  async masterData(): Promise<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }> {
+    return (await this.instance.get('/master-data')).data
+  }
+
+  async parsePO(file: File): Promise<{ fileName: string; columns: string[]; rows: PORow[] }> {
     const encoded = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(String(reader.result).split(',')[1])
       reader.onerror = () => reject(reader.error || new Error('Failed to read PO file'))
       reader.readAsDataURL(file)
     })
-    return this.instance.post('/po-import', { file: encoded, fileName: file.name, vendorId, poNumber })
+    return (await this.instance.post('/po-import', { file: encoded, fileName: file.name })).data
   }
 
-  async masterData(): Promise<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }> {
-    return (await this.instance.get('/master-data')).data
+  async legacyPrintHtml(id: string): Promise<string> {
+    return (await this.instance.get<string>(`/invoices/${id}/export`, { params: { format: 'print' } })).data
   }
 
   async listPOImports(): Promise<AxiosResponse<{ imports: POImportRecord[]; total: number }>> {

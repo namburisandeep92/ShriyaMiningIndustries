@@ -62,7 +62,8 @@ CREATE OR ALTER PROCEDURE app.usp_Invoice_Create
   @InvoiceDate DATETIME2(7), @VendorId INT, @BuyerId INT, @Notes NVARCHAR(MAX)=NULL,
   @CreatedBy NVARCHAR(255)=NULL, @CorrelationId UNIQUEIDENTIFIER=NULL,
   @InvoiceId UNIQUEIDENTIFIER=NULL OUTPUT, @InvoiceNumber NVARCHAR(20)=NULL OUTPUT,
-  @ItemsJson NVARCHAR(MAX)=NULL, @CreatedByEmail NVARCHAR(255)=NULL, @PONumber NVARCHAR(50)=NULL
+  @ItemsJson NVARCHAR(MAX)=NULL, @CreatedByEmail NVARCHAR(255)=NULL, @PONumber NVARCHAR(MAX)=NULL,
+  @DocumentJson NVARCHAR(MAX)=NULL,@RequestedInvoiceNumber NVARCHAR(20)=NULL
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -74,24 +75,28 @@ BEGIN
      THROW 50400, 'Vendor or buyer is invalid', 1;
   IF @ItemsJson IS NOT NULL AND (ISJSON(@ItemsJson)<>1 OR LEFT(LTRIM(@ItemsJson),1)<>'[')
     THROW 50400, 'Items must be a JSON array', 1;
+  IF @DocumentJson IS NOT NULL AND ISJSON(@DocumentJson)<>1 THROW 50400, 'Invalid invoice document', 1;
   BEGIN TRY
     BEGIN TRANSACTION;
     DECLARE @Prefix NVARCHAR(12)='SMI-'+CONVERT(NVARCHAR(7),@InvoiceDate,126)+'-';
     DECLARE @Sequence INT;
-    SELECT @Sequence=COALESCE(MAX(TRY_CONVERT(INT,SUBSTRING(InvoiceNumber,13,8))),0)+1
-    FROM app.Invoice WITH (UPDLOCK,HOLDLOCK) WHERE InvoiceNumber LIKE @Prefix+'%';
-    IF @Sequence>999 THROW 50409, 'Monthly invoice sequence exhausted', 1;
+    IF NULLIF(LTRIM(RTRIM(@RequestedInvoiceNumber)),'') IS NULL
+    BEGIN
+      SELECT @Sequence=COALESCE(MAX(TRY_CONVERT(INT,SUBSTRING(InvoiceNumber,13,8))),0)+1
+      FROM app.Invoice WITH (UPDLOCK,HOLDLOCK) WHERE InvoiceNumber LIKE @Prefix+'%';
+      IF @Sequence>999 THROW 50409, 'Monthly invoice sequence exhausted', 1;
+    END;
     SET @InvoiceId=NEWID();
-    SET @InvoiceNumber=@Prefix+RIGHT('000'+CONVERT(NVARCHAR(3),@Sequence),3);
-    INSERT INTO app.Invoice (InvoiceId,InvoiceNumber,InvoiceDate,VendorId,BuyerId,Notes,PONumber,CreatedBy,ModifiedBy)
-      VALUES(@InvoiceId,@InvoiceNumber,@InvoiceDate,@VendorId,@BuyerId,@Notes,@PONumber,@CreatedBy,@CreatedBy);
+    SET @InvoiceNumber=COALESCE(NULLIF(LTRIM(RTRIM(@RequestedInvoiceNumber)),''),@Prefix+RIGHT('000'+CONVERT(NVARCHAR(3),@Sequence),3));
+    INSERT INTO app.Invoice (InvoiceId,InvoiceNumber,InvoiceDate,VendorId,BuyerId,Notes,PONumber,DocumentJson,CreatedBy,ModifiedBy)
+      VALUES(@InvoiceId,@InvoiceNumber,@InvoiceDate,@VendorId,@BuyerId,@Notes,@PONumber,@DocumentJson,@CreatedBy,@CreatedBy);
     IF @ItemsJson IS NOT NULL
     BEGIN
       INSERT INTO app.InvoiceLine (InvoiceId,LineNumber,Description,Quantity,UnitOfMeasure,UnitPrice,Amount,TaxRate,TaxAmount,CreatedBy,ModifiedBy)
       SELECT @InvoiceId,CONVERT(INT,j.[key])+1,x.description,x.quantity,COALESCE(x.unitOfMeasure,'SF'),
              x.rate,ROUND(x.quantity*x.rate,2),x.taxRate,ROUND(ROUND(x.quantity*x.rate,2)*x.taxRate/100,2),@CreatedBy,@CreatedBy
       FROM OPENJSON(@ItemsJson) j CROSS APPLY OPENJSON(j.value) WITH
-        (description NVARCHAR(MAX),quantity DECIMAL(19,4),rate DECIMAL(19,2),taxRate DECIMAL(9,4),unitOfMeasure NVARCHAR(10)) x;
+        (description NVARCHAR(MAX),quantity DECIMAL(19,4),rate DECIMAL(19,6),taxRate DECIMAL(9,4),unitOfMeasure NVARCHAR(10)) x;
       IF NOT EXISTS(SELECT 1 FROM app.InvoiceLine WHERE InvoiceId=@InvoiceId)
          OR EXISTS(SELECT 1 FROM app.InvoiceLine WHERE InvoiceId=@InvoiceId AND (Quantity<=0 OR UnitPrice<0 OR TaxRate<0 OR TaxRate>100))
          THROW 50400, 'Invalid invoice lines', 1;
@@ -112,7 +117,9 @@ GO
 CREATE OR ALTER PROCEDURE app.usp_Invoice_Update
   @InvoiceId UNIQUEIDENTIFIER, @CurrentRowVersion BINARY(8), @ModifiedByEmail NVARCHAR(255),
   @CorrelationId UNIQUEIDENTIFIER=NULL, @ItemsJson NVARCHAR(MAX)=NULL,
-  @Status NVARCHAR(20)=NULL, @Notes NVARCHAR(MAX)=NULL, @NotesProvided BIT=0
+  @Status NVARCHAR(20)=NULL, @Notes NVARCHAR(MAX)=NULL, @NotesProvided BIT=0,
+  @DocumentJson NVARCHAR(MAX)=NULL,@InvoiceDate DATETIME2=NULL,@PONumber NVARCHAR(MAX)=NULL,
+  @RequestedInvoiceNumber NVARCHAR(20)=NULL
 AS
 BEGIN
   SET NOCOUNT ON;
@@ -120,6 +127,7 @@ BEGIN
   IF @CurrentRowVersion IS NULL THROW 50400, 'Row version is required', 1;
   IF @ItemsJson IS NOT NULL AND (ISJSON(@ItemsJson)<>1 OR LEFT(LTRIM(@ItemsJson),1)<>'[')
     THROW 50400, 'Items must be a JSON array', 1;
+  IF @DocumentJson IS NOT NULL AND ISJSON(@DocumentJson)<>1 THROW 50400, 'Invalid invoice document', 1;
   BEGIN TRY
     BEGIN TRANSACTION;
     DECLARE @OldStatus NVARCHAR(20),@ActualVersion BINARY(8);
@@ -142,12 +150,16 @@ BEGIN
       SELECT @InvoiceId,CONVERT(INT,j.[key])+1,x.description,x.quantity,COALESCE(x.unitOfMeasure,'SF'),
              x.rate,ROUND(x.quantity*x.rate,2),x.taxRate,ROUND(ROUND(x.quantity*x.rate,2)*x.taxRate/100,2),@ModifiedByEmail,@ModifiedByEmail
       FROM OPENJSON(@ItemsJson) j CROSS APPLY OPENJSON(j.value) WITH
-        (description NVARCHAR(MAX),quantity DECIMAL(19,4),rate DECIMAL(19,2),taxRate DECIMAL(9,4),unitOfMeasure NVARCHAR(10)) x;
+        (description NVARCHAR(MAX),quantity DECIMAL(19,4),rate DECIMAL(19,6),taxRate DECIMAL(9,4),unitOfMeasure NVARCHAR(10)) x;
       IF NOT EXISTS(SELECT 1 FROM app.InvoiceLine WHERE InvoiceId=@InvoiceId AND IsDeleted=0)
          OR EXISTS(SELECT 1 FROM app.InvoiceLine WHERE InvoiceId=@InvoiceId AND IsDeleted=0 AND (Quantity<=0 OR UnitPrice<0 OR TaxRate<0 OR TaxRate>100))
          THROW 50400, 'Invalid invoice lines', 1;
     END;
     UPDATE app.Invoice SET Status=COALESCE(@Status,Status),
+      DocumentJson=COALESCE(@DocumentJson,DocumentJson),
+      InvoiceDate=COALESCE(@InvoiceDate,InvoiceDate),
+      PONumber=CASE WHEN @DocumentJson IS NOT NULL THEN @PONumber ELSE PONumber END,
+      InvoiceNumber=COALESCE(@RequestedInvoiceNumber,InvoiceNumber),
       Notes=CASE WHEN @NotesProvided=1 THEN @Notes ELSE Notes END,
       TotalAmount=COALESCE(t.Amount,0),TaxAmount=COALESCE(t.Tax,0),FinalAmount=COALESCE(t.Amount+t.Tax,0),
       ModifiedBy=@ModifiedByEmail,ModifiedOn=SYSUTCDATETIME(),Version=Version+1
@@ -219,15 +231,16 @@ BEGIN
   SET NOCOUNT ON;
   SELECT h.* FROM app.InvoiceSnapshot s JOIN app.Invoice i ON i.InvoiceId=s.InvoiceId AND i.IsDeleted=0
   CROSS APPLY OPENJSON(s.HeaderJson) WITH (
-    InvoiceId UNIQUEIDENTIFIER,InvoiceNumber NVARCHAR(20),InvoiceDate DATETIME2,PONumber NVARCHAR(50),
+    InvoiceId UNIQUEIDENTIFIER,InvoiceNumber NVARCHAR(20),InvoiceDate DATETIME2,PONumber NVARCHAR(MAX),
     VendorId INT,BuyerId INT,VendorName NVARCHAR(255),BuyerName NVARCHAR(255),Status NVARCHAR(20),
     TotalAmount DECIMAL(19,2),TaxAmount DECIMAL(19,2),FinalAmount DECIMAL(19,2),Notes NVARCHAR(MAX),
-    Version INT,CreatedOn DATETIME2,CreatedBy NVARCHAR(255),ModifiedOn DATETIME2,ModifiedBy NVARCHAR(255)
+    Version INT,CreatedOn DATETIME2,CreatedBy NVARCHAR(255),ModifiedOn DATETIME2,ModifiedBy NVARCHAR(255),
+    DocumentJson NVARCHAR(MAX)
   ) h WHERE s.InvoiceId=@InvoiceId AND s.Version=@Version;
   SELECT l.* FROM app.InvoiceSnapshot s JOIN app.Invoice i ON i.InvoiceId=s.InvoiceId AND i.IsDeleted=0
   CROSS APPLY OPENJSON(s.LinesJson) WITH (
     LineId UNIQUEIDENTIFIER,LineNumber INT,Description NVARCHAR(MAX),Quantity DECIMAL(19,4),
-    Rate DECIMAL(19,2),LineAmount DECIMAL(19,2),TaxRate DECIMAL(9,4),Tax DECIMAL(19,2),UnitOfMeasure NVARCHAR(10)
+    Rate DECIMAL(19,6),LineAmount DECIMAL(19,2),TaxRate DECIMAL(9,4),Tax DECIMAL(19,2),UnitOfMeasure NVARCHAR(10)
   ) l WHERE s.InvoiceId=@InvoiceId AND s.Version=@Version ORDER BY l.LineNumber;
 END;
 GO
