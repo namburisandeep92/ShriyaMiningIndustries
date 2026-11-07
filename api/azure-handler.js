@@ -9,7 +9,7 @@ export default async function (context, req) {
     handlerPromise = (async () => {
       const app = await createAppForFunctions();
       await getDatabase().connect();
-      return serverlessExpress({ app });
+      return serverlessExpress({ app, eventSourceName: 'AZURE_HTTP_FUNCTION_V4' });
     })();
   }
 

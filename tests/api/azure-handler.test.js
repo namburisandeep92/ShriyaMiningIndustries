@@ -12,7 +12,7 @@ describe('Azure Functions Express entrypoint', () => {
     vi.stubEnv('ENVIRONMENT', 'test');
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('DB_CONNECTION_STRING', 'Server=example;Initial Catalog=test;');
-    vi.stubEnv('FUNCTIONS_EXTENSION_VERSION', '~4');
+    vi.stubEnv('FUNCTIONS_EXTENSION_VERSION', '');
     const connect = vi.spyOn(getDatabase(), 'connect').mockResolvedValue();
     vi.spyOn(getDatabase(), 'isHealthy').mockResolvedValue(true);
 
