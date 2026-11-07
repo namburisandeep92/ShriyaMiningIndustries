@@ -36,6 +36,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import sql from 'mssql';
+import { parseConnectionString } from './connection-string.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,41 +71,6 @@ const log = (message, level = 'INFO') => {
  * Parse connection string into config object
  * Format: Server=tcp:host.database.windows.net;Initial Catalog=dbname;Persist Security Info=False;User ID=user@host;Password=pwd;Encrypt=True;Connection Timeout=30;
  */
-const parseConnectionString = (connStr) => {
-  if (!connStr) return null;
-  
-  const parts = connStr.split(';').reduce((acc, part) => {
-    const [key, value] = part.split('=');
-    if (key && value) {
-      acc[key.trim().toLowerCase()] = value.trim();
-    }
-    return acc;
-  }, {});
-
-  // Extract server and port from "tcp:host.database.windows.net,1433" format
-  let server = parts['server']?.replace('tcp:', '') || config.host;
-  let port = 1433;  // Default SQL Server port
-  
-  // Handle "host,port" or "host:port" format
-  if (server.includes(',')) {
-    [server, port] = server.split(',').map(s => s.trim());
-    port = parseInt(port) || 1433;
-  } else if (server.includes(':')) {
-    [server, port] = server.split(':').map(s => s.trim());
-    port = parseInt(port) || 1433;
-  }
-
-  return {
-    server: server,
-    port: port,
-    database: parts['initial catalog'] || config.database,
-    user: parts['user id'],
-    password: parts['password'],
-    encrypt: true,
-    connectionTimeout: 30000
-  };
-};
-
 /**
  * Read and parse migration files
  */
@@ -187,7 +153,7 @@ const runMigrations = async () => {
 
     // Parse connection string if provided
     const dbConfig = config.connectionString 
-      ? parseConnectionString(config.connectionString)
+      ? parseConnectionString(config.connectionString, config)
       : {
           server: config.host,
           database: config.database,
