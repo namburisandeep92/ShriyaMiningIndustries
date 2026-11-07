@@ -14,6 +14,8 @@
 -- ROLES
 -- ============================================================================
 
+SET IDENTITY_INSERT security.Role ON;
+
 MERGE INTO security.Role AS target
 USING (VALUES 
   (1, 'Admin', 'Full system access including user and role management'),
@@ -26,11 +28,15 @@ WHEN NOT MATCHED THEN
   INSERT (RoleId, RoleName, Description, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy)
   VALUES (source.RoleId, source.RoleName, source.Description, GETUTCDATE(), 'system', GETUTCDATE(), 'system');
 
+SET IDENTITY_INSERT security.Role OFF;
+
 PRINT 'Roles seeded';
 
 -- ============================================================================
 -- PERMISSIONS
 -- ============================================================================
+
+SET IDENTITY_INSERT security.Permission ON;
 
 MERGE INTO security.Permission AS target
 USING (VALUES 
@@ -53,6 +59,8 @@ ON target.PermissionName = source.PermissionName
 WHEN NOT MATCHED THEN
   INSERT (PermissionId, PermissionName, Description, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy)
   VALUES (source.PermissionId, source.PermissionName, source.Description, GETUTCDATE(), 'system', GETUTCDATE(), 'system');
+
+SET IDENTITY_INSERT security.Permission OFF;
 
 PRINT 'Permissions seeded';
 
