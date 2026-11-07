@@ -1,0 +1,65 @@
+{
+  "routes": [
+    {
+      "route": "/api/*",
+      "serve": null,
+      "statusCode": 200
+    },
+    {
+      "route": "/*.json",
+      "serve": "/*.json"
+    },
+    {
+      "route": "/*.js",
+      "serve": "/*.js"
+    },
+    {
+      "route": "/*.css",
+      "serve": "/*.css"
+    },
+    {
+      "route": "/*.svg",
+      "serve": "/*.svg"
+    },
+    {
+      "route": "/*.png",
+      "serve": "/*.png"
+    },
+    {
+      "route": "/*.jpg",
+      "serve": "/*.jpg"
+    },
+    {
+      "route": "/*.ico",
+      "serve": "/*.ico"
+    },
+    {
+      "route": "/*",
+      "serve": "/index.html",
+      "statusCode": 200
+    }
+  ],
+  "auth": {
+    "rolesSource": "/api/me"
+  },
+  "responseOverrides": {
+    "401": {
+      "rewrite": "/index.html",
+      "statusCode": 200
+    },
+    "404": {
+      "rewrite": "/index.html",
+      "statusCode": 200
+    }
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".wasm": "application/wasm"
+  }
+}
