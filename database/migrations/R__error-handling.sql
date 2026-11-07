@@ -212,6 +212,7 @@ BEGIN
   BEGIN TRY
     DECLARE @CurrentStatus NVARCHAR(20);
     DECLARE @CurrentRowVersion BINARY(8);
+    DECLARE @ErrorMessage NVARCHAR(2048);
 
     -- Check if invoice exists and get current state
     SELECT @CurrentStatus = Status, @CurrentRowVersion = RowVersion
@@ -226,7 +227,6 @@ BEGIN
     -- First-write-wins: check rowversion
     IF @RowVersion <> @CurrentRowVersion
     BEGIN
-      DECLARE @ErrorMessage NVARCHAR(MAX);
       SET @ErrorMessage = 'Concurrent modification detected for invoice ' + CAST(@InvoiceId AS NVARCHAR(36));
       INSERT INTO log.ErrorLog (CorrelationId, ErrorCode, Layer, SqlErrorNumber, SqlMessage, CreatedBy, CreatedOn)
       VALUES (@CorrelationId, 'INV-UPDATE-409', 'Database', 50409, 
@@ -241,7 +241,8 @@ BEGIN
        OR @CurrentStatus = 'In Review' AND @NewStatus NOT IN ('Approved')
        OR @CurrentStatus = 'Approved' AND @NewStatus NOT IN ('Shipped')
     BEGIN
-      THROW 50400, 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus, 1;
+      SET @ErrorMessage = 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus;
+      THROW 50400, @ErrorMessage, 1;
     END;
 
     -- Record history before update

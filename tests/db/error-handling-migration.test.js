@@ -18,4 +18,11 @@ describe('error-handling migration', () => {
     expect(purgeProcedure.match(/ISNULL\(errorCode\.Severity, 'Error'\)/g)).toHaveLength(2);
     expect(purgeProcedure).not.toMatch(/AND\s+Severity\b/);
   });
+
+  it('uses a variable for the dynamic status-transition THROW message', () => {
+    expect(migration).toContain(
+      "SET @ErrorMessage = 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus;\n      THROW 50400, @ErrorMessage, 1;"
+    );
+    expect(migration).not.toMatch(/THROW\s+\d+\s*,[^;\n]*\+/);
+  });
 });
