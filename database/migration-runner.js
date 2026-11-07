@@ -36,6 +36,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import sql from 'mssql';
+import { splitConnectionStringPart } from './connection-string.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,7 +75,7 @@ const parseConnectionString = (connStr) => {
   if (!connStr) return null;
   
   const parts = connStr.split(';').reduce((acc, part) => {
-    const [key, value] = part.split('=');
+    const [key, value] = splitConnectionStringPart(part);
     if (key && value) {
       acc[key.trim().toLowerCase()] = value.trim();
     }
