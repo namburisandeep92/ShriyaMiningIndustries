@@ -95,9 +95,10 @@ BEGIN
   
   SET @RowsDeleted = @RowsDeleted + @@ROWCOUNT;
 
+  DECLARE @PurgeMessage NVARCHAR(MAX) = 'Purged ' + CAST(@RowsDeleted AS NVARCHAR(20)) + ' error log rows';
   INSERT INTO log.ApplicationEvent (CorrelationId, EventType, Severity, Message, CreatedOn)
   VALUES (NEWID(), 'ErrorLogPurge', 'Info', 
-          'Purged ' + CAST(@RowsDeleted AS NVARCHAR(20)) + ' error log rows',
+          @PurgeMessage,
           GETUTCDATE());
 END;
 
@@ -143,9 +144,10 @@ BEGIN
     IF EXISTS (SELECT 1 FROM app.Invoice WHERE InvoiceNumber = @NewInvoiceNumber AND IsDeleted = 0)
     BEGIN
       -- Return 409-like error
+      DECLARE @DuplicateMessage NVARCHAR(MAX) = 'Duplicate invoice number: ' + @NewInvoiceNumber;
       INSERT INTO log.ErrorLog (CorrelationId, ErrorCode, Layer, SqlErrorNumber, SqlMessage, CreatedBy, CreatedOn)
       VALUES (@CorrelationId, 'INV-SAVE-409', 'Database', 50409, 
-              'Duplicate invoice number: ' + @NewInvoiceNumber, @CreatedBy, GETUTCDATE());
+              @DuplicateMessage, @CreatedBy, GETUTCDATE());
       
       THROW 50409, 'Duplicate invoice number', 1;
     END;
@@ -160,9 +162,10 @@ BEGIN
             'Draft', @CreatedBy, @CreatedBy, GETUTCDATE(), GETUTCDATE());
 
     -- Log event
+    DECLARE @InvoiceCreatedMessage NVARCHAR(MAX) = 'Invoice ' + @InvoiceNumber + ' created';
     INSERT INTO log.ApplicationEvent (CorrelationId, EventType, Severity, Message, UserId, CreatedOn)
     VALUES (@CorrelationId, 'InvoiceCreated', 'Info', 
-            'Invoice ' + @InvoiceNumber + ' created', @CreatedBy, GETUTCDATE());
+            @InvoiceCreatedMessage, @CreatedBy, GETUTCDATE());
 
     SELECT @InvoiceId AS InvoiceId, @InvoiceNumber AS InvoiceNumber;
   END TRY
@@ -246,9 +249,10 @@ BEGIN
         Version = Version + 1
     WHERE InvoiceId = @InvoiceId;
 
+    DECLARE @StatusChangeMessage NVARCHAR(MAX) = 'Invoice status changed from ' + @CurrentStatus + ' to ' + @NewStatus;
     INSERT INTO log.ApplicationEvent (CorrelationId, EventType, Severity, Message, UserId, CreatedOn)
     VALUES (@CorrelationId, 'InvoiceStatusChanged', 'Info', 
-            'Invoice status changed from ' + @CurrentStatus + ' to ' + @NewStatus, 
+            @StatusChangeMessage, 
             @ModifiedBy, GETUTCDATE());
 
     SELECT 'Status updated successfully' AS Result;
