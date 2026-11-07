@@ -34,8 +34,9 @@ class DatabaseService {
     };
 
     // Parse connection string if provided (ADO.NET format)
-    if (process.env.DB_CONNECTION_STRING) {
-      this.config = this._parseConnectionString(process.env.DB_CONNECTION_STRING);
+    const connectionString = process.env.DB_CONNECTION_STRING || process.env.CONNECTION_STRING;
+    if (connectionString) {
+      this.config = this._parseConnectionString(connectionString);
     }
   }
 

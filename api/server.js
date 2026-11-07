@@ -46,7 +46,7 @@ const validateEnvironment = () => {
   const requiredEnv = [
     'ENVIRONMENT',
     'NODE_ENV',
-    ...(process.env.DB_CONNECTION_STRING ? [] : [
+    ...(process.env.DB_CONNECTION_STRING || process.env.CONNECTION_STRING ? [] : [
       'DB_SERVER',
       'DB_DATABASE',
       'DB_USERNAME',
