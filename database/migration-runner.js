@@ -35,6 +35,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import sql from 'mssql';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -158,17 +159,6 @@ const runMigrations = async () => {
     // For local testing, just log what would be executed
     if (!process.env.GITHUB_ACTIONS && !process.env.DB_CONNECTION_STRING) {
       log('LOCAL MODE: Simulating migrations without actual database connection', 'WARN');
-      simulateMigrations();
-      return;
-    }
-
-    // Try to load mssql package (installed in CI pipeline)
-    let sql;
-    try {
-      sql = require('mssql');
-    } catch (e) {
-      log('mssql package not installed. For local testing, run: npm install mssql', 'WARN');
-      log('Simulating migration execution', 'WARN');
       simulateMigrations();
       return;
     }
