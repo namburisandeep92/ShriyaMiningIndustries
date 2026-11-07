@@ -155,19 +155,22 @@ BEGIN
     BEGIN
       DECLARE @DbName NVARCHAR(255) = DB_NAME();
       IF @DbName LIKE ''%prod%'' OR @DbName LIKE ''%production%''
-            BEGIN
-              THROW 50500, ''SEED ABORTED: This script cannot run on production database. Current DB: '' + @DbName, 1;
-            END;
-          END;
-        ');
+      BEGIN
+        THROW 50500, ''SEED ABORTED: This script cannot run on production database. Current DB: '' + @DbName, 1;
       END;
+    END;
+  ');
+END;
 
-      -- Run preflight check
-      EXEC dbo.usp_Seed_PreflightCheck;
+-- Run preflight check (only if procedure exists)
+IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'usp_Seed_PreflightCheck')
+BEGIN
+  EXEC dbo.usp_Seed_PreflightCheck;
+END;
 
-      -- ============================================================================
-      -- MARK MIGRATION COMPLETE
-      -- (Handled by migration runner - not needed here)
-      -- ============================================================================
+-- ============================================================================
+-- MARK MIGRATION COMPLETE
+-- (Handled by migration runner - not needed here)
+-- ============================================================================
 
-      PRINT 'Migration V003__seed-initial-data completed successfully';
+PRINT 'Migration V003__seed-initial-data completed successfully';
