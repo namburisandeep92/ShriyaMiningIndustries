@@ -87,13 +87,37 @@ jobs:
           api_location: "api"
           output_location: "public/app"
 
+      - name: Run post-deploy smoke tests (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
+        run: |
+          echo "🧪 Running post-deployment smoke tests..."
+          
+          # Get the SWA URL from the deployment output or use default
+          SWA_URL="https://swa-smi-invoice-prod.azurestaticapps.net"
+          
+          echo "Testing: $SWA_URL"
+          
+          # Wait a moment for deployment to propagate
+          sleep 10
+          
+          # Run smoke tests
+          VITE_API_BASE_URL="$SWA_URL" node scripts/smoke-test.js
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Smoke tests passed"
+          else
+            echo "❌ Smoke tests failed"
+            exit 1
+          fi
+
       - name: Log deployment info
         if: success()
         run: |
           echo "✅ Deployment succeeded!"
-          echo "Frontend: public/app/dist"
+          echo "Frontend: public/app"
           echo "API: api/"
-          echo "Status: Check Azure Portal for details"
+          echo "Prod URL: https://swa-smi-invoice-prod.azurestaticapps.net"
+          echo "Status: Smoke tests passed"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

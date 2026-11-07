@@ -34,6 +34,11 @@
       "serve": "/*.ico"
     },
     {
+      "route": "/login",
+      "serve": "/index.html",
+      "statusCode": 200
+    },
+    {
       "route": "/*",
       "serve": "/index.html",
       "statusCode": 200
@@ -44,8 +49,12 @@
   },
   "responseOverrides": {
     "401": {
+      "redirect": "/login",
+      "statusCode": 302
+    },
+    "403": {
       "rewrite": "/index.html",
-      "statusCode": 200
+      "statusCode": 403
     },
     "404": {
       "rewrite": "/index.html",
@@ -53,6 +62,7 @@
     }
   },
   "globalHeaders": {
+    "Content-Security-Policy": "default-src 'self' https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "X-XSS-Protection": "1; mode=block",

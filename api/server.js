@@ -136,9 +136,21 @@ const createApp = async () => {
   }));
 
   app.get('/api/me', asyncHandler(async (req, res) => {
+    if (!req.user) {
+      return res.json({
+        authenticated: false,
+        user: null,
+      });
+    }
+
     res.json({
-      user: req.user || null,
-      timestamp: new Date().toISOString(),
+      authenticated: true,
+      user: {
+        email: req.user.email,
+        name: req.user.name,
+        roles: req.user.roles,
+        permissions: req.user.permissions,
+      },
     });
   }));
 
@@ -209,25 +221,25 @@ const createApp = async () => {
   }));
 
   // ========== PO IMPORT ==========
-  app.post('/api/po-import', handleUploadPO);
-  app.get('/api/po-import', handleListPOImports);
+  app.post('/api/po-import', authMw.requireAuth, handleUploadPO);
+  app.get('/api/po-import', authMw.requireAuth, handleListPOImports);
 
   // ========== INVOICE CRUD ==========
-  app.post('/api/invoices', handleCreateInvoice);
-  app.get('/api/invoices', handleListInvoices);
-  app.get('/api/invoices/:id', handleGetInvoice);
-  app.patch('/api/invoices/:id', handleUpdateInvoice);
-  app.delete('/api/invoices/:id', handleDeleteInvoice);
+  app.post('/api/invoices', authMw.requireAuth, handleCreateInvoice);
+  app.get('/api/invoices', authMw.requireAuth, handleListInvoices);
+  app.get('/api/invoices/:id', authMw.requireAuth, handleGetInvoice);
+  app.patch('/api/invoices/:id', authMw.requireAuth, handleUpdateInvoice);
+  app.delete('/api/invoices/:id', authMw.requireAuth, handleDeleteInvoice);
 
   // ========== EXPORT & HISTORY ==========
-  app.get('/api/invoices/:id/versions', handleListVersions);
-  app.get('/api/invoices/:id/versions/:version', handleGetVersion);
-  app.get('/api/invoices/:id/export', handleExportInvoice);
+  app.get('/api/invoices/:id/versions', authMw.requireAuth, handleListVersions);
+  app.get('/api/invoices/:id/versions/:version', authMw.requireAuth, handleGetVersion);
+  app.get('/api/invoices/:id/export', authMw.requireAuth, handleExportInvoice);
 
   // ========== ADMIN ==========
-  app.get('/api/admin/users', handleListUsers);
-  app.post('/api/admin/users', handleCreateUser);
-  app.get('/api/admin/error-log', handleSearchErrorLog);
+  app.get('/api/admin/users', authMw.requireAuth, authMw.requireRole('Admin'), handleListUsers);
+  app.post('/api/admin/users', authMw.requireAuth, authMw.requireRole('Admin'), handleCreateUser);
+  app.get('/api/admin/error-log', authMw.requireAuth, authMw.requireRole('Admin'), handleSearchErrorLog);
 
   // ========== 404 Handler ==========
   app.use((req, res) => {
