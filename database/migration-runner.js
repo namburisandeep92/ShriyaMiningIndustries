@@ -81,11 +81,26 @@ const parseConnectionString = (connStr) => {
     return acc;
   }, {});
 
+  // Extract server and port from "tcp:host.database.windows.net,1433" format
+  let server = parts['server']?.replace('tcp:', '') || config.host;
+  let port = 1433;  // Default SQL Server port
+  
+  // Handle "host,port" or "host:port" format
+  if (server.includes(',')) {
+    [server, port] = server.split(',').map(s => s.trim());
+    port = parseInt(port) || 1433;
+  } else if (server.includes(':')) {
+    [server, port] = server.split(':').map(s => s.trim());
+    port = parseInt(port) || 1433;
+  }
+
   return {
-    server: parts['server']?.replace('tcp:', '') || config.host,
+    server: server,
+    port: port,
     database: parts['initial catalog'] || config.database,
     user: parts['user id'],
     password: parts['password'],
+    encrypt: true,
     connectionTimeout: 30000
   };
 };
