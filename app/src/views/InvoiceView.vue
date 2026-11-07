@@ -289,7 +289,7 @@ const showComparison = async (version: number) => {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .page-header h1 {
@@ -311,7 +311,7 @@ const showComparison = async (version: number) => {
 .invoice-section {
   background: white;
   padding: 1.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
 }
 
@@ -319,8 +319,8 @@ const showComparison = async (version: number) => {
   margin-top: 0;
   margin-bottom: 1.5rem;
   font-size: 1.25rem;
-  color: #2c3e50;
-  border-bottom: 2px solid #f0f0f0;
+  color: var(--ink);
+  border-bottom: 2px solid var(--parchment);
   padding-bottom: 1rem;
 }
 
@@ -334,14 +334,14 @@ const showComparison = async (version: number) => {
   margin: 0 0 0.5rem 0;
   font-size: 0.875rem;
   text-transform: uppercase;
-  color: #999;
+  color: var(--stone);
   font-weight: 600;
 }
 
 .section-col p {
   margin: 0;
   font-size: 1rem;
-  color: #333;
+  color: var(--ink-mid);
 }
 
 .invoice-table {
@@ -350,20 +350,20 @@ const showComparison = async (version: number) => {
 }
 
 .invoice-table th {
-  background-color: #f0f0f0;
+  background-color: var(--parchment);
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .invoice-table td {
   padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .invoice-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .status-badge {
@@ -376,40 +376,40 @@ const showComparison = async (version: number) => {
 }
 
 .status-draft {
-  background-color: #e8e8e8;
-  color: #333;
+  background-color: var(--rule-lt);
+  color: var(--ink-mid);
 }
 
 .status-ready {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #e4e8d4;
+  color: #44502c;
 }
 
 .status-sent {
-  background-color: #d1ecf1;
-  color: #0c5460;
+  background-color: #e9e4da;
+  color: #5c5248;
 }
 
 .status-paid {
-  background-color: #c3e6cb;
-  color: #155724;
+  background-color: #d6dcbb;
+  color: #44502c;
 }
 
 .totals {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .totals-row {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .totals-row.total {
   font-weight: 600;
   font-size: 1.25rem;
-  border-top: 2px solid #2c3e50;
+  border-top: 2px solid var(--earth);
   border-bottom: none;
   margin-top: 1rem;
   padding-top: 1rem;
@@ -417,7 +417,7 @@ const showComparison = async (version: number) => {
 
 .notes {
   white-space: pre-wrap;
-  color: #666;
+  color: var(--ink-lt);
   line-height: 1.6;
 }
 
@@ -427,27 +427,27 @@ const showComparison = async (version: number) => {
 }
 
 .history-table th {
-  background-color: #f0f0f0;
+  background-color: var(--parchment);
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .history-table td {
   padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .metadata {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .metadata-row {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .metadata-row:last-child {
@@ -455,13 +455,13 @@ const showComparison = async (version: number) => {
 }
 
 .metadata-row span {
-  color: #666;
+  color: var(--ink-lt);
   font-weight: 500;
 }
 
 .metadata-row code {
   font-family: 'Courier New', monospace;
-  color: #e74c3c;
+  color: var(--terracotta);
   font-size: 0.875rem;
 }
 
@@ -475,9 +475,9 @@ const showComparison = async (version: number) => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #f2e2da;
+  color: #7e3a24;
+  border: 1px solid #e0c4b4;
   border-radius: 4px;
 }
 

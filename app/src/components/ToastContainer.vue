@@ -58,27 +58,27 @@ const toasts = toastManager.getToasts()
 }
 
 .toast-success {
-  background-color: #d4edda;
-  color: #155724;
-  border-left: 4px solid #28a745;
+  background-color: #e4e8d4;
+  color: #44502c;
+  border-left: 4px solid var(--olive);
 }
 
 .toast-error {
-  background-color: #f8d7da;
-  color: #721c24;
-  border-left: 4px solid #dc3545;
+  background-color: #f2e2da;
+  color: #7e3a24;
+  border-left: 4px solid var(--terracotta);
 }
 
 .toast-warning {
-  background-color: #fff3cd;
-  color: #856404;
-  border-left: 4px solid #ffc107;
+  background-color: #f5ecd9;
+  color: #7a5c3e;
+  border-left: 4px solid var(--earth-lt);
 }
 
 .toast-info {
-  background-color: #d1ecf1;
-  color: #0c5460;
-  border-left: 4px solid #17a2b8;
+  background-color: #e9e4da;
+  color: #5c5248;
+  border-left: 4px solid var(--stone);
 }
 
 .toast-content {

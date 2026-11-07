@@ -26,17 +26,17 @@
 .content h1 {
   font-size: 5rem;
   margin: 0;
-  color: #999;
+  color: var(--stone);
 }
 
 .content h2 {
   font-size: 2rem;
   margin: 0.5rem 0 1rem 0;
-  color: #333;
+  color: var(--ink-mid);
 }
 
 .content p {
-  color: #666;
+  color: var(--ink-lt);
   margin-bottom: 2rem;
 }
 </style>

@@ -1,0 +1,21 @@
+/* Shriya Mining Industries palette — mirrors Website.html */
+:root {
+  --cream: #f7f3ee;
+  --parchment: #ede6da;
+  --sand: #d4c4a8;
+  --sand-dk: #b8a888;
+  --stone: #8a7d6e;
+  --stone-dk: #5c5248;
+  --earth: #7a5c3e;
+  --earth-lt: #c49a6c;
+  --olive: #6b7052;
+  --olive-lt: #9aa070;
+  --terracotta: #a85c3c;
+  --tera-lt: #d4855c;
+  --ink: #2a2520;
+  --ink-mid: #3e3830;
+  --ink-lt: #5a5248;
+  --rule: #c8bead;
+  --rule-lt: #e0d8ce;
+  --white: #fdfaf6;
+}

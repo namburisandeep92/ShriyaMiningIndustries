@@ -353,11 +353,11 @@ label { display: grid; gap: .3rem; }
 input, select, textarea { border: 1px solid #aaa; border-radius: 3px; padding: .5rem; min-width: 0; font: inherit; }
 button { cursor: pointer; padding: .5rem .75rem; }
 button:disabled { cursor: not-allowed; opacity: .55; }
-.error { background: #f8d7da; color: #721c24; padding: 1rem; }
+.error { background: #f2e2da; color: #7e3a24; padding: 1rem; }
 .invalid { border: 2px solid #c32032; background: #fff4f4; }
 .table-scroll { overflow: auto; max-height: 65vh; margin: 1rem 0; }
 table { border-collapse: separate; border-spacing: 0; }
-th, td { border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: .5rem; text-align: left; }
+th, td { border-right: 1px solid var(--rule-lt); border-bottom: 1px solid var(--rule-lt); padding: .5rem; text-align: left; }
 th { background: #ede6da; position: relative; }
 .po-table { width: max-content; min-width: 100%; }
 .po-table th { position: sticky; top: 0; z-index: 2; height: 40px; box-sizing: border-box; white-space: nowrap; }

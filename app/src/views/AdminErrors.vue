@@ -137,7 +137,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .page-header h1 {
@@ -152,7 +152,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 .search-input,
 .severity-select {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
   font-size: 0.875rem;
 }
@@ -163,7 +163,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 
 .errors-table-container {
   background: white;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
   overflow-x: auto;
 }
@@ -174,20 +174,20 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 }
 
 .errors-table th {
-  background-color: #f0f0f0;
+  background-color: var(--parchment);
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .errors-table td {
   padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .errors-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .message {
@@ -207,18 +207,18 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 }
 
 .severity-error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: #f2e2da;
+  color: #7e3a24;
 }
 
 .severity-warning {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: #f5ecd9;
+  color: #7a5c3e;
 }
 
 .severity-info {
-  background-color: #d1ecf1;
-  color: #0c5460;
+  background-color: #e9e4da;
+  color: #5c5248;
 }
 
 .modal-overlay {
@@ -249,7 +249,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
   position: sticky;
   top: 0;
   background: white;
@@ -264,7 +264,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
   border: none;
   font-size: 2rem;
   cursor: pointer;
-  color: #999;
+  color: var(--stone);
 }
 
 .modal-body {
@@ -278,18 +278,18 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 .label {
   display: block;
   font-weight: 600;
-  color: #333;
+  color: var(--ink-mid);
   margin-bottom: 0.5rem;
 }
 
 .value {
   display: block;
-  color: #666;
+  color: var(--ink-lt);
 }
 
 .stack {
   display: block;
-  background-color: #f5f5f5;
+  background-color: var(--cream);
   padding: 0.75rem;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
@@ -301,7 +301,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 
 .context {
   display: block;
-  background-color: #f5f5f5;
+  background-color: var(--cream);
   padding: 0.75rem;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
@@ -311,9 +311,9 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #f2e2da;
+  color: #7e3a24;
+  border: 1px solid #e0c4b4;
   border-radius: 4px;
 }
 

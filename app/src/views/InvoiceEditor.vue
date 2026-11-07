@@ -352,7 +352,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .page-header h1 {
@@ -361,9 +361,9 @@ onMounted(async () => {
 
 .conflict-warning {
   padding: 1rem;
-  background-color: #fff3cd;
-  color: #856404;
-  border: 1px solid #ffeaa7;
+  background-color: #f5ecd9;
+  color: #7a5c3e;
+  border: 1px solid #e5d4b0;
   border-radius: 4px;
 }
 
@@ -376,7 +376,7 @@ onMounted(async () => {
 .form-section {
   background: white;
   padding: 1.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
 }
 
@@ -384,8 +384,8 @@ onMounted(async () => {
   margin-top: 0;
   margin-bottom: 1.5rem;
   font-size: 1.25rem;
-  color: #2c3e50;
-  border-bottom: 2px solid #f0f0f0;
+  color: var(--ink);
+  border-bottom: 2px solid var(--parchment);
   padding-bottom: 1rem;
 }
 
@@ -404,25 +404,25 @@ onMounted(async () => {
 .form-group label {
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: #333;
+  color: var(--ink-mid);
 }
 
 .form-input {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
   font-size: 0.875rem;
 }
 
 .form-input:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--earth);
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
 }
 
 .form-input:disabled {
-  background-color: #f5f5f5;
-  color: #999;
+  background-color: var(--cream);
+  color: var(--stone);
   cursor: not-allowed;
 }
 
@@ -433,7 +433,7 @@ onMounted(async () => {
 
 .form-group small {
   margin-top: 0.25rem;
-  color: #999;
+  color: var(--stone);
   font-size: 0.75rem;
 }
 
@@ -444,35 +444,35 @@ onMounted(async () => {
 }
 
 .line-items-table th {
-  background-color: #f0f0f0;
+  background-color: var(--parchment);
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .line-items-table td {
   padding: 0.75rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .line-items-table input {
   width: 100%;
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
 }
 
 .empty-items {
   padding: 2rem 1rem;
   text-align: center;
-  background-color: #f9f9f9;
+  background-color: var(--cream);
   border-radius: 4px;
-  color: #666;
+  color: var(--ink-lt);
 }
 
 .link {
-  color: #3498db;
+  color: var(--earth);
   text-decoration: none;
   cursor: pointer;
 }
@@ -482,20 +482,20 @@ onMounted(async () => {
 }
 
 .totals-section {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .totals-row {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .totals-row.total {
   font-weight: 600;
   font-size: 1.125rem;
-  border-bottom: 2px solid #2c3e50;
+  border-bottom: 2px solid var(--earth);
   margin-top: 0.5rem;
 }
 
@@ -515,9 +515,9 @@ onMounted(async () => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #f2e2da;
+  color: #7e3a24;
+  border: 1px solid #e0c4b4;
   border-radius: 4px;
 }
 

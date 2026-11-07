@@ -47,14 +47,14 @@ const hasPermission = (permission: string) => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--cream);
 }
 
 .app-header {
-  background-color: #2c3e50;
-  color: white;
+  background-color: var(--parchment);
+  color: var(--ink);
   padding: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--rule);
 }
 
 .header-content {
@@ -70,6 +70,7 @@ const hasPermission = (permission: string) => {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
+  color: var(--earth);
 }
 
 .app-nav {
@@ -79,17 +80,17 @@ const hasPermission = (permission: string) => {
 }
 
 .nav-link {
-  color: white;
+  color: var(--ink-lt);
   text-decoration: none;
   transition: color 0.3s;
 }
 
 .nav-link:hover {
-  color: #3498db;
+  color: var(--earth-lt);
 }
 
 .nav-link.logout {
-  color: #e74c3c;
+  color: var(--tera-lt);
 }
 
 .app-main {

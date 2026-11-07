@@ -185,7 +185,7 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .page-header h1 {
@@ -201,7 +201,7 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
 .search-input,
 .status-select {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
   font-size: 0.875rem;
 }
@@ -217,7 +217,7 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
 
 .invoice-table-container {
   overflow-x: auto;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
   background: white;
 }
@@ -228,23 +228,23 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
 }
 
 .invoice-table thead {
-  background-color: #f0f0f0;
+  background-color: var(--parchment);
 }
 
 .invoice-table thead th {
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .invoice-table tbody td {
   padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .invoice-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .status-badge {
@@ -257,23 +257,23 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
 }
 
 .status-draft {
-  background-color: #e8e8e8;
-  color: #333;
+  background-color: var(--rule-lt);
+  color: var(--ink-mid);
 }
 
 .status-ready {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #e4e8d4;
+  color: #44502c;
 }
 
 .status-sent {
-  background-color: #d1ecf1;
-  color: #0c5460;
+  background-color: #e9e4da;
+  color: #5c5248;
 }
 
 .status-paid {
-  background-color: #c3e6cb;
-  color: #155724;
+  background-color: #d6dcbb;
+  color: #44502c;
 }
 
 .actions {
@@ -282,7 +282,7 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
 }
 
 .action-link {
-  color: #3498db;
+  color: var(--earth);
   cursor: pointer;
   text-decoration: none;
   font-size: 0.875rem;
@@ -301,24 +301,24 @@ const downloadExcel = async (invoiceId: string, invoiceNumber: string) => {
 }
 
 .page-info {
-  color: #666;
+  color: var(--ink-lt);
   font-size: 0.875rem;
 }
 
 .error-box {
   padding: 1rem;
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #f2e2da;
+  color: #7e3a24;
+  border: 1px solid #e0c4b4;
   border-radius: 4px;
 }
 
 .empty-state {
   padding: 3rem 1rem;
   text-align: center;
-  color: #666;
+  color: var(--ink-lt);
   background-color: white;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
 }
 

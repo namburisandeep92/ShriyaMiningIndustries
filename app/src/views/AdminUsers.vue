@@ -159,7 +159,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .page-header h1 {
@@ -168,7 +168,7 @@ onMounted(() => {
 
 .users-table-container {
   background: white;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
   overflow-x: auto;
 }
@@ -179,20 +179,20 @@ onMounted(() => {
 }
 
 .users-table th {
-  background-color: #f0f0f0;
+  background-color: var(--parchment);
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--rule-lt);
 }
 
 .users-table td {
   padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .users-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background-color: var(--cream);
 }
 
 .modal-overlay {
@@ -221,7 +221,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--rule-lt);
 }
 
 .modal-header h2 {
@@ -233,7 +233,7 @@ onMounted(() => {
   border: none;
   font-size: 2rem;
   cursor: pointer;
-  color: #999;
+  color: var(--stone);
 }
 
 .modal-body {
@@ -245,7 +245,7 @@ onMounted(() => {
   gap: 1rem;
   justify-content: flex-end;
   padding: 1.5rem;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--rule-lt);
 }
 
 .form-group {
@@ -261,15 +261,15 @@ onMounted(() => {
 
 .form-input {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--rule-lt);
   border-radius: 4px;
 }
 
 .error-box {
   padding: 1rem;
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background-color: #f2e2da;
+  color: #7e3a24;
+  border: 1px solid #e0c4b4;
   border-radius: 4px;
 }
 
