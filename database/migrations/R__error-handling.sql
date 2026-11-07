@@ -241,7 +241,9 @@ BEGIN
        OR @CurrentStatus = 'In Review' AND @NewStatus NOT IN ('Approved')
        OR @CurrentStatus = 'Approved' AND @NewStatus NOT IN ('Shipped')
     BEGIN
-      THROW 50400, 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus, 1;
+      DECLARE @StatusTransitionMessage NVARCHAR(2048);
+      SET @StatusTransitionMessage = 'Invalid status transition from ' + @CurrentStatus + ' to ' + @NewStatus;
+      THROW 50400, @StatusTransitionMessage, 1;
     END;
 
     -- Record history before update
