@@ -88,7 +88,7 @@ BEGIN
   CREATE TABLE log.ErrorLog (
     ErrorLogId BIGINT PRIMARY KEY IDENTITY(1,1),
     CorrelationId UNIQUEIDENTIFIER NOT NULL,
-    ErrorCode NVARCHAR(25) NULL FOREIGN KEY REFERENCES log.ErrorCode(ErrorCode),
+    ErrorCode NVARCHAR(25) NULL,
     Layer NVARCHAR(20) NOT NULL CHECK (Layer IN ('Database', 'API', 'Client')),
     SqlErrorNumber INT NULL,
     SqlProcedureName NVARCHAR(255) NULL,
@@ -109,7 +109,8 @@ BEGIN
     ModifiedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE(),
     ModifiedBy NVARCHAR(255) NOT NULL DEFAULT 'system',
     IsDeleted BIT NOT NULL DEFAULT 0,
-    RowVersion ROWVERSION NOT NULL
+    RowVersion ROWVERSION NOT NULL,
+    CONSTRAINT FK_ErrorLog_ErrorCode FOREIGN KEY (ErrorCode) REFERENCES log.ErrorCode(ErrorCode)
   );
 
   CREATE NONCLUSTERED INDEX IX_ErrorLog_CorrelationId 
@@ -194,12 +195,14 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('security') 
 BEGIN
   CREATE TABLE security.RolePermission (
     RolePermissionId INT PRIMARY KEY IDENTITY(1,1),
-    RoleId INT NOT NULL FOREIGN KEY REFERENCES security.Role(RoleId),
-    PermissionId INT NOT NULL FOREIGN KEY REFERENCES security.Permission(PermissionId),
+    RoleId INT NOT NULL,
+    PermissionId INT NOT NULL,
     CreatedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE(),
     CreatedBy NVARCHAR(255) NOT NULL DEFAULT 'system',
     IsDeleted BIT NOT NULL DEFAULT 0,
-    CONSTRAINT UQ_RolePermission UNIQUE (RoleId, PermissionId)
+    CONSTRAINT UQ_RolePermission UNIQUE (RoleId, PermissionId),
+    CONSTRAINT FK_RolePermission_Role FOREIGN KEY (RoleId) REFERENCES security.Role(RoleId),
+    CONSTRAINT FK_RolePermission_Permission FOREIGN KEY (PermissionId) REFERENCES security.Permission(PermissionId)
   );
 
   CREATE NONCLUSTERED INDEX IX_RolePermission_RoleId 
@@ -242,12 +245,14 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('security') 
 BEGIN
   CREATE TABLE security.UserRole (
     UserRoleId BIGINT PRIMARY KEY IDENTITY(1,1),
-    UserId NVARCHAR(255) NOT NULL FOREIGN KEY REFERENCES security.[User](UserId),
-    RoleId INT NOT NULL FOREIGN KEY REFERENCES security.Role(RoleId),
+    UserId NVARCHAR(255) NOT NULL,
+    RoleId INT NOT NULL,
     GrantedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE(),
     GrantedBy NVARCHAR(255) NOT NULL DEFAULT 'system',
     IsDeleted BIT NOT NULL DEFAULT 0,
-    CONSTRAINT UQ_UserRole UNIQUE (UserId, RoleId)
+    CONSTRAINT UQ_UserRole UNIQUE (UserId, RoleId),
+    CONSTRAINT FK_UserRole_User FOREIGN KEY (UserId) REFERENCES security.[User](UserId),
+    CONSTRAINT FK_UserRole_Role FOREIGN KEY (RoleId) REFERENCES security.Role(RoleId)
   );
 
   CREATE NONCLUSTERED INDEX IX_UserRole_UserId 
@@ -318,8 +323,8 @@ BEGIN
     InvoiceId UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     InvoiceNumber NVARCHAR(20) NOT NULL UNIQUE, -- SMI-YYYY-MM-NNN format
     InvoiceDate DATETIME2(7) NOT NULL,
-    VendorId INT NOT NULL FOREIGN KEY REFERENCES app.Vendor(VendorId),
-    BuyerId INT NOT NULL FOREIGN KEY REFERENCES app.Buyer(BuyerId),
+    VendorId INT NOT NULL,
+    BuyerId INT NOT NULL,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (Status IN ('Draft', 'In Review', 'Approved', 'Shipped')),
     TotalAmount DECIMAL(19,2) NOT NULL DEFAULT 0,
     TaxAmount DECIMAL(19,2) NOT NULL DEFAULT 0,
@@ -331,7 +336,9 @@ BEGIN
     ModifiedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE(),
     ModifiedBy NVARCHAR(255) NOT NULL DEFAULT 'system',
     IsDeleted BIT NOT NULL DEFAULT 0,
-    RowVersion ROWVERSION NOT NULL
+    RowVersion ROWVERSION NOT NULL,
+    CONSTRAINT FK_Invoice_Vendor FOREIGN KEY (VendorId) REFERENCES app.Vendor(VendorId),
+    CONSTRAINT FK_Invoice_Buyer FOREIGN KEY (BuyerId) REFERENCES app.Buyer(BuyerId)
   );
 
   CREATE NONCLUSTERED INDEX IX_Invoice_InvoiceNumber 
@@ -383,7 +390,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('app') AND n
 BEGIN
   CREATE TABLE app.InvoiceLine (
     InvoiceLineId UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    InvoiceId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES app.Invoice(InvoiceId),
+    InvoiceId UNIQUEIDENTIFIER NOT NULL,
     LineNumber INT NOT NULL,
     Description NVARCHAR(MAX) NOT NULL, -- Stone, size, finish e.g. "GRANITE - 12\" X 24\" Polished"
     Quantity DECIMAL(19,4) NOT NULL,
@@ -396,7 +403,8 @@ BEGIN
     ModifiedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE(),
     ModifiedBy NVARCHAR(255) NOT NULL DEFAULT 'system',
     IsDeleted BIT NOT NULL DEFAULT 0,
-    RowVersion ROWVERSION NOT NULL
+    RowVersion ROWVERSION NOT NULL,
+    CONSTRAINT FK_InvoiceLine_Invoice FOREIGN KEY (InvoiceId) REFERENCES app.Invoice(InvoiceId)
   );
 
   CREATE NONCLUSTERED INDEX IX_InvoiceLine_InvoiceId 
@@ -440,7 +448,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('sales') AND
 BEGIN
   CREATE TABLE sales.POLine (
     POLineId UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
-    POImportBatchId UNIQUEIDENTIFIER NOT NULL FOREIGN KEY REFERENCES sales.POImportBatch(POImportBatchId),
+    POImportBatchId UNIQUEIDENTIFIER NOT NULL,
     PONumber NVARCHAR(50) NOT NULL,
     SPSItem NVARCHAR(MAX) NOT NULL,
     SKU NVARCHAR(50) NOT NULL,
@@ -453,7 +461,8 @@ BEGIN
     RawData NVARCHAR(MAX) NULL, -- Original JSON/CSV for audit
     CreatedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE(),
     CreatedBy NVARCHAR(255) NOT NULL DEFAULT 'system',
-    IsDeleted BIT NOT NULL DEFAULT 0
+    IsDeleted BIT NOT NULL DEFAULT 0,
+    CONSTRAINT FK_POLine_POImportBatch FOREIGN KEY (POImportBatchId) REFERENCES sales.POImportBatch(POImportBatchId)
   );
 
   CREATE NONCLUSTERED INDEX IX_POLine_POImportBatchId 
