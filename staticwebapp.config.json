@@ -6,6 +6,10 @@
       "statusCode": 200
     },
     {
+      "route": "/assets/*",
+      "serve": "/assets/*"
+    },
+    {
       "route": "/*.json",
       "serve": "/*.json"
     },
@@ -35,12 +39,12 @@
     },
     {
       "route": "/login",
-      "serve": "/index.html",
+      "serve": "/app/index.html",
       "statusCode": 200
     },
     {
       "route": "/*",
-      "serve": "/index.html",
+      "serve": "/app/index.html",
       "statusCode": 200
     }
   ],
@@ -50,11 +54,11 @@
       "statusCode": 302
     },
     "403": {
-      "rewrite": "/index.html",
+      "rewrite": "/app/index.html",
       "statusCode": 403
     },
     "404": {
-      "rewrite": "/index.html",
+      "rewrite": "/app/index.html",
       "statusCode": 200
     }
   },
