@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp, validateEnvironment } from '../../api/server.js';
-import { getDatabase } from '../../api/services/database.js';
+import { DatabaseService, getDatabase } from '../../api/services/database.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -30,6 +30,19 @@ describe('API startup and local routes', () => {
     vi.stubEnv('DB_CONNECTION_STRING', 'Server=example;Initial Catalog=example;');
 
     expect(() => validateEnvironment()).not.toThrow();
+  });
+
+  it('accepts the documented CONNECTION_STRING setting', () => {
+    vi.stubEnv('ENVIRONMENT', 'test');
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DB_CONNECTION_STRING', '');
+    vi.stubEnv('CONNECTION_STRING', 'Server=example;Initial Catalog=test;');
+
+    expect(() => validateEnvironment()).not.toThrow();
+    expect(new DatabaseService().config).toMatchObject({
+      server: 'example',
+      database: 'test',
+    });
   });
 
   it('accepts complete individual database settings', () => {
