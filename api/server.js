@@ -38,21 +38,80 @@ const {
 } = require('./functions/admin');
 
 /**
+ * Validate required environment variables at startup
+ * Fail fast if config is invalid
+ */
+const validateEnvironment = () => {
+  const requiredEnv = [
+    'DB_CONNECTION_STRING',
+    'ENVIRONMENT',
+    'NODE_ENV',
+  ];
+
+  const missing = requiredEnv.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    const error = `Missing required environment variables: ${missing.join(', ')}`;
+    console.error(`[STARTUP ERROR] ${error}`);
+    throw new Error(error);
+  }
+
+  // Validate environment is valid
+  if (!['test', 'production', 'development'].includes(process.env.ENVIRONMENT)) {
+    throw new Error(`Invalid ENVIRONMENT: ${process.env.ENVIRONMENT}. Must be: test, production, development`);
+  }
+
+  // Log validated config (NOT secrets)
+  console.log(`[STARTUP] Environment: ${process.env.ENVIRONMENT}`);
+  console.log(`[STARTUP] Node Env: ${process.env.NODE_ENV}`);
+  console.log(`[STARTUP] Log Level: ${process.env.LOG_LEVEL || 'info'}`);
+};
+
+/**
+ * Determine CORS origin based on environment
+ * Production: uses prod SWA URL
+ * Test/Dev: allows localhost and test SWA
+ */
+const getCorsOrigins = () => {
+  const isProd = process.env.ENVIRONMENT === 'production';
+  
+  if (isProd) {
+    // Production: only allow prod SWA URL
+    // This prevents test/dev URLs from accessing prod API
+    return [
+      process.env.FRONTEND_URL || 'https://swa-smi-invoice-prod.azurestaticapps.net',
+    ];
+  }
+
+  // Test/Dev: allow localhost and test SWA
+  return [
+    'http://localhost:3000',
+    'http://localhost:4280',
+    'http://localhost:5173',
+    process.env.SWA_ORIGIN || 'http://localhost:4280',
+    'https://swa-smi-invoice-test.azurestaticapps.net',
+  ];
+};
+
+/**
  * Create and configure Express app
  */
 const createApp = async () => {
+  // Validate environment BEFORE anything else
+  validateEnvironment();
+
   const app = express();
 
   // Middleware
   app.use(express.json({ limit: '50mb' })); // Support large Excel uploads
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // CORS - Allow SWA and local development
+  // CORS - Configured per environment
+  const corsOrigins = getCorsOrigins();
+  console.log(`[STARTUP] CORS allowed origins: ${corsOrigins.join(', ')}`);
+  
   app.use(cors({
-    origin: [
-      process.env.SWA_ORIGIN || 'http://localhost:4280', // SWA local dev
-      process.env.FRONTEND_URL || 'https://swa-smi-invoice-test.azurestaticapps.net',
-    ],
+    origin: corsOrigins,
     credentials: true,
   }));
 
@@ -194,24 +253,46 @@ const startServer = async (port = 3000) => {
   try {
     // Initialize database
     const db = getDatabase();
+    console.log('[STARTUP] Connecting to database...');
+    
     await db.connect();
+    console.log('[STARTUP] Database connection verified ✓');
+
+    // Quick health check
+    const isHealthy = await db.isHealthy();
+    if (!isHealthy) {
+      throw new Error('Database is not healthy. Check connection string and network.');
+    }
+    console.log('[STARTUP] Database health check passed ✓');
 
     // Create app
     const app = await createApp();
 
     // Listen
     app.listen(port, () => {
-      console.log(`[API] Server running at http://localhost:${port}`);
+      console.log(`[STARTUP] ✓ API Server running at http://localhost:${port}`);
       console.log(`[API] Health check: http://localhost:${port}/api/health`);
       console.log(`[API] Docs: http://localhost:${port}/api/docs`);
     });
   } catch (err) {
-    console.error('[API] Startup failed:', err);
+    console.error('[STARTUP FAILED] ✗', err.message);
     process.exit(1);
   }
 };
 
+/**
+ * Create app for Azure Functions (no DB connection at startup)
+ * Database connects on first request
+ */
+const createAppForFunctions = async () => {
+  // Validate environment FIRST
+  validateEnvironment();
+  return createApp();
+};
+
 module.exports = {
   createApp,
+  createAppForFunctions,
   startServer,
+  validateEnvironment,
 };

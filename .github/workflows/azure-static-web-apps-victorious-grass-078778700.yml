@@ -1,4 +1,4 @@
-name: Azure Static Web Apps CI/CD
+name: Azure Static Web Apps CI/CD - TEST
 
 on:
   push:
@@ -34,11 +34,37 @@ jobs:
 
       - name: Verify frontend build
         run: |
-          if [ ! -f public/app/dist/index.html ]; then
+          if [ ! -f public/app/index.html ]; then
             echo "❌ Frontend build failed - index.html not found"
             exit 1
           fi
           echo "✅ Frontend build successful"
+
+      - name: Validate environment variables (test)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_TEST }}
+        run: |
+          echo "🔍 Validating test environment..."
+          if [ -z "$DB_CONNECTION_STRING" ]; then
+            echo "❌ ERROR: DB_CONNECTION_STRING_TEST not set in GitHub secrets"
+            exit 1
+          fi
+          
+          # Verify connection string contains test database
+          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
+            echo "✅ Connection string uses test database (shriyamining-db-test)"
+          else
+            echo "⚠️  WARNING: Could not verify test database name in connection string"
+          fi
+          
+          # Fail if accidentally using production database
+          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db\"" || echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db;"; then
+            if ! echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
+              echo "❌ ERROR: Test SWA using PRODUCTION database!"
+              exit 1
+            fi
+          fi
 
       - name: Run database migrations (test)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -46,7 +72,12 @@ jobs:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_TEST }}
         run: |
           echo "🗄️  Running migrations on test database..."
-          npm run migrate || echo "⚠️  Migration warning - check logs"
+          if npm run migrate; then
+            echo "✅ Migrations succeeded"
+          else
+            echo "❌ Migrations failed"
+            exit 1
+          fi
 
       - name: Build And Deploy
         id: builddeploy
@@ -57,7 +88,16 @@ jobs:
           action: "upload"
           app_location: "/"
           api_location: "api"
-          output_location: "public/app/dist"
+          output_location: "public/app"
+
+      - name: Log deployment info
+        if: success()
+        run: |
+          echo "✅ Test SWA deployment succeeded!"
+          echo "Frontend: public/app/dist"
+          echo "API: api/"
+          echo "Database: shriyamining-db-test"
+          echo "Status: Check Azure Portal for details"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

@@ -34,11 +34,34 @@ jobs:
 
       - name: Verify frontend build
         run: |
-          if [ ! -f public/app/dist/index.html ]; then
+          if [ ! -f public/app/index.html ]; then
             echo "❌ Frontend build failed - index.html not found"
             exit 1
           fi
           echo "✅ Frontend build successful"
+
+      - name: Validate environment variables (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_PROD }}
+        run: |
+          echo "🔍 Validating production environment..."
+          if [ -z "$DB_CONNECTION_STRING" ]; then
+            echo "❌ ERROR: DB_CONNECTION_STRING_PROD not set in GitHub secrets"
+            exit 1
+          fi
+          
+          # Verify connection string contains prod database
+          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
+            echo "❌ ERROR: Production using TEST database! Connection string contains 'shriyamining-db-test'"
+            exit 1
+          fi
+          
+          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db"; then
+            echo "✅ Connection string uses production database (shriyamining-db)"
+          else
+            echo "⚠️  WARNING: Could not verify database name in connection string"
+          fi
 
       - name: Run database migrations (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -46,7 +69,12 @@ jobs:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_PROD }}
         run: |
           echo "🗄️  Running migrations on production database..."
-          npm run migrate || echo "⚠️  Migration warning - check logs"
+          if npm run migrate; then
+            echo "✅ Migrations succeeded"
+          else
+            echo "❌ Migrations failed"
+            exit 1
+          fi
 
       - name: Build And Deploy
         id: builddeploy
@@ -57,7 +85,15 @@ jobs:
           action: "upload"
           app_location: "/"
           api_location: "api"
-          output_location: "public/app/dist"
+          output_location: "public/app"
+
+      - name: Log deployment info
+        if: success()
+        run: |
+          echo "✅ Deployment succeeded!"
+          echo "Frontend: public/app/dist"
+          echo "API: api/"
+          echo "Status: Check Azure Portal for details"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
