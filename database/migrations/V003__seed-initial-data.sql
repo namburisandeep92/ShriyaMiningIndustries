@@ -154,9 +154,11 @@ BEGIN
     AS
     BEGIN
       DECLARE @DbName NVARCHAR(255) = DB_NAME();
+      DECLARE @Message NVARCHAR(MAX);
       IF @DbName LIKE ''%prod%'' OR @DbName LIKE ''%production%''
       BEGIN
-        THROW 50500, ''SEED ABORTED: This script cannot run on production database. Current DB: '' + @DbName, 1;
+        SET @Message = ''SEED ABORTED: This script cannot run on production database. Current DB: '' + @DbName;
+        THROW 50500, @Message, 1;
       END;
     END;
   ');
