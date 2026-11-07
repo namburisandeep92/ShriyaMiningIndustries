@@ -25,6 +25,7 @@
             <label>PO Number *</label>
             <input
               v-model="form.poNumber"
+              :disabled="isEdit"
               type="text"
               @change="markDirty"
               class="form-input"
@@ -35,6 +36,7 @@
             <label>Invoice Date *</label>
             <input
               v-model="form.invoiceDate"
+              :disabled="isEdit"
               type="date"
               @change="markDirty"
               class="form-input"
@@ -45,22 +47,26 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>Vendor Name *</label>
-            <input
-              v-model="form.vendorName"
-              type="text"
-              @change="markDirty"
-              class="form-input"
-              required
-            />
+            <label>Vendor *</label>
+            <select v-model.number="form.vendorId" @change="markDirty" class="form-input" :disabled="isEdit" required>
+              <option :value="0" disabled>Select vendor</option>
+              <option v-for="vendor in masterData.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Buyer *</label>
+            <select v-model.number="form.buyerId" @change="markDirty" class="form-input" :disabled="isEdit" required>
+              <option :value="0" disabled>Select buyer</option>
+              <option v-for="buyer in masterData.buyers" :key="buyer.id" :value="buyer.id">{{ buyer.name }}</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Status</label>
-            <select v-model="form.status" @change="markDirty" class="form-input">
+            <select v-model="form.status" @change="markDirty" class="form-input" :disabled="!isEdit">
               <option value="draft">Draft</option>
-              <option value="ready">Ready</option>
-              <option value="sent">Sent</option>
-              <option value="paid">Paid</option>
+              <option value="in review">In Review</option>
+              <option value="approved" :disabled="!apiClient.hasPermission('invoice.approve')">Approved</option>
+              <option value="shipped">Shipped</option>
             </select>
           </div>
         </div>
@@ -204,6 +210,7 @@ const invoiceId = computed(() => route.params.id as string)
 const isEdit = computed(() => !!invoiceId.value)
 const conflictError = ref(false)
 const rowVersion = ref<string>('')
+const masterData = ref<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }>({ vendors: [], buyers: [] })
 
 interface LineItem {
   description: string
@@ -216,7 +223,8 @@ interface Invoice {
   invoiceNumber: string
   poNumber: string
   invoiceDate: string
-  vendorName: string
+  vendorId: number
+  buyerId: number
   status: string
   lineItems: LineItem[]
   notes: string
@@ -226,7 +234,8 @@ const { form, isDirty, isSubmitting, error, markDirty, submit } = useForm<Invoic
   invoiceNumber: '',
   poNumber: '',
   invoiceDate: new Date().toISOString().split('T')[0],
-  vendorName: '',
+  vendorId: 0,
+  buyerId: 0,
   status: 'draft',
   lineItems: [],
   notes: '',
@@ -282,9 +291,10 @@ const reloadInvoice = async () => {
     const invoice = response.data
     form.value = {
       invoiceNumber: invoice.invoiceNumber,
-      poNumber: invoice.poNumber,
-      invoiceDate: invoice.invoiceDate,
-      vendorName: invoice.vendorName,
+      poNumber: invoice.poNumber || '',
+      invoiceDate: invoice.invoiceDate.slice(0, 10),
+      vendorId: invoice.vendorId,
+      buyerId: invoice.buyerId,
       status: invoice.status,
       lineItems: invoice.lineItems || [],
       notes: invoice.notes || '',
@@ -315,6 +325,11 @@ const submitForm = async () => {
 }
 
 onMounted(async () => {
+  try {
+    masterData.value = await apiClient.masterData()
+  } catch {
+    toastManager.error('Failed to load vendor and buyer choices')
+  }
   if (isEdit.value) {
     await reloadInvoice()
   }

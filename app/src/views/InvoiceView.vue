@@ -130,7 +130,7 @@
               <td>{{ entry.modifiedBy || '-' }}</td>
               <td>
                 <button
-                  v-if="entry.version < invoiceData.currentVersion"
+                  v-if="entry.version < invoiceData.version"
                   @click="showComparison(entry.version)"
                   class="btn btn-small"
                 >
@@ -141,6 +141,15 @@
             </tr>
           </tbody>
         </table>
+        <div v-if="comparison">
+          <h3>Version Comparison</h3>
+          <p v-if="comparison.changes.length === 0">No changes</p>
+          <div v-for="change in comparison.changes" :key="change.field">
+            <strong>{{ change.field }}</strong>
+            <pre>{{ JSON.stringify(change.before, null, 2) }}</pre>
+            <pre>{{ JSON.stringify(change.after, null, 2) }}</pre>
+          </div>
+        </div>
       </section>
 
       <!-- Metadata -->
@@ -171,6 +180,7 @@ import { toastManager } from '@/services/notifications'
 
 const route = useRoute()
 const invoiceId = computed(() => route.params.id as string)
+const comparison = ref<{ changes: { field: string; before: unknown; after: unknown }[] } | null>(null)
 
 const { data: invoiceData, loading, error, execute: reloadInvoice } = useAsync(
   async () => {
@@ -189,18 +199,11 @@ const { data: history, loading: historyLoading, error: historyError } = useAsync
 )
 
 const subtotal = computed(() => {
-  if (!invoiceData.value?.lineItems) return 0
-  return invoiceData.value.lineItems.reduce((sum: number, item: any) => {
-    return sum + (item.unitPrice * item.quantity)
-  }, 0)
+  return invoiceData.value?.totals.subtotal ?? 0
 })
 
 const totalTax = computed(() => {
-  if (!invoiceData.value?.lineItems) return 0
-  return invoiceData.value.lineItems.reduce((sum: number, item: any) => {
-    const lineAmount = item.unitPrice * item.quantity
-    return sum + (lineAmount * item.taxPercent / 100)
-  }, 0)
+  return invoiceData.value?.totals.tax ?? 0
 })
 
 const totalAmount = computed(() => {
@@ -250,8 +253,13 @@ const downloadExcel = async () => {
   }
 }
 
-const showComparison = (version: number) => {
-  toastManager.info('Version comparison not yet implemented')
+const showComparison = async (version: number) => {
+  try {
+    if (!invoiceData.value) throw new Error('Invoice has not loaded')
+    comparison.value = (await apiClient.compareInvoiceVersions(invoiceId.value, version, invoiceData.value.version)).data
+  } catch {
+    toastManager.error('Failed to compare invoice versions')
+  }
 }
 </script>
 

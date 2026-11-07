@@ -24,86 +24,6 @@
  */
 
 -- ============================================================================
--- CLEANUP: Drop existing tables in reverse dependency order
--- This allows V001 to be safely re-run if previous execution had schema issues
--- ============================================================================
-
-IF OBJECT_ID('sales.POLine', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE sales.POLine;
-  END;
-
-IF OBJECT_ID('sales.POImportBatch', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE sales.POImportBatch;
-  END;
-
-IF OBJECT_ID('app.InvoiceLine', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE app.InvoiceLine;
-  END;
-
-IF OBJECT_ID('app.InvoiceHistory', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE app.InvoiceHistory;
-  END;
-
-IF OBJECT_ID('app.Invoice', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE app.Invoice;
-  END;
-
-IF OBJECT_ID('app.Buyer', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE app.Buyer;
-  END;
-
-IF OBJECT_ID('app.Vendor', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE app.Vendor;
-  END;
-
-IF OBJECT_ID('security.UserRole', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE security.UserRole;
-  END;
-
-IF OBJECT_ID('security.RolePermission', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE security.RolePermission;
-  END;
-
-IF OBJECT_ID('security.[User]', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE security.[User];
-  END;
-
-IF OBJECT_ID('security.Role', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE security.Role;
-  END;
-
-IF OBJECT_ID('security.Permission', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE security.Permission;
-  END;
-
-IF OBJECT_ID('log.ErrorLog', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE log.ErrorLog;
-  END;
-
-IF OBJECT_ID('log.ApplicationEvent', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE log.ApplicationEvent;
-  END;
-
-IF OBJECT_ID('log.ErrorCode', 'U') IS NOT NULL
-  BEGIN
-    DROP TABLE log.ErrorCode;
-  END;
-
--- ============================================================================
 -- SCHEMAS
 -- ============================================================================
 
@@ -295,7 +215,7 @@ END;
 /**
  * User: Application user (Azure Entra ID + local allow-list)
  */
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('security') AND name = '[User]')
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE schema_id = SCHEMA_ID('security') AND name = 'User')
 BEGIN
   CREATE TABLE security.[User] (
     UserId NVARCHAR(255) PRIMARY KEY,

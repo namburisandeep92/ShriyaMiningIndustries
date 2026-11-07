@@ -31,6 +31,14 @@ class ApiError extends Error {
  */
 const errorHandler = async (err, req, res, next) => {
   const corrId = req.correlationId || correlationId.generate();
+  const sqlErrors = {
+    50400: Errors.InvalidInput(err.message),
+    50404: Errors.NotFound('Resource'),
+    50409: Errors.Conflict(err.message),
+    2601: Errors.Conflict('A record with these values already exists'),
+    2627: Errors.Conflict('A record with these values already exists'),
+  };
+  if (sqlErrors[err.number]) err = sqlErrors[err.number];
   
   // Determine error details
   let statusCode = err.statusCode || 500;

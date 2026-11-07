@@ -182,6 +182,7 @@ class DatabaseService {
       const result = await request.execute(procName);
       return {
         recordset: result.recordset || [],
+        recordsets: result.recordsets || [],
         rowsAffected: result.rowsAffected,
         returnValue: result.returnValue,
       };

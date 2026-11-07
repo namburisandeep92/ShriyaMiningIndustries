@@ -1,233 +1,71 @@
-/**
- * Admin Handlers
- * GET /api/admin/users - List users
- * POST /api/admin/users - Create user
- * GET /api/admin/error-log - Search error log
- */
-
 import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
+import { paging, pagedResponse } from '../services/api-contracts.js';
 
-/**
- * GET /api/admin/users
- * List all users with roles and status
- */
+function requirePermission(req, permission) {
+  if (!req.user.permissions.includes(permission)) throw Errors.Forbidden(permission);
+}
+
+function userResponse(user) {
+  const roles = user.Roles ? user.Roles.split(',') : [];
+  return { id: user.UserId, userId: user.UserId, email: user.Email, name: user.Name,
+    roles, role: roles.join(', '), status: user.IsActive ? 'active' : 'inactive',
+    createdOn: user.CreatedOn, createdAt: user.CreatedOn, lastLogin: user.LastLogin };
+}
+
 const handleListUsers = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const { role, status, page = 1, pageSize = 50 } = req.query;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('user.manage')) {
-    throw Errors.Forbidden('list users');
-  }
-
-  // Validate paging
-  const pageNum = Math.max(1, parseInt(page) || 1);
-  const pageSz = Math.min(100, Math.max(1, parseInt(pageSize) || 50));
-
-  const db = getDatabase();
-  const result = await db.execute('usp_User_GetList', {
-    correlationId,
-    role: role || null,
-    status: status || null,
-    pageNum,
-    pageSize: pageSz,
+  requirePermission(req, 'user.manage');
+  const { pageNum, pageSize } = paging(req.query);
+  const result = await getDatabase().execute('security.usp_User_GetList', {
+    correlationId: req.correlationId, role: req.query.role || null, status: req.query.status || null, pageNum, pageSize,
   });
-
-  if (!result.recordset) {
-    throw Errors.DatabaseError('Failed to retrieve users');
-  }
-
-  const users = result.recordset.filter(r => r.UserId);
-  const totalCount = result.recordset.find(r => r.TotalCount)?.TotalCount || 0;
-
-  res.json({
-    users: users.map(user => ({
-      userId: user.UserId,
-      email: user.Email,
-      name: user.Name,
-      roles: user.Roles ? user.Roles.split(',') : [],
-      status: user.Status,
-      createdOn: user.CreatedOn,
-      lastLogin: user.LastLogin,
-    })),
-    pagination: {
-      page: pageNum,
-      pageSize: pageSz,
-      totalCount,
-      totalPages: Math.ceil(totalCount / pageSz),
-    },
-  });
+  res.json({ users: result.recordset.map(userResponse), ...pagedResponse(result, pageNum, pageSize) });
 });
 
-/**
- * POST /api/admin/users
- * Create new user and assign roles
- */
 const handleCreateUser = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const { email, name, roles = [] } = req.body;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('user.manage')) {
-    throw Errors.Forbidden('create users');
-  }
-
-  // Validate input
-  if (!email || !name) {
-    throw Errors.InvalidInput('email and name are required');
-  }
-
-  // Validate email format
-  if (!email.includes('@')) {
-    throw Errors.InvalidInput('email must be valid');
-  }
-
-  if (!Array.isArray(roles)) {
-    throw Errors.InvalidInput('roles must be an array');
-  }
-
-  const db = getDatabase();
-
-  // Create user
-  const createResult = await db.execute('usp_User_Create', {
-    correlationId,
-    email,
-    name,
-    createdByEmail: req.user.email,
+  requirePermission(req, 'user.manage');
+  const { email } = req.body;
+  const name = req.body.name || email;
+  const roles = req.body.roles ?? (req.body.role ? [req.body.role] : []);
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255
+      || typeof name !== 'string' || name.length > 255 || !Array.isArray(roles)
+      || roles.some(role => typeof role !== 'string')) throw Errors.InvalidInput('Valid email, name and roles are required');
+  const result = await getDatabase().execute('security.usp_User_Create', {
+    correlationId: req.correlationId, email, name, rolesJson: JSON.stringify(roles), createdByEmail: req.user.email,
   });
-
-  if (!createResult.recordset || createResult.recordset.length === 0) {
-    throw Errors.DatabaseError('Failed to create user');
-  }
-
-  const userId = createResult.recordset[0].UserId;
-
-  // Assign roles
-  for (const role of roles) {
-    await db.execute('usp_User_AssignRole', {
-      correlationId,
-      userId,
-      roleName: role,
-    });
-  }
-
-  // Get created user
-  const getResult = await db.query(
-    `SELECT UserId, Email, Name, Status, CreatedOn FROM [security].[User] WHERE UserId = @userId`,
-    { userId }
-  );
-
-  if (getResult.length === 0) {
-    throw Errors.DatabaseError('Failed to retrieve created user');
-  }
-
-  const user = getResult[0];
-
-  res.status(201).json({
-    userId: user.UserId,
-    email: user.Email,
-    name: user.Name,
-    roles,
-    status: user.Status,
-    createdOn: user.CreatedOn,
-  });
+  if (!result.recordset[0]) throw Errors.DatabaseError('User creation returned no data');
+  res.status(201).json(userResponse(result.recordset[0]));
 });
 
-/**
- * GET /api/admin/error-log
- * Search error log with filtering and paging
- */
+const handleDeleteUser = asyncHandler(async (req, res) => {
+  requirePermission(req, 'user.manage');
+  if (!req.params.id || req.params.id.length > 255) throw Errors.InvalidInput('Invalid userId');
+  await getDatabase().execute('security.usp_User_Delete', {
+    userId: req.params.id, modifiedByEmail: req.user.email, correlationId: req.correlationId,
+  });
+  res.status(204).end();
+});
+
 const handleSearchErrorLog = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const {
-    errorCode,
-    userId,
-    from,
-    to,
-    page = 1,
-    pageSize = 50,
-  } = req.query;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('errorlog.view')) {
-    throw Errors.Forbidden('view error log');
-  }
-
-  // Validate paging
-  const pageNum = Math.max(1, parseInt(page) || 1);
-  const pageSz = Math.min(100, Math.max(1, parseInt(pageSize) || 50));
-
-  // Validate date range if provided
-  let fromDate = null;
-  let toDate = null;
-
-  if (from) {
-    fromDate = new Date(from);
-    if (isNaN(fromDate.getTime())) {
-      throw Errors.InvalidInput('from must be a valid date (ISO format)');
-    }
-  }
-
-  if (to) {
-    toDate = new Date(to);
-    if (isNaN(toDate.getTime())) {
-      throw Errors.InvalidInput('to must be a valid date (ISO format)');
-    }
-  }
-
-  if (fromDate && toDate && fromDate > toDate) {
-    throw Errors.InvalidInput('from date must be before to date');
-  }
-
-  const db = getDatabase();
-  const result = await db.execute('usp_ErrorLog_GetList', {
-    correlationId,
-    errorCode: errorCode || null,
-    userId: userId || null,
-    fromDate: fromDate?.toISOString() || null,
-    toDate: toDate?.toISOString() || null,
-    pageNum,
-    pageSize: pageSz,
+  requirePermission(req, 'errorlog.view');
+  const { pageNum, pageSize } = paging(req.query);
+  const { from, to } = req.query;
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
+  if ((fromDate && Number.isNaN(fromDate.getTime())) || (toDate && Number.isNaN(toDate.getTime()))
+      || (fromDate && toDate && fromDate > toDate)) throw Errors.InvalidInput('Invalid date range');
+  const result = await getDatabase().execute('log.usp_ErrorLog_GetList', {
+    correlationId: req.correlationId, errorCode: req.query.errorCode || null, userId: req.query.userId || null,
+    fromDate, toDate, pageNum, pageSize, search: req.query.search || null, severity: req.query.severity || null,
   });
-
-  if (!result.recordset) {
-    throw Errors.DatabaseError('Failed to retrieve error log');
-  }
-
-  const errors = result.recordset.filter(r => r.ErrorLogId);
-  const totalCount = result.recordset.find(r => r.TotalCount)?.TotalCount || 0;
-
-  res.json({
-    errors: errors.map(err => ({
-      errorLogId: err.ErrorLogId,
-      errorCode: err.ErrorCode,
-      title: err.Title,
-      userMessage: err.UserMessage,
-      technicalMessage: err.TechnicalMessage,
-      userId: err.UserId,
-      correlationId: err.CorrelationId,
-      endpoint: err.Endpoint,
-      timestamp: err.Timestamp,
-      severity: err.Severity,
-    })),
-    pagination: {
-      page: pageNum,
-      pageSize: pageSz,
-      totalCount,
-      totalPages: Math.ceil(totalCount / pageSz),
-    },
-    summary: {
-      periodFrom: from || 'all time',
-      periodTo: to || 'now',
-      errorCodeFilter: errorCode || 'all codes',
-      userIdFilter: userId || 'all users',
-    },
-  });
+  res.json({ errors: result.recordset.map(row => ({
+    id: row.ErrorLogId, errorLogId: row.ErrorLogId, errorCode: row.ErrorCode, title: row.Title,
+    message: row.UserMessage || row.TechnicalMessage, userMessage: row.UserMessage,
+    technicalMessage: row.TechnicalMessage, stack: row.StackTrace,
+    userId: row.UserId, correlationId: row.CorrelationId, endpoint: row.Endpoint,
+    timestamp: row.Timestamp, severity: row.Severity?.toLowerCase(),
+    context: { correlationId: row.CorrelationId, layer: row.Layer },
+  })), ...pagedResponse(result, pageNum, pageSize) });
 });
 
-export {
-  handleListUsers,
-  handleCreateUser,
-  handleSearchErrorLog,
-};
+export { handleListUsers, handleCreateUser, handleDeleteUser, handleSearchErrorLog };

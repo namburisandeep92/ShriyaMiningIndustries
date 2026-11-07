@@ -8,8 +8,11 @@
           <router-link to="/po-import" class="nav-link" v-if="hasPermission('file.upload')">
             PO Import
           </router-link>
-          <router-link to="/admin" class="nav-link" v-if="hasPermission('user.manage') && apiClient.getAuthContext()?.roles?.includes('Admin')">
+          <router-link to="/admin/users" class="nav-link" v-if="hasPermission('user.manage') && apiClient.getAuthContext()?.roles?.includes('Admin')">
             Admin
+          </router-link>
+          <router-link to="/admin/errors" class="nav-link" v-if="hasPermission('errorlog.view') && apiClient.getAuthContext()?.roles?.includes('Admin')">
+            Error Logs
           </router-link>
           <a href="/.auth/logout?post_logout_redirect_uri=/" class="nav-link logout">
             Logout

@@ -241,16 +241,6 @@ const runMigrations = async () => {
       log(`WARNING: Could not ensure migration history table exists: ${e.message}`, 'WARN');
     }
 
-    // HOTFIX: Force V001 to re-run by deleting it from history
-    // This allows schema cleanup and fixes to take effect when tables need to be recreated
-    try {
-      const forceRerunV001 = `DELETE FROM __MigrationHistory WHERE MigrationId = 'V001__schemas'`;
-      await pool.request().query(forceRerunV001);
-      log('Force-reset V001 migration to ensure schema is properly created', 'WARN');
-    } catch (e) {
-      log(`WARNING: Could not reset V001 migration: ${e.message}`, 'WARN');
-    }
-
     // Read migrations
     const { versioned, repeatable } = readMigrations();
     log(`Found ${versioned.length} versioned migrations and ${repeatable.length} repeatable migrations`);

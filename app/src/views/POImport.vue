@@ -6,16 +6,23 @@
     </div>
 
     <div class="upload-section">
+      <label>Vendor</label>
+      <select v-model.number="vendorId">
+        <option :value="0" disabled>Select vendor</option>
+        <option v-for="vendor in vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option>
+      </select>
+      <label>PO Number</label>
+      <input v-model="poNumber" required />
       <div class="upload-box">
         <input
           ref="fileInput"
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx"
           @change="handleFileSelect"
           class="file-input"
           hidden
         />
-        <button @click="$refs.fileInput?.click()" class="btn btn-primary btn-large">
+        <button @click="fileInput?.click()" :disabled="!vendorId || !poNumber || uploading" class="btn btn-primary btn-large">
           📁 Select PO File
         </button>
         <p class="upload-hint">Supported format: .xlsx (Excel)</p>
@@ -39,24 +46,22 @@
           <strong>{{ uploadResult.itemsCount }}</strong>
         </div>
         <div class="result-item">
-          <span>Invoice Created:</span>
-          <strong>{{ uploadResult.invoiceId }}</strong>
+          <span>Import ID:</span>
+          <strong>{{ uploadResult.importId }}</strong>
         </div>
       </div>
-      <router-link :to="`/invoices/${uploadResult.invoiceId}`" class="btn btn-primary">
-        View Invoice
-      </router-link>
+      <p>PO lines were imported. Create an invoice separately.</p>
     </div>
 
     <div class="history-section" v-if="!uploading">
       <h2>Recent Imports</h2>
-      <p class="placeholder">Import history will be shown here</p>
+      <p v-for="batch in imports" :key="batch.importId">{{ batch.poNumber }} — {{ batch.rowsImported }} rows ({{ batch.status }})</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { apiClient } from '@/services/api'
 import { toastManager } from '@/services/notifications'
 
@@ -64,6 +69,21 @@ const fileInput = ref<HTMLInputElement>()
 const uploading = ref(false)
 const uploadError = ref<any>(null)
 const uploadResult = ref<any>(null)
+const vendorId = ref(0)
+const poNumber = ref('')
+const vendors = ref<{ id: number; name: string }[]>([])
+const imports = ref<{ importId: string; poNumber: string; rowsImported: number; status: string }[]>([])
+const loadImports = async () => {
+  imports.value = (await apiClient.listPOImports()).data.imports
+}
+onMounted(async () => {
+  try {
+    vendors.value = (await apiClient.masterData()).vendors
+    await loadImports()
+  } catch {
+    toastManager.error('Failed to load PO import data')
+  }
+})
 
 const handleFileSelect = async (event: Event) => {
   const target = event.target as HTMLInputElement
@@ -71,8 +91,8 @@ const handleFileSelect = async (event: Event) => {
   if (!files || files.length === 0) return
 
   const file = files[0]
-  if (!file.name.match(/\.(xlsx|xls)$/i)) {
-    toastManager.error('Please select a valid Excel file (.xlsx or .xls)')
+  if (!file.name.match(/\.xlsx$/i)) {
+    toastManager.error('Please select a valid .xlsx file')
     return
   }
 
@@ -81,9 +101,10 @@ const handleFileSelect = async (event: Event) => {
   uploadResult.value = null
 
   try {
-    const response = await apiClient.uploadPO(file)
+    const response = await apiClient.uploadPO(file, vendorId.value, poNumber.value)
     uploadResult.value = response.data
     toastManager.success(`Imported ${response.data.itemsCount} items successfully`)
+    await loadImports()
   } catch (err: any) {
     uploadError.value = err
     toastManager.error(`Upload failed: ${err.message}`)

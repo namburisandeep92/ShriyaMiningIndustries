@@ -31,10 +31,12 @@ import {
 import {
   handleListVersions,
   handleGetVersion,
+  handleCompareVersions,
 } from './functions/invoice-history.js';
 import {
   handleListUsers,
   handleCreateUser,
+  handleDeleteUser,
   handleSearchErrorLog,
 } from './functions/admin.js';
 
@@ -239,12 +241,26 @@ const createApp = async () => {
   // ========== EXPORT & HISTORY ==========
   app.get('/api/invoices/:id/versions', authMw.requireAuth, handleListVersions);
   app.get('/api/invoices/:id/versions/:version', authMw.requireAuth, handleGetVersion);
+  app.get('/api/invoices/:id/history', authMw.requireAuth, handleListVersions);
+  app.get('/api/invoices/:id/history/compare', authMw.requireAuth, handleCompareVersions);
   app.get('/api/invoices/:id/export', authMw.requireAuth, handleExportInvoice);
 
   // ========== ADMIN ==========
   app.get('/api/admin/users', authMw.requireAuth, authMw.requireRole('Admin'), handleListUsers);
   app.post('/api/admin/users', authMw.requireAuth, authMw.requireRole('Admin'), handleCreateUser);
+  app.get('/api/admin/roles', authMw.requireAuth, authMw.requireRole('Admin'), authMw.requirePermission('user.manage'), asyncHandler(async (req, res) => {
+    res.json({ roles: await getDatabase().query('SELECT RoleName AS name FROM security.Role WHERE IsDeleted=0 ORDER BY RoleName') });
+  }));
+  app.delete('/api/admin/users/:id', authMw.requireAuth, authMw.requireRole('Admin'), handleDeleteUser);
   app.get('/api/admin/error-log', authMw.requireAuth, authMw.requireRole('Admin'), handleSearchErrorLog);
+  app.get('/api/master-data', authMw.requireAuth, authMw.requirePermission('invoice.read'), asyncHandler(async (req, res) => {
+    const db = getDatabase();
+    const [vendors, buyers] = await Promise.all([
+      db.query('SELECT VendorId AS id, VendorName AS name FROM app.Vendor WHERE IsDeleted=0 ORDER BY VendorName'),
+      db.query('SELECT BuyerId AS id, BuyerName AS name FROM app.Buyer WHERE IsDeleted=0 ORDER BY BuyerName'),
+    ]);
+    res.json({ vendors, buyers });
+  }));
 
   // ========== 404 Handler ==========
   app.use((req, res) => {

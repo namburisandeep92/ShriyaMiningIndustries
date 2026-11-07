@@ -1,353 +1,76 @@
-/**
- * Invoice CRUD Handlers
- * POST /api/invoices - Create invoice
- * GET /api/invoices - List invoices
- * GET /api/invoices/:id - Get single invoice
- * PATCH /api/invoices/:id - Update invoice
- * DELETE /api/invoices/:id - Delete invoice
- */
-
 import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
-import * as invoiceUtils from '../services/invoice-utils.js';
+import { invoiceId, invoiceResponse, invoiceStatus, pagedResponse, paging, positiveInteger, rowVersion, validateItems } from '../services/api-contracts.js';
 
-/**
- * POST /api/invoices
- * Create new invoice with auto-numbering
- */
+function requirePermission(req, permission) {
+  if (!req.user?.permissions?.includes(permission)) throw Errors.Forbidden(permission);
+}
+
 const handleCreateInvoice = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const { vendorId, buyerId, items, notes } = req.body;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('invoice.create')) {
-    throw Errors.Forbidden('create invoice');
-  }
-
-  // Validate input
-  if (!vendorId || !buyerId || !Array.isArray(items) || items.length === 0) {
-    throw Errors.InvalidInput('vendorId, buyerId, and items[] are required');
-  }
-
-  // Validate and calculate line amounts
-  let totalAmount = 0;
-  const validatedItems = items.map((item, idx) => {
-    if (!item.description || item.quantity == null || item.rate == null) {
-      throw Errors.InvalidInput(
-        `Item ${idx + 1}: description, quantity, and rate are required`
-      );
-    }
-
-    const quantity = parseFloat(item.quantity);
-    const rate = parseFloat(item.rate);
-    const taxRate = parseFloat(item.taxRate || 0);
-
-    if (quantity <= 0 || rate < 0) {
-      throw Errors.InvalidInput(`Item ${idx + 1}: invalid quantity or rate`);
-    }
-
-    const lineAmount = invoiceUtils.calculateLineAmount(quantity, rate);
-    const tax = invoiceUtils.calculateTax(lineAmount, taxRate);
-
-    totalAmount += lineAmount + tax;
-
-    return {
-      description: item.description,
-      quantity,
-      rate,
-      lineAmount,
-      taxRate,
-      tax,
-    };
+  requirePermission(req, 'invoice.create');
+  const { vendorId, buyerId, notes, poNumber } = req.body;
+  const date = new Date(req.body.invoiceDate);
+  if (Number.isNaN(date.getTime())) throw Errors.InvalidInput('invoiceDate must be a valid date');
+  const result = await getDatabase().execute('app.usp_Invoice_Create', {
+    correlationId: req.correlationId, vendorId: positiveInteger(vendorId, 'vendorId'),
+    buyerId: positiveInteger(buyerId, 'buyerId'), invoiceDate: date,
+    itemsJson: JSON.stringify(validateItems(req.body.items ?? req.body.lineItems)),
+    notes: notes ?? null, poNumber: poNumber || null, createdByEmail: req.user.email,
   });
-
-  // Insert via stored procedure
-  const db = getDatabase();
-  const result = await db.execute('usp_Invoice_Create', {
-    correlationId,
-    vendorId,
-    buyerId,
-    itemsJson: JSON.stringify(validatedItems),
-    notes: notes || null,
-    createdByEmail: req.user.email,
-  });
-
-  if (!result.recordset || result.recordset.length === 0) {
-    throw Errors.DatabaseError('Failed to create invoice');
-  }
-
-  const invoice = result.recordset[0];
-
-  res.status(201).json({
-    invoiceId: invoice.InvoiceId,
-    invoiceNumber: invoice.InvoiceNumber,
-    vendorId,
-    buyerId,
-    status: 'draft',
-    totalAmount,
-    rowVersion: invoice.RowVersion,
-    createdOn: invoice.CreatedOn,
-    createdBy: req.user.email,
-  });
+  if (!result.recordset[0]) throw Errors.DatabaseError('Invoice creation returned no data');
+  res.status(201).json(invoiceResponse(result.recordset[0], result.recordsets[1]));
 });
 
-/**
- * GET /api/invoices
- * List invoices with filtering and paging
- */
 const handleListInvoices = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const {
-    status,
-    vendorId,
-    buyerId,
-    page = 1,
-    pageSize = 50,
-    sortBy = 'CreatedOn',
-    sortOrder = 'desc',
-  } = req.query;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('invoice.read')) {
-    throw Errors.Forbidden('list invoices');
+  requirePermission(req, 'invoice.read');
+  const { pageNum, pageSize } = paging(req.query);
+  const sortBy = req.query.sortBy || 'CreatedOn';
+  const sortOrder = req.query.sortOrder || 'desc';
+  if (!['CreatedOn', 'InvoiceNumber', 'TotalAmount'].includes(sortBy) || !['asc', 'desc'].includes(sortOrder)) {
+    throw Errors.InvalidInput('Invalid sort parameters');
   }
-
-  // Validate paging
-  const pageNum = Math.max(1, parseInt(page) || 1);
-  const pageSz = Math.min(100, Math.max(1, parseInt(pageSize) || 50));
-
-  const db = getDatabase();
-  const result = await db.execute('usp_Invoice_GetList', {
-    correlationId,
-    status: status || null,
-    vendorId: vendorId || null,
-    buyerId: buyerId || null,
-    pageNum,
-    pageSize: pageSz,
-    sortBy,
-    sortOrder,
+  const result = await getDatabase().execute('app.usp_Invoice_GetList', {
+    correlationId: req.correlationId, pageNum, pageSize, sortBy, sortOrder,
+    status: invoiceStatus(req.query.status), search: req.query.search || null,
+    vendorId: req.query.vendorId ? positiveInteger(req.query.vendorId, 'vendorId') : null,
+    buyerId: req.query.buyerId ? positiveInteger(req.query.buyerId, 'buyerId') : null,
   });
-
-  if (!result.recordset) {
-    throw Errors.DatabaseError('Failed to retrieve invoices');
-  }
-
-  const invoices = result.recordset.filter(r => r.InvoiceId);
-  const totalCount = result.recordset.find(r => r.TotalCount)?.TotalCount || 0;
-
-  res.json({
-    invoices: invoices.map(inv => ({
-      invoiceId: inv.InvoiceId,
-      invoiceNumber: inv.InvoiceNumber,
-      vendorId: inv.VendorId,
-      buyerId: inv.BuyerId,
-      status: inv.Status,
-      totalAmount: inv.TotalAmount,
-      createdOn: inv.CreatedOn,
-      createdBy: inv.CreatedBy,
-    })),
-    pagination: {
-      page: pageNum,
-      pageSize: pageSz,
-      totalCount,
-      totalPages: Math.ceil(totalCount / pageSz),
-    },
-  });
+  res.json({ invoices: result.recordset.map(header => invoiceResponse(header)), ...pagedResponse(result, pageNum, pageSize) });
 });
 
-/**
- * GET /api/invoices/:id
- * Get single invoice with all details
- */
 const handleGetInvoice = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const { id: invoiceId } = req.params;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('invoice.read')) {
-    throw Errors.Forbidden('view invoice');
-  }
-
-  if (!invoiceId) {
-    throw Errors.InvalidInput('invoiceId is required');
-  }
-
-  const db = getDatabase();
-  const result = await db.execute('usp_Invoice_GetById', {
-    correlationId,
-    invoiceId,
+  requirePermission(req, 'invoice.read');
+  const result = await getDatabase().execute('app.usp_Invoice_GetById', {
+    correlationId: req.correlationId, invoiceId: invoiceId(req.params.id),
   });
-
-  if (!result.recordset || result.recordset.length === 0) {
-    throw Errors.NotFound('Invoice');
-  }
-
-  const invoice = result.recordset[0];
-  const items = result.recordset.filter(r => r.LineId);
-
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + (item.LineAmount || 0), 0);
-  const tax = items.reduce((sum, item) => sum + (item.Tax || 0), 0);
-
-  res.json({
-    invoiceId: invoice.InvoiceId,
-    invoiceNumber: invoice.InvoiceNumber,
-    vendorId: invoice.VendorId,
-    buyerId: invoice.BuyerId,
-    items: items.map(item => ({
-      lineId: item.LineId,
-      description: item.Description,
-      quantity: item.Quantity,
-      rate: item.Rate,
-      lineAmount: item.LineAmount,
-      taxRate: item.TaxRate,
-      tax: item.Tax,
-    })),
-    totals: {
-      subtotal,
-      tax,
-      total: subtotal + tax,
-    },
-    status: invoice.Status,
-    notes: invoice.Notes,
-    rowVersion: invoice.RowVersion,
-    createdOn: invoice.CreatedOn,
-    createdBy: invoice.CreatedBy,
-    modifiedOn: invoice.ModifiedOn,
-    modifiedBy: invoice.ModifiedBy,
-  });
+  if (!result.recordset[0]) throw Errors.NotFound('Invoice');
+  res.json(invoiceResponse(result.recordset[0], result.recordsets[1]));
 });
 
-/**
- * PATCH /api/invoices/:id
- * Update invoice with optimistic concurrency control
- * 409 Conflict if rowVersion doesn't match
- */
 const handleUpdateInvoice = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const { id: invoiceId } = req.params;
-  const { items, status, notes, rowVersion } = req.body;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('invoice.update')) {
-    throw Errors.Forbidden('edit invoice');
+  requirePermission(req, 'invoice.update');
+  const status = invoiceStatus(req.body.status);
+  if (status === 'Approved' && !req.user.permissions.includes('invoice.approve')) {
+    throw Errors.Forbidden('approve invoices');
   }
-
-  if (!invoiceId) {
-    throw Errors.InvalidInput('invoiceId is required');
-  }
-
-  if (!rowVersion) {
-    throw Errors.InvalidInput(
-      'rowVersion is required (for concurrency control). Send If-Match header with current rowVersion.'
-    );
-  }
-
-  // Validate items if provided
-  let validatedItems = null;
-  if (items && Array.isArray(items)) {
-    validatedItems = items.map((item, idx) => {
-      if (!item.description || item.quantity == null || item.rate == null) {
-        throw Errors.InvalidInput(
-          `Item ${idx + 1}: description, quantity, and rate are required`
-        );
-      }
-
-      const quantity = parseFloat(item.quantity);
-      const rate = parseFloat(item.rate);
-      const taxRate = parseFloat(item.taxRate || 0);
-
-      if (quantity <= 0 || rate < 0) {
-        throw Errors.InvalidInput(`Item ${idx + 1}: invalid quantity or rate`);
-      }
-
-      const lineAmount = invoiceUtils.calculateLineAmount(quantity, rate);
-      const tax = invoiceUtils.calculateTax(lineAmount, taxRate);
-
-      return {
-        description: item.description,
-        quantity,
-        rate,
-        lineAmount,
-        taxRate,
-        tax,
-      };
-    });
-  }
-
-  const db = getDatabase();
-  const result = await db.execute('usp_Invoice_Update', {
-    correlationId,
-    invoiceId,
-    itemsJson: validatedItems ? JSON.stringify(validatedItems) : null,
-    status: status || null,
-    notes: notes || null,
-    currentRowVersion: rowVersion,
+  const items = req.body.items ?? req.body.lineItems;
+  const result = await getDatabase().execute('app.usp_Invoice_Update', {
+    correlationId: req.correlationId, invoiceId: invoiceId(req.params.id),
+    currentRowVersion: rowVersion(req.body.rowVersion ?? req.headers['x-row-version']),
+    itemsJson: items == null ? null : JSON.stringify(validateItems(items)),
+    status, notes: req.body.notes ?? null, notesProvided: Object.hasOwn(req.body, 'notes'),
     modifiedByEmail: req.user.email,
   });
-
-  // Check for concurrency conflict (409)
-  if (result.returnValue === 409 || result.rowsAffected === 0) {
-    // Get current version for client
-    const currentResult = await db.execute('usp_Invoice_GetById', {
-      correlationId,
-      invoiceId,
-    });
-
-    const currentInvoice = currentResult.recordset[0];
-
-    throw Errors.Conflict(
-      `This invoice has been modified by another user. Please refresh and try again.`
-    );
-  }
-
-  if (!result.recordset || result.recordset.length === 0) {
-    throw Errors.DatabaseError('Failed to update invoice');
-  }
-
-  const updated = result.recordset[0];
-
-  res.json({
-    invoiceId: updated.InvoiceId,
-    invoiceNumber: updated.InvoiceNumber,
-    status: updated.Status,
-    rowVersion: updated.RowVersion,
-    modifiedOn: updated.ModifiedOn,
-    modifiedBy: req.user.email,
-  });
+  if (!result.recordset[0]) throw Errors.DatabaseError('Invoice update returned no data');
+  res.json(invoiceResponse(result.recordset[0], result.recordsets[1]));
 });
 
-/**
- * DELETE /api/invoices/:id
- * Soft delete invoice
- */
 const handleDeleteInvoice = asyncHandler(async (req, res) => {
-  const { correlationId } = req;
-  const { id: invoiceId } = req.params;
-
-  // Check permission
-  if (!req.user?.permissions?.includes('invoice.delete')) {
-    throw Errors.Forbidden('delete invoice');
-  }
-
-  if (!invoiceId) {
-    throw Errors.InvalidInput('invoiceId is required');
-  }
-
-  const db = getDatabase();
-  await db.execute('usp_Invoice_Delete', {
-    correlationId,
-    invoiceId,
-    deletedByEmail: req.user.email,
+  requirePermission(req, 'invoice.delete');
+  await getDatabase().execute('app.usp_Invoice_Delete', {
+    correlationId: req.correlationId, invoiceId: invoiceId(req.params.id), deletedByEmail: req.user.email,
   });
-
-  res.status(204).send();
+  res.status(204).end();
 });
 
-export {
-  handleCreateInvoice,
-  handleListInvoices,
-  handleGetInvoice,
-  handleUpdateInvoice,
-  handleDeleteInvoice,
-};
+export { handleCreateInvoice, handleListInvoices, handleGetInvoice, handleUpdateInvoice, handleDeleteInvoice };

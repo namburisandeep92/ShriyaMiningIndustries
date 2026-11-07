@@ -6,6 +6,7 @@
 import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
 import ExcelJS from 'exceljs';
+import { invoiceId as validateInvoiceId, positiveInteger } from '../services/api-contracts.js';
 
 /**
  * GET /api/invoices/:id/export
@@ -23,11 +24,9 @@ const handleExportInvoice = asyncHandler(async (req, res) => {
     throw Errors.Forbidden('export invoice');
   }
 
-  if (!invoiceId) {
-    throw Errors.InvalidInput('invoiceId is required');
-  }
+  validateInvoiceId(invoiceId);
 
-  if (!['excel', 'pdf'].includes(format.toLowerCase())) {
+  if (typeof format !== 'string' || !['excel', 'pdf'].includes(format.toLowerCase())) {
     throw Errors.InvalidInput('format must be "excel" or "pdf"');
   }
 
@@ -36,13 +35,13 @@ const handleExportInvoice = asyncHandler(async (req, res) => {
   // Get invoice data
   let result;
   if (version) {
-    result = await db.execute('usp_Invoice_GetVersion', {
+    result = await db.execute('app.usp_Invoice_GetVersion', {
       correlationId,
       invoiceId,
-      version: parseInt(version),
+      version: positiveInteger(version, 'version'),
     });
   } else {
-    result = await db.execute('usp_Invoice_GetById', {
+    result = await db.execute('app.usp_Invoice_GetById', {
       correlationId,
       invoiceId,
     });
@@ -53,7 +52,7 @@ const handleExportInvoice = asyncHandler(async (req, res) => {
   }
 
   const invoice = result.recordset[0];
-  const items = result.recordset.filter(r => r.LineId);
+  const items = result.recordsets[1] || [];
 
   if (format.toLowerCase() === 'excel') {
     return await generateExcelExport(res, invoice, items);
@@ -89,7 +88,7 @@ async function generateExcelExport(res, invoice, items) {
   worksheet.getCell('A2').value = `Created: ${invoice.CreatedOn}`;
 
   // Add table header
-  const headerRow = worksheet.addRow();
+  worksheet.addRow(['Line', 'Description', 'Quantity', 'Unit Rate', 'Line Amount', 'Tax Rate', 'Tax']);
 
   // Add data rows
   let lineNum = 1;
@@ -130,7 +129,7 @@ async function generateExcelExport(res, invoice, items) {
   worksheet.getCell(`F${grandTotalRow.number}`).font = { bold: true };
 
   // Write to buffer
-  const buffer = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
   // Send response
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -147,25 +146,27 @@ async function generateExcelExport(res, invoice, items) {
  * Generate PDF export (placeholder - would use PDFKit or similar)
  */
 async function generatePDFExport(res, invoice, items) {
-  // TODO: Implement PDF generation with PDFKit or similar
-  // For now, return a placeholder response
-
-  const pdfContent = `
-Invoice: ${invoice.InvoiceNumber}
-Created: ${invoice.CreatedOn}
-
-Items:
-${items
-  .map(
-    (item, idx) =>
-      `${idx + 1}. ${item.Description}
-   Qty: ${item.Quantity} @ ${item.Rate} = ${item.LineAmount} (Tax: ${item.Tax})`
-  )
-  .join('\n')}
-
-Total: ${items.reduce((sum, item) => sum + item.LineAmount + item.Tax, 0)}
-  `;
-
+  const { default: PDFDocument } = await import('pdfkit');
+  const document = new PDFDocument({ margin: 40 });
+  const chunks = [];
+  const finished = new Promise((resolve, reject) => {
+    document.on('data', chunk => chunks.push(chunk));
+    document.on('end', () => resolve(Buffer.concat(chunks)));
+    document.on('error', reject);
+  });
+  document.fontSize(18).text(`Invoice: ${invoice.InvoiceNumber}`);
+  document.fontSize(10).text(`Date: ${new Date(invoice.InvoiceDate).toISOString().slice(0, 10)}`);
+  document.text(`Vendor: ${invoice.VendorName}`);
+  document.text(`Buyer: ${invoice.BuyerName}`);
+  document.moveDown();
+  items.forEach((item, index) => {
+    document.text(`${index + 1}. ${item.Description}`);
+    document.text(`Quantity: ${item.Quantity}  Rate: ${item.Rate}  Amount: ${item.LineAmount}  Tax: ${item.Tax}`);
+    document.moveDown();
+  });
+  document.text(`Subtotal: ${invoice.TotalAmount}  Tax: ${invoice.TaxAmount}  Total: ${invoice.FinalAmount}`);
+  document.end();
+  const pdfContent = await finished;
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',

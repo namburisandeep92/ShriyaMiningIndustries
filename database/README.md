@@ -1,6 +1,6 @@
 # SMI Invoice Platform - Database Layer
 
-Phase 1 database design and implementation.
+SQL Server schema, migrations, and application procedure contracts.
 
 ## Structure
 
@@ -10,8 +10,10 @@ database/
 │   ├── V001__schemas.sql           # Create all schemas and tables
 │   ├── V002__seed-error-codes.sql  # Error code catalogue
 │   ├── V003__seed-initial-data.sql # Roles, permissions, test data
-│   └── R__error-handling.sql       # Repeatable: stored procedures
-├── migration-runner.js             # Node.js migration runner (no deps)
+│   ├── V004__api-contract-data.sql # Invoice taxes, PO metadata, version snapshots
+│   ├── R__error-handling.sql       # Logging and legacy procedure signatures
+│   └── R__platform-procedures.sql  # Complete API procedure contracts
+├── migration-runner.js             # Node.js migration runner (mssql dependency)
 ├── logs/                           # Migration logs
 └── seed/                           # (Reserved for future seed scripts)
 ```
@@ -35,17 +37,21 @@ database/
 
 ### Master/History Pattern
 - `app.Invoice` stores current state only
-- `app.InvoiceHistory` records every status change (insert on every UPDATE via trigger)
-- Enables audit trail and version recovery without bloating main table
+- Invoice procedures write header audit entries to `app.InvoiceHistory`.
+- `app.InvoiceSnapshot` stores immutable header and line JSON for each version.
+- Existing invoices are backfilled at their current version only. Earlier line
+  details cannot be reconstructed; requesting an unavailable version returns 404.
 
 ### Concurrency Control: First-Write-Wins
 - Every table has `RowVersion ROWVERSION` (auto-managed by SQL Server)
 - Stored procedures check rowversion before UPDATE
-- If mismatch: return 409 Conflict error (logged to ErrorLog)
+- The API returns the 8-byte token as 16 hexadecimal characters. Updates require
+  that exact token in `X-Row-Version` or the body `rowVersion`.
+- A stale token returns 409 Conflict.
 - This prevents lost updates in concurrent scenarios
 
 ### Error Handling: Three-Layer Design
-- **Database Layer** (stored procedures): SET XACT_ABORT ON, TRY/CATCH, log via `log.usp_ErrorLog_Insert`
+- **Database Layer**: transactional writes use SET XACT_ABORT ON and TRY/CATCH.
 - **API Layer**: Catches SQL errors, returns HTTP status codes (409, 404, 500)
 - **Client Layer**: Displays user-friendly messages from error catalogue
 
@@ -56,12 +62,62 @@ Run once in order. Idempotent checks prevent re-running.
 - `V001__schemas.sql`: Creates __MigrationHistory table, all schemas, tables, and indexes
 - `V002__seed-error-codes.sql`: Inserts 18 error codes with user messages and resolution steps
 - `V003__seed-initial-data.sql`: Seeds roles, permissions, test vendor/buyer, and preflight check
+- `V004__api-contract-data.sql`: Adds invoice-line taxes, PO number metadata and invoice snapshots
+
+Versioned migrations are recorded once and must never be forcibly removed from
+`__MigrationHistory`. Schema creation uses existence checks, not table drops.
+Deployments preserve invoices, users, custom roles, and role assignments.
 
 ### Repeatable Migrations (R__name.sql)
 Run every time. Idempotent by design (CREATE OR ALTER).
-- `R__error-handling.sql`: Stored procedures for error logging, invoice creation/update, version history queries
+- `R__error-handling.sql`: Logging and legacy invoice procedures
+- `R__platform-procedures.sql`: Schema-qualified invoice CRUD/list/history/version,
+  PO import/list, user list/create/role assignment/delete, and error-log list.
+  It runs after the legacy repeatable so the API contracts remain authoritative.
 
-All migrations track completion in `__MigrationHistory` table.
+Versioned migrations track completion in `__MigrationHistory`; repeatables run
+every deployment. Apply V004 before the platform repeatable.
+
+### API contracts
+
+- Procedures returning invoice data return the header in resultset 1 and lines
+  in resultset 2. Paged procedures return rows then a separate `TotalCount`,
+  including for empty and out-of-range pages.
+- Invoice creation requires an existing vendor and buyer, invoice date, and at
+  least one line. Invoice identity fields are fixed after creation; edits update
+  lines, notes, and status.
+- Supported statuses are `Draft -> In Review -> Approved -> Shipped`; approval
+  requires `invoice.approve` as well as edit permission. The UI uses lowercase
+  labels, not the unsupported ready/sent/paid states.
+- Line amounts and taxes are rounded to two decimal places in SQL.
+- PO imports accept JSON containing `vendorId`, `poNumber`, `fileName` and a
+  base64 `.xlsx` `file`. Required headings: Line Number, Product Code,
+  Description, Quantity, Unit Rate, Tax Rate. Invalid rows reject the whole
+  request. A successful import creates a completed PO batch, not an invoice.
+- Users are created with roles atomically. `/api/admin/roles` supplies active
+  database roles (including custom roles). Deletion is soft and self-deletion
+  is rejected. Admin endpoints still require the database-backed Admin role.
+- SQL errors 50400/50404/50409 map to HTTP 400/404/409. Unknown SQL errors remain
+  server errors; technical details are logged, not exposed publicly.
+- Excel and PDF exports return real workbook/PDF bytes.
+
+### Live contract verification (test database only)
+
+The regular suite skips live SQL tests. For explicit verification, populate the
+private root `.env` with `DB_TEST_HOST`, `DB_TEST_NAME`, `DB_TEST_USER`, and
+`DB_TEST_PASSWORD`, then run in PowerShell:
+
+```powershell
+$env:SMI_LIVE_DB_TEST = 'test'
+npx vitest run tests\db\platform-live.test.js --reporter=verbose
+Remove-Item Env:\SMI_LIVE_DB_TEST
+```
+
+The suite verifies both configured and connected catalogs are
+`shriyaminingdbtest`, applies additive/repeatable migrations, exercises actual
+HTTP requests and authorization, reruns schema/procedures to check preservation,
+and removes only its uniquely identified fixture records. It never connects to
+production or resets existing roles.
 
 ## Running Migrations
 

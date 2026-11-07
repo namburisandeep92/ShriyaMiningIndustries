@@ -8,16 +8,23 @@
     <div class="filters mb-3">
       <input
         v-model="searchQuery"
+        @change="goToPage(1)"
         type="text"
         placeholder="Search errors..."
         class="search-input"
       />
-      <select v-model="severityFilter" class="severity-select">
+      <select v-model="severityFilter" @change="goToPage(1)" class="severity-select">
         <option value="">All Severity</option>
         <option value="error">Error</option>
         <option value="warning">Warning</option>
         <option value="info">Info</option>
       </select>
+    </div>
+
+    <div v-if="!loading && !error">
+      <button @click="prevPage" :disabled="!hasPrevPage()" class="btn btn-small">Previous</button>
+      <span>Page {{ page }} ({{ total }} errors)</span>
+      <button @click="nextPage" :disabled="!hasNextPage()" class="btn btn-small">Next</button>
     </div>
 
     <div v-if="loading" class="text-center p-3">
@@ -87,17 +94,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { usePagination } from '@/composables/useAsync'
-import { apiClient } from '@/services/api'
+import { apiClient, ErrorLogRecord } from '@/services/api'
 
 const searchQuery = ref('')
 const severityFilter = ref('')
-const selectedError = ref<any>(null)
+const selectedError = ref<ErrorLogRecord | null>(null)
 
-const { items, loading, error, refresh } = usePagination(
+const { items, page, total, loading, error, refresh, goToPage, nextPage, prevPage, hasNextPage, hasPrevPage } = usePagination<ErrorLogRecord>(
   async (page, size) => {
     const response = await apiClient.searchErrorLogs({
-      skip: (page - 1) * size,
-      take: size,
+      page,
+      pageSize: size,
       search: searchQuery.value || undefined,
       severity: severityFilter.value || undefined,
     })
@@ -113,7 +120,7 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString('en-IN')
 }
 
-const showDetails = (errorLog: any) => {
+const showDetails = (errorLog: ErrorLogRecord) => {
   selectedError.value = errorLog
 }
 </script>

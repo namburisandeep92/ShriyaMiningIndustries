@@ -4,6 +4,11 @@
       <h1>User Management</h1>
       <button @click="showAddUserForm = true" class="btn btn-primary">+ Add User</button>
     </div>
+    <div v-if="!loading && !error">
+      <button @click="changePage(-1)" :disabled="page === 1" class="btn btn-small">Previous</button>
+      <span>Page {{ page }} ({{ total }} users)</span>
+      <button @click="changePage(1)" :disabled="page * pageSize >= total" class="btn btn-small">Next</button>
+    </div>
 
     <div v-if="showAddUserForm" class="modal-overlay" @click="showAddUserForm = false">
       <div class="modal" @click.stop>
@@ -20,9 +25,7 @@
             <label>Role *</label>
             <select v-model="newUser.role" class="form-input">
               <option value="">Select a role</option>
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
+              <option v-for="role in availableRoles" :key="role.name" :value="role.name">{{ role.name }}</option>
             </select>
           </div>
         </div>
@@ -68,13 +71,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { apiClient } from '@/services/api'
+import { apiClient, UserRecord } from '@/services/api'
 import { toastManager } from '@/services/notifications'
 
-const users = ref<any[]>([])
+const users = ref<UserRecord[]>([])
+const page = ref(1)
+const pageSize = 50
+const total = ref(0)
 const loading = ref(false)
 const error = ref<any>(null)
 const showAddUserForm = ref(false)
+const availableRoles = ref<{ name: string }[]>([])
 
 const newUser = ref({
   email: '',
@@ -89,14 +96,21 @@ const loadUsers = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await apiClient.listUsers()
-    users.value = response.data || []
+    const [response, roles] = await Promise.all([apiClient.listUsers({ page: page.value, pageSize }), apiClient.listRoles()])
+    availableRoles.value = roles
+    users.value = response.data.users || []
+    total.value = response.data.total
   } catch (err: any) {
     error.value = err
     toastManager.error('Failed to load users')
   } finally {
     loading.value = false
   }
+}
+
+const changePage = async (offset: number) => {
+  page.value += offset
+  await loadUsers()
 }
 
 const saveUser = async () => {

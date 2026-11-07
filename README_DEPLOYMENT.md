@@ -2,6 +2,19 @@
 
 ## Summary
 
+### Database/API contract repair
+
+Deployments now preserve versioned migration history and existing application
+tables, including custom roles. V004 adds invoice taxes, PO metadata and version
+snapshots; the platform repeatable creates the schema-qualified procedures used
+by the API. Both must deploy with their matching API/UI changes.
+
+Invoice CRUD, history, PO imports and admin pages now use consistent routes and
+result shapes. Existing invoice history without line snapshots cannot be
+reconstructed. See [database contracts and live test instructions](database/README.md)
+for verification against the guarded test catalog. GitHub migration credentials
+remain separate from the Static Web App's runtime `DB_CONNECTION_STRING`.
+
 All production-critical fixes have been implemented and committed. Your SMI Invoice Platform is **ready to deploy to production**.
 
 ---

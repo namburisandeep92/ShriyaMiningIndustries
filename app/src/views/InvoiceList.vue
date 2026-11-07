@@ -10,16 +10,17 @@
     <div class="filters mb-3">
       <input
         v-model="searchQuery"
+        @change="goToPage(1)"
         type="text"
         placeholder="Search by invoice number or PO..."
         class="search-input"
       />
-      <select v-model="statusFilter" class="status-select">
+      <select v-model="statusFilter" @change="goToPage(1)" class="status-select">
         <option value="">All Status</option>
         <option value="draft">Draft</option>
-        <option value="ready">Ready</option>
-        <option value="sent">Sent</option>
-        <option value="paid">Paid</option>
+        <option value="in review">In Review</option>
+        <option value="approved">Approved</option>
+        <option value="shipped">Shipped</option>
       </select>
     </div>
 
@@ -117,11 +118,13 @@ import { toastManager } from '@/services/notifications'
 const searchQuery = ref('')
 const statusFilter = ref('')
 
-const { items, page, pageSize, total, loading, error, nextPage, prevPage, hasPrevPage, hasNextPage, refresh } = usePagination(
+const { items, page, pageSize, total, loading, error, nextPage, prevPage, hasPrevPage, hasNextPage, goToPage, refresh } = usePagination<{
+  id: string; invoiceNumber: string; vendorName: string; poNumber: string | null; createdAt: string; status: string; totalAmount: number
+}>(
   async (pageNum, size) => {
     const response = await apiClient.listInvoices({
-      skip: (pageNum - 1) * size,
-      take: size,
+      page: pageNum,
+      pageSize: size,
       search: searchQuery.value || undefined,
       status: statusFilter.value || undefined,
     })

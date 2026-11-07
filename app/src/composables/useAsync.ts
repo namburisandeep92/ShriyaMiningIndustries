@@ -1,4 +1,4 @@
-import { ref, Ref } from 'vue'
+import { ref, shallowRef, Ref } from 'vue'
 import { apiClient, ApiError } from '@/services/api'
 
 export interface UseAsyncState<T> {
@@ -12,7 +12,7 @@ export function useAsync<T>(
   fn: () => Promise<T>,
   immediate: boolean = true
 ): UseAsyncState<T> {
-  const data = ref<T | null>(null)
+  const data = shallowRef<T | null>(null)
   const loading = ref(false)
   const error = ref<ApiError | null>(null)
 
@@ -46,7 +46,7 @@ export interface UseFormState<T> {
 }
 
 export function useForm<T>(initialValues: T): UseFormState<T> {
-  const form = ref<T>({ ...initialValues })
+  const form = ref({ ...initialValues }) as Ref<T>
   const isDirty = ref(false)
   const isSubmitting = ref(false)
   const error = ref<ApiError | null>(null)
@@ -69,6 +69,7 @@ export function useForm<T>(initialValues: T): UseFormState<T> {
       resetForm()
     } catch (err: any) {
       error.value = err
+      throw err
     } finally {
       isSubmitting.value = false
     }
@@ -96,7 +97,7 @@ export function usePagination<T>(
   fetchFn: (page: number, pageSize: number) => Promise<{ items: T[]; total: number }>,
   initialPageSize: number = 10
 ): UsePaginationState<T> {
-  const items = ref<T[]>([])
+  const items = shallowRef<T[]>([])
   const page = ref(1)
   const pageSize = ref(initialPageSize)
   const total = ref(0)
