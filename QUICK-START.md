@@ -14,10 +14,10 @@ Add these **2 secrets**:
 
 | Name | Where to Get It |
 |------|---|
-| `DB_CONNECTION_STRING_TEST` | Azure Portal → SQL Database (shriyamining-db-test) → Connection strings → ADO.NET |
-| `DB_CONNECTION_STRING_PROD` | Azure Portal → SQL Database (shriyamining-db) → Connection strings → ADO.NET |
+| `DB_CONNECTION_STRING_TEST` | Azure Portal → SQL Database (shriyaminingdbtest) → Connection strings → ADO.NET |
+| `DB_CONNECTION_STRING_PROD` | Azure Portal → SQL Database (shriyaminingdb) → Connection strings → ADO.NET |
 
-**Format**: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=your_username;Password=your_password;Encrypt=True;Connection Timeout=30;`
+**Format**: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdb;Persist Security Info=False;User ID=your_username;Password=your_password;Encrypt=True;Connection Timeout=30;`
 
 ### 2️⃣ Enable Azure Firewall (5 min)
 
@@ -37,7 +37,7 @@ copy .env.example .env
 
 Content:
 ```
-DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db-test;User ID=your_username;Password=your_password;Encrypt=True;Connection Timeout=30;
+DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdbtest;User ID=your_username;Password=your_password;Encrypt=True;Connection Timeout=30;
 ENVIRONMENT=test
 NODE_ENV=development
 ```
@@ -138,7 +138,7 @@ We'll build:
 ## 📞 Questions?
 
 - **Need database credentials?** Check your email for Azure setup email (contains SQL username/password)
-- **Lost connection string?** Azure Portal → SQL Databases → shriyamining-db-test → Connection strings → ADO.NET
+- **Lost connection string?** Azure Portal → SQL Databases → shriyaminingdbtest → Connection strings → ADO.NET
 - **Can't find firewall setting?** Make sure you're on the SQL **server** (not database). Server name: `shriyamining`
 - **Want to skip this?** You need these to proceed (no workaround)
 

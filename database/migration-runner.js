@@ -45,7 +45,7 @@ const config = {
   connectionString: process.env.DB_CONNECTION_STRING,
   dryRun: process.argv.includes('--dry-run'),
   host: process.env.DB_HOST || 'shriyamining-sql.database.windows.net',
-  database: process.env.DB_NAME || 'shriyamining-db-test',
+  database: process.env.DB_NAME || 'shriyaminingdbtest',
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   migrationsDir: path.join(__dirname, 'migrations'),

@@ -64,8 +64,8 @@
 **Steps**:
 1. Get connection strings from Azure Portal:
    - SQL databases → Connection strings (ADO.NET)
-   - Test: `shriyamining-db-test`
-   - Prod: `shriyamining-db`
+   - Test: `shriyaminingdbtest`
+   - Prod: `shriyaminingdb`
 
 2. Add to GitHub Secrets:
    - Go: https://github.com/namburisandeep92/ShriyaMiningIndustries/settings/secrets/actions
@@ -104,8 +104,8 @@ copy .env.example .env
 
 `.env` contents:
 ```
-DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyamining-db-test;User ID=testuser;Password=TestPass123!;Encrypt=True;
-DB_CONNECTION_STRING_PROD=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyamining-db;User ID=produser;Password=ProdPass123!;Encrypt=True;
+DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyaminingdbtest;User ID=testuser;Password=TestPass123!;Encrypt=True;
+DB_CONNECTION_STRING_PROD=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyaminingdb;User ID=produser;Password=ProdPass123!;Encrypt=True;
 ENVIRONMENT=local
 NODE_ENV=development
 ```
@@ -155,8 +155,8 @@ GITHUB SECRETS:
 
 AZURE CONFIGURATION:
 ☐ Firewall: "Allow Azure services" = ON
-☐ Test database `shriyamining-db-test` is accessible
-☐ Production database `shriyamining-db` is accessible
+☐ Test database `shriyaminingdbtest` is accessible
+☐ Production database `shriyaminingdb` is accessible
 
 LOCAL SETUP:
 ☐ .env file created from .env.example
@@ -213,7 +213,7 @@ All API calls:
 ### Deployment
 
 - ✅ Deploy to `swa-smi-invoice-test` (automatically from GitHub)
-- ✅ Use `shriyamining-db-test` database
+- ✅ Use `shriyaminingdbtest` database
 - ✅ Swagger UI available at `/api/docs`
 
 ---

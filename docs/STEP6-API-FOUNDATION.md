@@ -137,7 +137,7 @@ curl -H "x-ms-client-principal: eyJ1c2..." http://localhost:3000/api/me
 Create `.env` file (copy from `.env.example`):
 
 ```
-DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db-test;User ID=your_username;Password=your_password;Encrypt=True;
+DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdbtest;User ID=your_username;Password=your_password;Encrypt=True;
 ENVIRONMENT=test
 NODE_ENV=development
 ```
@@ -146,7 +146,7 @@ NODE_ENV=development
 
 ```
 DB_SERVER=shriyamining.database.windows.net
-DB_DATABASE=shriyamining-db-test
+DB_DATABASE=shriyaminingdbtest
 DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```

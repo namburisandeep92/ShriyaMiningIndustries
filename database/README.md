@@ -78,6 +78,13 @@ Run every time. Idempotent by design (CREATE OR ALTER).
 Versioned migrations track completion in `__MigrationHistory`; repeatables run
 every deployment. Apply V004 before the platform repeatable.
 
+Production uses `shriyaminingdb`; test uses `shriyaminingdbtest`.
+The deployment workflows validate the exact connection-string catalog before
+running migrations. Obsolete hyphenated names and cross-environment targets
+fail validation instead of producing a warning. The private local `.env`,
+GitHub migration secrets, and Azure runtime settings are separate configuration
+sources; changing the template does not update deployed secrets/settings.
+
 ### API contracts
 
 - Procedures returning invoice data return the header in resultset 1 and lines
@@ -124,7 +131,7 @@ production or resets existing roles.
 ### Local Development (requires SQL Server or Azure SQL)
 ```bash
 # Set connection string
-export DB_CONNECTION_STRING="Server=tcp:shriyamining-sql.database.windows.net;Initial Catalog=shriyamining-db-test;..."
+export DB_CONNECTION_STRING="Server=tcp:shriyamining-sql.database.windows.net;Initial Catalog=shriyaminingdbtest;..."
 export DB_USER="user@domain"
 export DB_PASSWORD="password"
 
@@ -298,8 +305,8 @@ Examples:
 - Restore via Azure Portal (free within free tier)
 
 ### Connection Strings
-- Production: `shriyamining-sql` / `shriyamining-db`
-- Test: `shriyamining-sql` / `shriyamining-db-test` (separate database)
+- Production: `shriyamining-sql` / `shriyaminingdb`
+- Test: `shriyamining-sql` / `shriyaminingdbtest` (separate database)
 - Never: same connection string for testing production data!
 
 ## Next Steps

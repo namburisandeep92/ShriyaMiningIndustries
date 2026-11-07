@@ -24,7 +24,7 @@ explain your design decisions and the trade-offs you considered.
 - Microsoft Azure free account (to be upgraded to Pay-As-You-Go, with the goal of staying at $0 within free limits).
 - Database: Azure SQL Database FREE OFFER, region Central India (General Purpose serverless, 32 GB,
   100,000 vCore-seconds/month, auto-pauses after ~15 minutes idle and takes up to ~1 minute to resume,
-  "auto-pause when limit reached" = on). Server: shriyamining-sql, database: shriyamining-db,
+  "auto-pause when limit reached" = on). Server: shriyamining-sql, database: shriyaminingdb,
   collation SQL_Latin1_General_CP1_CI_AS. One shared database for all current and future business processes.
   The free offer allows up to 10 databases, so a separate free test database can be used.
 - Hosting: Azure Static Web Apps FREE plan, deployed from GitHub via GitHub Actions, with the API as

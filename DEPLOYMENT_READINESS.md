@@ -83,8 +83,8 @@ jobs:
 **Fix** (Manual in Azure portal):
 1. Go to GitHub repo → Settings → Secrets and variables → Actions
 2. Add secrets:
-   - `DB_CONNECTION_STRING_TEST` (points to shriyamining-db-test)
-   - `DB_CONNECTION_STRING_PROD` (points to shriyamining-db)
+   - `DB_CONNECTION_STRING_TEST` (points to shriyaminingdbtest)
+   - `DB_CONNECTION_STRING_PROD` (points to shriyaminingdb)
 3. Go to SWA → Configuration → Application settings
    - `CONNECTION_STRING` = Your prod database connection
    - `ENVIRONMENT` = production
@@ -257,14 +257,14 @@ jobs:
 **In GitHub** (Settings → Secrets and variables → Actions):
 1. Click "New repository secret"
 2. Add `DB_CONNECTION_STRING_PROD`:
-   - Value: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=smiadmin;Password=***;Encrypt=True;Connection Timeout=30;`
+   - Value: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdb;Persist Security Info=False;User ID=smiadmin;Password=***;Encrypt=True;Connection Timeout=30;`
    - (Replace with your actual connection string)
 3. Add `DB_CONNECTION_STRING_TEST`:
-   - Value: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db-test;Persist Security Info=False;User ID=smiadmin;Password=***;Encrypt=True;Connection Timeout=30;`
+   - Value: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdbtest;Persist Security Info=False;User ID=smiadmin;Password=***;Encrypt=True;Connection Timeout=30;`
 
 **In Azure Portal** (SWA → Configuration → Application settings):
 1. Add settings:
-   - `CONNECTION_STRING` = `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;...`
+   - `CONNECTION_STRING` = `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdb;...`
    - `ENVIRONMENT` = `production`
    - `LOG_LEVEL` = `info`
    - `NODE_ENV` = `production`

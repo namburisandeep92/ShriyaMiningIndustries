@@ -53,13 +53,13 @@ Both production and test workflows now:
 **Protection Examples**:
 ```yaml
 # Production workflow checks:
-if echo "$CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
+if echo "$CONNECTION_STRING" | grep -q "shriyaminingdbtest"; then
   echo "❌ ERROR: Production using TEST database!"
   exit 1
 fi
 
 # Test workflow checks:
-if ! echo "$CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
+if ! echo "$CONNECTION_STRING" | grep -q "shriyaminingdbtest"; then
   echo "❌ ERROR: Test SWA using PRODUCTION database!"
   exit 1
 fi
@@ -233,28 +233,28 @@ Before deploying, verify these Azure Portal settings:
 ### Production SWA (`swa-smi-invoice-prod`)
 
 **Environment Variables** (Must Have):
-- ✓ `CONNECTION_STRING` = `Server=shriyamining-sql.database.windows.net;Initial Catalog=shriyamining-db;User ID=...;Password=...;Encrypt=true;`
-  - **IMPORTANT**: Must use `shriyamining-db` (NOT `shriyamining-db-test`)
+- ✓ `CONNECTION_STRING` = `Server=shriyamining-sql.database.windows.net;Initial Catalog=shriyaminingdb;User ID=...;Password=...;Encrypt=true;`
+  - **IMPORTANT**: Must use `shriyaminingdb` (NOT `shriyaminingdbtest`)
 - ✓ `ENVIRONMENT` = `production`
 - ✓ `LOG_LEVEL` = `debug` or `info`
 - ✓ `NODE_ENV` = `production`
 
 **Verify Before Deploy**:
-1. [ ] Connection string uses `shriyamining-db` (not `shriyamining-db-test`)
+1. [ ] Connection string uses `shriyaminingdb` (not `shriyaminingdbtest`)
 2. [ ] Click "Show value" and check the database name
 3. [ ] All 4 env vars are visible in Azure Portal
 
 ### Test SWA (`swa-smi-invoice-test`)
 
 **Environment Variables** (Must Have):
-- ✓ `CONNECTION_STRING` = `Server=shriyamining-sql.database.windows.net;Initial Catalog=shriyamining-db-test;User ID=...;Password=...;Encrypt=true;`
-  - **IMPORTANT**: Must use `shriyamining-db-test` (NOT `shriyamining-db`)
+- ✓ `CONNECTION_STRING` = `Server=shriyamining-sql.database.windows.net;Initial Catalog=shriyaminingdbtest;User ID=...;Password=...;Encrypt=true;`
+  - **IMPORTANT**: Must use `shriyaminingdbtest` (NOT `shriyaminingdb`)
 - ✓ `ENVIRONMENT` = `test`
 - ✓ `LOG_LEVEL` = `debug`
 - ✓ `NODE_ENV` = `development`
 
 **Verify Before Deploy**:
-1. [ ] Connection string uses `shriyamining-db-test`
+1. [ ] Connection string uses `shriyaminingdbtest`
 2. [ ] Click "Show value" and check the database name
 3. [ ] All 4 env vars are visible in Azure Portal
 
@@ -332,7 +332,7 @@ open https://swa-smi-invoice-test.azurestaticapps.net
 
 **Success Signs**:
 - ✓ GitHub Actions workflow completes
-- ✓ Production workflow runs migrations on `shriyamining-db`
+- ✓ Production workflow runs migrations on `shriyaminingdb`
 - ✓ Smoke tests pass against prod URL
 - ✓ URL accessible at: https://swa-smi-invoice-prod.azurestaticapps.net
 
@@ -379,8 +379,8 @@ open https://swa-smi-invoice-test.azurestaticapps.net
 ## ⚠️ BEFORE YOU DEPLOY: CRITICAL CHECKLIST
 
 1. **Database Connection Strings**
-   - [ ] Prod SWA uses `shriyamining-db`
-   - [ ] Test SWA uses `shriyamining-db-test`
+   - [ ] Prod SWA uses `shriyaminingdb`
+   - [ ] Test SWA uses `shriyaminingdbtest`
    - [ ] Both connection strings are in Azure Portal environment variables
 
 2. **GitHub Secrets**
@@ -423,7 +423,7 @@ These can be done AFTER deployment works:
 
 ### Error: "Production using TEST database"
 - Check `CONNECTION_STRING` value
-- Verify it contains `shriyamining-db` (not `-test`)
+- Verify it contains `shriyaminingdb` (not `-test`)
 - Update in Azure Portal and redeploy
 
 ### Error: "Migrations failed"

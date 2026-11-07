@@ -56,20 +56,7 @@ jobs:
             exit 1
           fi
           
-          # Verify connection string contains test database
-          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
-            echo "✅ Connection string uses test database (shriyamining-db-test)"
-          else
-            echo "⚠️  WARNING: Could not verify test database name in connection string"
-          fi
-          
-          # Fail if accidentally using production database
-          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db\"" || echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db;"; then
-            if ! echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
-              echo "❌ ERROR: Test SWA using PRODUCTION database!"
-              exit 1
-            fi
-          fi
+          node scripts/validate-db-target.js shriyaminingdbtest
 
       - name: Run database migrations (test)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -109,7 +96,7 @@ jobs:
           echo "✅ Test SWA deployment succeeded!"
           echo "Frontend: public/app"
           echo "API: api/"
-          echo "Database: shriyamining-db-test"
+          echo "Database: shriyaminingdbtest"
           echo "Status: Check Azure Portal for details"
 
   close_pull_request_job:

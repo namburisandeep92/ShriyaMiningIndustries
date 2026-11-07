@@ -19,7 +19,7 @@
 - Error handling: capture everywhere → CorrelationId → log → alert admin
 
 ### ✓ 4. Naming Conventions (Fully Defined)
-- Databases: lowercase-kebab (shriyamining-db)
+- Databases: lowercase-kebab (shriyaminingdb)
 - Schemas: lowercase, domain-specific (app, security, sales, log, audit)
 - Tables: PascalCase, singular (Invoice, ErrorLog)
 - Columns: PascalCase, full words (InvoiceId, CreatedOn)

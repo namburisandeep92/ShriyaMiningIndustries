@@ -56,7 +56,7 @@ User uploads Excel
   ↓
 POST /api/po-import (send file + validation)
   ↓
-API stores in shriyamining-db-test
+API stores in shriyaminingdbtest
   ↓
 API returns validation results + import ID
   ↓

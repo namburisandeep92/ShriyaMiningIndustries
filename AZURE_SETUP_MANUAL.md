@@ -12,7 +12,7 @@ Since you're already logged into Azure Portal, follow these exact steps to get y
 2. Click **shriyaminingdb**
 3. In left sidebar, click **Connection strings**
 4. Copy the **ADO.NET (SQL authentication)** string
-   - It looks like: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=smiadmin;Password=YOUR_PASSWORD;...`
+   - It looks like: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdb;Persist Security Info=False;User ID=smiadmin;Password=YOUR_PASSWORD;...`
 5. **Save this** in a text file - you'll need it shortly
 
 ### For Test Database (shriyaminingdbtest)

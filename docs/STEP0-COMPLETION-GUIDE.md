@@ -15,8 +15,8 @@ This guide walks you through the remaining Step 0 setup tasks needed before Step
   - `/tests/fixtures/po/sample-po.xlsx` (sample PO)
 - [x] Azure SQL databases created:
   - `shriyamining-sql` server
-  - `shriyamining-db` (production)
-  - `shriyamining-db-test` (test, isolated)
+  - `shriyaminingdb` (production)
+  - `shriyaminingdbtest` (test, isolated)
 - [x] Static Web Apps created:
   - `swa-smi-invoice-prod` (production)
   - `swa-smi-invoice-test` (test, connects to test DB only)
@@ -33,21 +33,21 @@ The CI/CD pipeline in `.github/workflows/ci-cd.yml` needs database credentials t
 
 You need **two** connection strings (test and production):
 
-**For Test Database (`shriyamining-db-test`):**
-- Azure Portal → SQL databases → shriyamining-db-test → Connection strings
+**For Test Database (`shriyaminingdbtest`):**
+- Azure Portal → SQL databases → shriyaminingdbtest → Connection strings
 - Copy the **ADO.NET (SQL authentication)** string
 - Replace `{your_username}` and `{your_password}` with actual test DB credentials
 - Example format:
   ```
-  Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyamining-db-test;Persist Security Info=False;User ID=testuser;Password=TestPass123!;Encrypt=True;Connection Timeout=30;
+  Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyaminingdbtest;Persist Security Info=False;User ID=testuser;Password=TestPass123!;Encrypt=True;Connection Timeout=30;
   ```
 
-**For Production Database (`shriyamining-db`):**
-- Copy the ADO.NET string for `shriyamining-db`
+**For Production Database (`shriyaminingdb`):**
+- Copy the ADO.NET string for `shriyaminingdb`
 - Replace with production credentials
 - Example format:
   ```
-  Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=produser;Password=ProdPass123!;Encrypt=True;Connection Timeout=30;
+  Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyaminingdb;Persist Security Info=False;User ID=produser;Password=ProdPass123!;Encrypt=True;Connection Timeout=30;
   ```
 
 ### 2. Add Secrets to GitHub
@@ -109,8 +109,8 @@ copy .env.example .env
 
 **Contents of `.env` (local development only):**
 ```
-DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyamining-db-test;...
-DB_CONNECTION_STRING_PROD=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyamining-db;...
+DB_CONNECTION_STRING_TEST=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyaminingdbtest;...
+DB_CONNECTION_STRING_PROD=Server=tcp:shriyamining-sql.database.windows.net,1433;Initial Catalog=shriyaminingdb;...
 ENVIRONMENT=local
 NODE_ENV=development
 ```
@@ -178,8 +178,8 @@ Expected output:
   - [ ] All 95 tests passed in CI
   
 - [ ] **Azure Resources verified:**
-  - [ ] `shriyamining-db-test` exists and is accessible
-  - [ ] `shriyamining-db` (prod) exists and is accessible
+  - [ ] `shriyaminingdbtest` exists and is accessible
+  - [ ] `shriyaminingdb` (prod) exists and is accessible
   - [ ] `swa-smi-invoice-test` SWA created and linked to repo
   - [ ] `swa-smi-invoice-prod` SWA created and linked to repo
   - [ ] Application Insights workspace created with daily cap
@@ -254,8 +254,8 @@ Once Step 0 is complete:
 Keep these handy (do not paste into chat):
 
 - Azure SQL Server: `shriyamining-sql.database.windows.net`
-- Test Database: `shriyamining-db-test`
-- Production Database: `shriyamining-db`
+- Test Database: `shriyaminingdbtest`
+- Production Database: `shriyaminingdb`
 - Test SWA: `swa-smi-invoice-test`
 - Production SWA: `swa-smi-invoice-prod`
 - GitHub Repo: `namburisandeep92/ShriyaMiningIndustries`

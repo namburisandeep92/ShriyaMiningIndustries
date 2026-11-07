@@ -246,7 +246,7 @@ jobs:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_TEST }}
         run: |
           echo "🧹 Resetting test database..."
-          echo "   (Dropping and recreating shriyamining-db-test)"
+          echo "   (Dropping and recreating shriyaminingdbtest)"
           echo ""
           echo "Note: Actual reset requires admin role. In CI, migrations are idempotent,"
           echo "so test DB is clean for next run."

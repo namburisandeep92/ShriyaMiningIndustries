@@ -46,7 +46,7 @@ Do these by hand before any prompt. They cost nothing and prevent surprise bills
 **Azure (all free)**
 
 - [ ] Create a **Budget** on the subscription: $1/month, email alert at 50% and 100% to your Zoho address. This is your safety net once you move to Pay-As-You-Go.
-- [ ] SQL: you already have `shriyamining-sql` / `shriyamining-db`. Create a **second free database** on the same server, `shriyamining-db-test`. Both stay on the free offer with "auto-pause when limit reached" = on.
+- [ ] SQL: you already have `shriyamining-sql` / `shriyaminingdb`. Create a **second free database** on the same server, `shriyaminingdbtest`. Both stay on the free offer with "auto-pause when limit reached" = on.
 - [ ] Create **two** Static Web Apps on the **Free** plan, both linked to the same repo: `swa-smi-invoice-prod` and `swa-smi-invoice-test`. Reason: a separate test app guarantees that its settings (connection string) point only at the test database, so tests can never touch production. Preview environments of the prod app will be used only for UI review, not for database tests.
 - [ ] Create one **Application Insights** resource (workspace-based) and set the Log Analytics **daily cap** to a small value (e.g. 0.1 GB/day) so it stays inside the free monthly allowance.
 

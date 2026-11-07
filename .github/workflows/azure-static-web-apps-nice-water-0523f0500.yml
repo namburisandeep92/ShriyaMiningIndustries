@@ -56,17 +56,7 @@ jobs:
             exit 1
           fi
           
-          # Verify connection string contains prod database
-          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db-test"; then
-            echo "❌ ERROR: Production using TEST database! Connection string contains 'shriyamining-db-test'"
-            exit 1
-          fi
-          
-          if echo "$DB_CONNECTION_STRING" | grep -q "shriyamining-db"; then
-            echo "✅ Connection string uses production database (shriyamining-db)"
-          else
-            echo "⚠️  WARNING: Could not verify database name in connection string"
-          fi
+          node scripts/validate-db-target.js shriyaminingdb
 
       - name: Run database migrations (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'

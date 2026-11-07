@@ -218,7 +218,7 @@ Specs & Docs
 
 ### Deployment
 - Deploy to `swa-smi-invoice-test` (automatically from GitHub)
-- Use `shriyamining-db-test` database
+- Use `shriyaminingdbtest` database
 - Swagger UI available at `/api/docs`
 - Ready for frontend to call
 

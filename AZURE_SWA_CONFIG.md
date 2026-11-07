@@ -93,7 +93,7 @@ If you need to find your connection strings:
 2. Click on the database
 3. Left sidebar → **Connection strings**
 4. Copy the **ADO.NET (SQL authentication)** string
-   - Format: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=smiadmin;Password=YOUR_PASSWORD;Encrypt=True;Connection Timeout=30;`
+   - Format: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdb;Persist Security Info=False;User ID=smiadmin;Password=YOUR_PASSWORD;Encrypt=True;Connection Timeout=30;`
 
 ---
 

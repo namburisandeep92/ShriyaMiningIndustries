@@ -86,13 +86,13 @@ Main Branch (GitHub)
 **Test SWA** (`swa-smi-invoice-test.azurestaticapps.net`):
 - Frontend: Vue 3 app from `public/app/`
 - API: Express.js from `api/`
-- Database: `shriyamining-db-test` (test data)
+- Database: `shriyaminingdbtest` (test data)
 - Auth: SWA managed (Microsoft only)
 
 **Production SWA** (`swa-smi-invoice-prod.azurestaticapps.net`):
 - Frontend: Vue 3 app from `public/app/`
 - API: Express.js from `api/`
-- Database: `shriyamining-db` (real data)
+- Database: `shriyaminingdb` (real data)
 - Auth: SWA managed (Microsoft only)
 
 ---
@@ -103,14 +103,14 @@ Main Branch (GitHub)
 
 **Azure Portal - Production SWA Settings**:
 - [ ] Navigate to: Azure Portal → swa-smi-invoice-prod → Environment variables
-- [ ] Verify CONNECTION_STRING contains: `shriyamining-db` (NOT `shriyamining-db-test`)
+- [ ] Verify CONNECTION_STRING contains: `shriyaminingdb` (NOT `shriyaminingdbtest`)
 - [ ] Verify ENVIRONMENT = `production`
 - [ ] Verify LOG_LEVEL = `debug` or `info`
 - [ ] Verify NODE_ENV = `production`
 
 **Azure Portal - Test SWA Settings**:
 - [ ] Navigate to: Azure Portal → swa-smi-invoice-test → Environment variables
-- [ ] Verify CONNECTION_STRING contains: `shriyamining-db-test`
+- [ ] Verify CONNECTION_STRING contains: `shriyaminingdbtest`
 - [ ] Verify ENVIRONMENT = `test`
 - [ ] Verify LOG_LEVEL = `debug`
 - [ ] Verify NODE_ENV = `development`
@@ -211,13 +211,13 @@ git push origin main
 ## 🎯 Key Features by Environment
 
 ### Test SWA
-- Uses `shriyamining-db-test` database
+- Uses `shriyaminingdbtest` database
 - Allows localhost and test URLs in CORS
 - Meant for development and testing
 - Independent from production
 
 ### Production SWA
-- Uses `shriyamining-db` database (real data)
+- Uses `shriyaminingdb` database (real data)
 - Only allows prod SWA URL in CORS
 - Full security enabled
 - Post-deployment smoke tests run
@@ -300,7 +300,7 @@ open https://swa-smi-invoice-test.azurestaticapps.net
 ### "Connection refused - Cannot reach database"
 - Verify connection string in Azure Portal
 - Check database server firewall allows Azure
-- Verify database name is correct (`shriyamining-db` or `shriyamining-db-test`)
+- Verify database name is correct (`shriyaminingdb` or `shriyaminingdbtest`)
 - Check if database is paused (free tier auto-pauses)
 
 ### "Wrong database error in workflow"

@@ -54,7 +54,7 @@ async connect(maxRetries = 3) {
 
 **What's Missing**:
 - ✓ Test actual connection string in Azure from prod database
-- ✓ Verify `shriyamining-db` (prod) selected, NOT `shriyamining-db-test`
+- ✓ Verify `shriyaminingdb` (prod) selected, NOT `shriyaminingdbtest`
 - ✓ Add startup health check (connect on app boot)
 - ✓ Pre-warm connection on first request after cold start
 - ✓ Error message if connection fails (fail fast, not silent)
@@ -273,7 +273,7 @@ app.use(cors({
 
 ### **TIER 1 - DO FIRST (Next 30 min)**
 1. ✓ Verify DATABASE name in prod Azure (prod vs test)
-2. ✓ Verify CONNECTION_STRING points to `shriyamining-db` (prod), not test
+2. ✓ Verify CONNECTION_STRING points to `shriyaminingdb` (prod), not test
 3. ✓ Fix CORS origin from test SWA to prod SWA URL
 4. ✓ Add startup env validation
 5. ✓ Test actual connection from prod SWA
@@ -307,7 +307,7 @@ app.use(cors({
 ## Next Steps
 
 1. **Verify prod database connection** (5 min)
-   - Check Azure Portal: is `shriyamining-db` the prod one?
+   - Check Azure Portal: is `shriyaminingdb` the prod one?
    - Is connection string using prod database name?
 
 2. **Fix auth implementation** (15 min)

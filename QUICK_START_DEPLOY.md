@@ -78,7 +78,7 @@ git push origin main
 
 Azure Portal → SQL databases → [Database name] → Connection strings → ADO.NET (SQL authentication)
 
-Format: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyamining-db;Persist Security Info=False;User ID=smiadmin;Password=***;Encrypt=True;Connection Timeout=30;`
+Format: `Server=tcp:shriyamining.database.windows.net,1433;Initial Catalog=shriyaminingdb;Persist Security Info=False;User ID=smiadmin;Password=***;Encrypt=True;Connection Timeout=30;`
 
 ---
 

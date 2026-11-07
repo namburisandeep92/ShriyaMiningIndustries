@@ -16,7 +16,7 @@ Two parallel workflows are running:
 **1. Production SWA** (`azure-static-web-apps-nice-water-0523f0500.yml`):
 - Build Vue frontend
 - Validate environment (must have all vars)
-- Verify connection string uses `shriyamining-db` (NOT test)
+- Verify connection string uses `shriyaminingdb` (NOT test)
 - Run migrations on production database
 - Deploy to prod SWA
 - Run smoke tests
@@ -24,7 +24,7 @@ Two parallel workflows are running:
 **2. Test SWA** (`azure-static-web-apps-victorious-grass-078778700.yml`):
 - Build Vue frontend
 - Validate environment
-- Verify connection string uses `shriyamining-db-test`
+- Verify connection string uses `shriyaminingdbtest`
 - Run migrations on test database
 - Deploy to test SWA
 - Run smoke tests
@@ -202,14 +202,14 @@ main branch push
 GitHub Actions triggered
       ├─→ Workflow: azure-static-web-apps-nice-water-0523f0500 (Prod)
       │   ├─ Build
-      │   ├─ Validate (shriyamining-db)
+      │   ├─ Validate (shriyaminingdb)
       │   ├─ Migrate (prod DB)
       │   ├─ Deploy
       │   └─ Smoke tests
       │
       └─→ Workflow: azure-static-web-apps-victorious-grass-078778700 (Test)
           ├─ Build
-          ├─ Validate (shriyamining-db-test)
+          ├─ Validate (shriyaminingdbtest)
           ├─ Migrate (test DB)
           ├─ Deploy
           └─ Smoke tests
@@ -294,8 +294,8 @@ Expected completion: ~10 minutes from now.
 ## 📢 Important Notes
 
 - **Both SWAs will deploy simultaneously** (parallel workflows)
-- **Prod SWA will use production database** (shriyamining-db)
-- **Test SWA will use test database** (shriyamining-db-test)
+- **Prod SWA will use production database** (shriyaminingdb)
+- **Test SWA will use test database** (shriyaminingdbtest)
 - **Smoke tests verify everything works** before marking as complete
 - **No manual steps needed** - GitHub Actions handles everything
 
