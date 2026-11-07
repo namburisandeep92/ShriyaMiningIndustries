@@ -467,18 +467,9 @@ END;
 -- MIGRATION TRACKING TABLE
 -- ============================================================================
 
-IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__MigrationHistory')
-BEGIN
-  CREATE TABLE __MigrationHistory (
-    MigrationId NVARCHAR(150) PRIMARY KEY,
-    ProductVersion NVARCHAR(32) NOT NULL,
-    AppliedOn DATETIME2(7) NOT NULL DEFAULT GETUTCDATE()
-  );
-END;
-
--- Mark this migration as complete
-DELETE FROM __MigrationHistory WHERE MigrationId = 'V001__schemas';
-INSERT INTO __MigrationHistory (MigrationId, ProductVersion) 
-VALUES ('V001__schemas', '1.0.0');
+-- ============================================================================
+-- MIGRATION HISTORY TABLE - Created by migration runner
+-- (Not needed here - migration runner handles this)
+-- ============================================================================
 
 PRINT 'Migration V001__schemas completed successfully';
