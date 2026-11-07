@@ -414,8 +414,8 @@ BEGIN
   CREATE TABLE sales.POImportBatch (
     POImportBatchId UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     FileName NVARCHAR(255) NOT NULL,
-    VendorId INT NOT NULL FOREIGN KEY REFERENCES app.Vendor(VendorId),
-    RowCount INT NOT NULL,
+    VendorId INT NOT NULL CONSTRAINT FK_POImportBatch_Vendor REFERENCES app.Vendor(VendorId),
+    [RowCount] INT NOT NULL,
     ImportedRowCount INT NOT NULL DEFAULT 0,
     Status NVARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Processing', 'Completed', 'Failed')),
     ErrorMessage NVARCHAR(MAX) NULL,
