@@ -14,6 +14,7 @@ import sql from 'mssql';
 class DatabaseService {
   constructor() {
     this.pool = null;
+    this.databaseName = null;
     this.config = {
       server: process.env.DB_SERVER,
       database: process.env.DB_DATABASE,
@@ -93,9 +94,18 @@ class DatabaseService {
         console.log(`[DB] Connecting... (attempt ${attempt}/${maxRetries})`);
         this.pool = new sql.ConnectionPool(this.config);
         await this.pool.connect();
+        const result = await this.pool.request().query('SELECT DB_NAME() AS databaseName');
+        this.databaseName = result.recordset[0]?.databaseName;
+        const expected = { production: 'shriyaminingdb', test: 'shriyaminingdbtest' }[process.env.ENVIRONMENT];
+        if (!this.databaseName || (expected && this.databaseName !== expected)) {
+          throw new Error(`Connected database does not match ${process.env.ENVIRONMENT} environment`);
+        }
         console.log('[DB] Connected successfully');
         return;
       } catch (err) {
+        if (this.pool) await this.pool.close();
+        this.pool = null;
+        this.databaseName = null;
         console.error(`[DB] Connection failed (attempt ${attempt}):`, err.message);
         
         if (attempt < maxRetries) {
@@ -117,6 +127,7 @@ class DatabaseService {
     if (this.pool) {
       await this.pool.close();
       this.pool = null;
+      this.databaseName = null;
     }
   }
 

@@ -75,13 +75,13 @@ All production-critical fixes have been implemented and committed. Your SMI Invo
    - Added Content-Security-Policy header
    - Enhanced security headers
 
-4. **.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml** (Prod)
+4. **.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml** (Prod)
    - Added environment validation step
    - Validates connection string uses prod database
    - Fixed build output path
    - Added smoke tests after deploy
 
-5. **.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml** (Test)
+5. **.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml** (Test)
    - Added environment validation step
    - Validates connection string uses test database
    - Fixed build output path
@@ -197,8 +197,8 @@ git push origin main
 # Total: 5-10 min
 
 # 6. Check SWAs
-# https://swa-smi-invoice-test.azurestaticapps.net
-# https://swa-smi-invoice-prod.azurestaticapps.net
+# https://nice-water-0523f0500.3.azurestaticapps.net
+# https://victorious-grass-078778700.3.azurestaticapps.net
 ```
 
 ---
@@ -225,7 +225,7 @@ configure Azure runtime settings. Never commit these credentials.
 Post-deployment smoke tests use the URL returned by Azure, require a
 healthy database, and check direct navigation to `/invoices`.
 
-Test UI: https://victorious-grass-078778700.3.azurestaticapps.net/
+Test UI: https://nice-water-0523f0500.3.azurestaticapps.net/
 Sign in using `/.auth/login/aad?post_login_redirect_uri=/invoices`.
 
 ### Local UI and API
@@ -258,13 +258,13 @@ does not provide Azure login; protected endpoints remain protected.
 **Test the API**:
 ```bash
 # Health check
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/health
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/health
 
 # User endpoint (should be unauthenticated)
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/me
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/me
 
 # Visit in browser
-open https://swa-smi-invoice-prod.azurestaticapps.net
+open https://victorious-grass-078778700.3.azurestaticapps.net
 ```
 
 **Expected Results**:
@@ -398,7 +398,7 @@ You can deploy at any time. Simply push to `main` and GitHub Actions will handle
 **Questions?** Check the detailed docs or run the smoke tests manually:
 
 ```bash
-VITE_API_BASE_URL=https://swa-smi-invoice-prod.azurestaticapps.net node scripts/smoke-test.js
+VITE_API_BASE_URL=https://victorious-grass-078778700.3.azurestaticapps.net node scripts/smoke-test.js
 ```
 
 **Ready to deploy?** Run: `git push origin main`

@@ -13,7 +13,7 @@
 
 Two parallel workflows are running:
 
-**1. Production SWA** (`azure-static-web-apps-nice-water-0523f0500.yml`):
+**1. Production SWA** (`azure-static-web-apps-victorious-grass-078778700.yml`):
 - Build Vue frontend
 - Validate environment (must have all vars)
 - Verify connection string uses `shriyaminingdb` (NOT test)
@@ -21,7 +21,7 @@ Two parallel workflows are running:
 - Deploy to prod SWA
 - Run smoke tests
 
-**2. Test SWA** (`azure-static-web-apps-victorious-grass-078778700.yml`):
+**2. Test SWA** (`azure-static-web-apps-nice-water-0523f0500.yml`):
 - Build Vue frontend
 - Validate environment
 - Verify connection string uses `shriyaminingdbtest`
@@ -78,8 +78,8 @@ Two parallel workflows are running:
 2. ✅ Both SWAs show "Ready" status in Azure Portal
 3. ✅ Smoke tests pass (all 5 tests pass)
 4. ✅ Both SWAs are accessible:
-   - https://swa-smi-invoice-test.azurestaticapps.net
-   - https://swa-smi-invoice-prod.azurestaticapps.net
+   - https://nice-water-0523f0500.3.azurestaticapps.net
+   - https://victorious-grass-078778700.3.azurestaticapps.net
 
 ### Deployment Failed If:
 1. ❌ Any GitHub Actions step shows red X
@@ -96,7 +96,7 @@ Two parallel workflows are running:
 
 **Test Health Endpoint**:
 ```bash
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/health
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/health
 
 Expected response (HTTP 200):
 {
@@ -110,7 +110,7 @@ Expected response (HTTP 200):
 
 **Test User Endpoint**:
 ```bash
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/me
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/me
 
 Expected response (HTTP 200, unauthenticated):
 {
@@ -121,7 +121,7 @@ Expected response (HTTP 200, unauthenticated):
 
 **Test Frontend Loads**:
 ```
-Open browser: https://swa-smi-invoice-prod.azurestaticapps.net
+Open browser: https://victorious-grass-078778700.3.azurestaticapps.net
 Expected: Vue app loads, shows login page or redirects to login
 ```
 
@@ -183,14 +183,14 @@ Expected: Vue app loads, shows login page or redirects to login
 ## 📱 Live URLs (When Ready)
 
 **Test Environment**:
-- Frontend: https://swa-smi-invoice-test.azurestaticapps.net
-- API: https://swa-smi-invoice-test.azurestaticapps.net/api
-- Docs: https://swa-smi-invoice-test.azurestaticapps.net/api/docs
+- Frontend: https://nice-water-0523f0500.3.azurestaticapps.net
+- API: https://nice-water-0523f0500.3.azurestaticapps.net/api
+- Docs: https://nice-water-0523f0500.3.azurestaticapps.net/api/docs
 
 **Production Environment**:
-- Frontend: https://swa-smi-invoice-prod.azurestaticapps.net
-- API: https://swa-smi-invoice-prod.azurestaticapps.net/api
-- Docs: https://swa-smi-invoice-prod.azurestaticapps.net/api/docs
+- Frontend: https://victorious-grass-078778700.3.azurestaticapps.net
+- API: https://victorious-grass-078778700.3.azurestaticapps.net/api
+- Docs: https://victorious-grass-078778700.3.azurestaticapps.net/api/docs
 
 ---
 
@@ -200,14 +200,14 @@ Expected: Vue app loads, shows login page or redirects to login
 main branch push
       ↓
 GitHub Actions triggered
-      ├─→ Workflow: azure-static-web-apps-nice-water-0523f0500 (Prod)
+      ├─→ Workflow: azure-static-web-apps-victorious-grass-078778700 (Prod)
       │   ├─ Build
       │   ├─ Validate (shriyaminingdb)
       │   ├─ Migrate (prod DB)
       │   ├─ Deploy
       │   └─ Smoke tests
       │
-      └─→ Workflow: azure-static-web-apps-victorious-grass-078778700 (Test)
+      └─→ Workflow: azure-static-web-apps-nice-water-0523f0500 (Test)
           ├─ Build
           ├─ Validate (shriyaminingdbtest)
           ├─ Migrate (test DB)
@@ -228,7 +228,7 @@ GitHub Actions triggered
    - Both SWAs are live
 
 3. **Test the app**:
-   - Visit: https://swa-smi-invoice-prod.azurestaticapps.net
+   - Visit: https://victorious-grass-078778700.3.azurestaticapps.net
    - Try: /api/health endpoint
    - Check: Frontend loads
 
@@ -266,8 +266,8 @@ GitHub Actions triggered
 - GitHub Actions: https://github.com/namburisandeep92/ShriyaMiningIndustries/actions
 - Azure Portal (Prod): https://portal.azure.com/#@sandeepshriyamininggmail.onmicrosoft.com/resource/subscriptions/2a307f60-787a-4c91-8bd8-268246273512/resourceGroups/rg-shriyamining/providers/Microsoft.Web/staticSites/swa-smi-invoice-prod
 - Azure Portal (Test): https://portal.azure.com/#@sandeepshriyamininggmail.onmicrosoft.com/resource/subscriptions/2a307f60-787a-4c91-8bd8-268246273512/resourceGroups/rg-shriyamining/providers/Microsoft.Web/staticSites/swa-smi-invoice-test
-- Prod App: https://swa-smi-invoice-prod.azurestaticapps.net
-- Test App: https://swa-smi-invoice-test.azurestaticapps.net
+- Prod App: https://victorious-grass-078778700.3.azurestaticapps.net
+- Test App: https://nice-water-0523f0500.3.azurestaticapps.net
 
 ---
 

@@ -21,7 +21,7 @@ npm run api:dev
 ```
 
 ### 2. CORS Configuration Fixed ✓
-- **Production**: Only allows `https://swa-smi-invoice-prod.azurestaticapps.net`
+- **Production**: Only allows `https://victorious-grass-078778700.3.azurestaticapps.net`
 - **Test/Dev**: Allows localhost and test SWA URLs
 - Prevents cross-environment contamination
 
@@ -198,7 +198,7 @@ WHERE u.Email = @email
 
 **Output Example**:
 ```
-🧪 Starting smoke tests for: https://swa-smi-invoice-prod.azurestaticapps.net
+🧪 Starting smoke tests for: https://victorious-grass-078778700.3.azurestaticapps.net
    Timeout: 30000ms
 
 Running critical tests...
@@ -276,7 +276,7 @@ git push origin main
 # 2. Verify build succeeded
 # 3. Validate connection strings
 # 4. Run migrations on test database
-# 5. Deploy to test SWA (victorious-grass)
+# 5. Deploy to test SWA (nice-water)
 # 6. Run smoke tests
 
 # Monitor at:
@@ -290,7 +290,7 @@ git push origin main
 - ✓ All tests pass (green checkmarks)
 - ✓ Deployment step succeeds
 - ✓ Smoke tests pass
-- ✓ URL accessible at: https://swa-smi-invoice-test.azurestaticapps.net
+- ✓ URL accessible at: https://nice-water-0523f0500.3.azurestaticapps.net
 
 **If it fails**:
 - Check GitHub Actions logs for error
@@ -302,13 +302,13 @@ git push origin main
 
 ```bash
 # Test health endpoint
-curl https://swa-smi-invoice-test.azurestaticapps.net/api/health
+curl https://nice-water-0523f0500.3.azurestaticapps.net/api/health
 
 # Test /api/me endpoint (unauthenticated)
-curl https://swa-smi-invoice-test.azurestaticapps.net/api/me
+curl https://nice-water-0523f0500.3.azurestaticapps.net/api/me
 
 # Visit frontend in browser
-open https://swa-smi-invoice-test.azurestaticapps.net
+open https://nice-water-0523f0500.3.azurestaticapps.net
 ```
 
 **Expected Results**:
@@ -334,7 +334,7 @@ open https://swa-smi-invoice-test.azurestaticapps.net
 - ✓ GitHub Actions workflow completes
 - ✓ Production workflow runs migrations on `shriyaminingdb`
 - ✓ Smoke tests pass against prod URL
-- ✓ URL accessible at: https://swa-smi-invoice-prod.azurestaticapps.net
+- ✓ URL accessible at: https://victorious-grass-078778700.3.azurestaticapps.net
 
 ---
 

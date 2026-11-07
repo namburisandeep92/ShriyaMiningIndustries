@@ -5,7 +5,7 @@
  * Verifies basic functionality after deployment
  * 
  * Usage:
- *   VITE_API_BASE_URL=https://swa-smi-invoice-prod.azurestaticapps.net node scripts/smoke-test.js
+ *   VITE_API_BASE_URL=https://victorious-grass-078778700.3.azurestaticapps.net node scripts/smoke-test.js
  */
 
 import http from 'http';
@@ -71,6 +71,12 @@ const testHealthCheck = async () => {
     const body = JSON.parse(res.body);
     if (body.status !== 'healthy' || body.database !== 'connected') {
       console.log(`❌ Health check: invalid status '${body.status}'`);
+      failCount++;
+      return;
+    }
+    if ((process.env.EXPECTED_ENVIRONMENT && body.environment !== process.env.EXPECTED_ENVIRONMENT)
+        || (process.env.EXPECTED_DATABASE && body.databaseName !== process.env.EXPECTED_DATABASE)) {
+      console.log('❌ Health check: deployment environment/database mapping does not match');
       failCount++;
       return;
     }

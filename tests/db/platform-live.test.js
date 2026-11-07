@@ -57,6 +57,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     });
     base = `http://127.0.0.1:${server.address().port}`;
     expect((await call('/health')).data.status).toBe('healthy');
+    expect((await call('/health')).data).toMatchObject({ environment: 'test', databaseName: 'shriyaminingdbtest' });
   }, 120000);
 
   afterAll(async () => {

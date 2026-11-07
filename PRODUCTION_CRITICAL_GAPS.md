@@ -241,7 +241,7 @@ app.use(express.json({ limit: '50mb' })); // ← No validation
 app.use(cors({
   origin: [
     'http://localhost:4280',
-    'https://swa-smi-invoice-test.azurestaticapps.net', // ← Points to TEST!
+    'https://nice-water-0523f0500.3.azurestaticapps.net', // ← Points to TEST!
   ],
 }));
 ```

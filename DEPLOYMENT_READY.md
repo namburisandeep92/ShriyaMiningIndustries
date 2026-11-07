@@ -12,8 +12,8 @@ You now have **production-ready deployment infrastructure** for SMI Invoice Plat
 
 **Files Changed**:
 - ✅ `api/server.js` - Added environment validation and CORS configuration
-- ✅ `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` - Production workflow
-- ✅ `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml` - Test workflow
+- ✅ `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml` - Production workflow
+- ✅ `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` - Test workflow
 
 **What Fixed**:
 1. ✓ Environment variables validated at startup (fail-fast)
@@ -35,7 +35,7 @@ You now have **production-ready deployment infrastructure** for SMI Invoice Plat
 - ✅ `api/server.js` - Protected all endpoints, enhanced /api/me
 - ✅ `staticwebapp.config.json` - Fixed auth routing and security headers
 - ✅ `scripts/smoke-test.js` - Post-deployment verification
-- ✅ `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` - Added smoke tests
+- ✅ `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml` - Added smoke tests
 
 **What Fixed**:
 1. ✓ User authentication required for all business operations
@@ -71,8 +71,8 @@ Main Branch (GitHub)
    └─ Run migrations
          ↓
    [Deploy & Verify]
-   ├─ Deploy to Test SWA (victorious-grass-078778700)
-   ├─ Deploy to Prod SWA (nice-water-0523f0500)
+   ├─ Deploy to Test SWA (nice-water-0523f0500)
+   ├─ Deploy to Prod SWA (victorious-grass-078778700)
    ├─ Wait 10s for propagation
    └─ Run smoke tests
          ↓
@@ -140,10 +140,10 @@ git push origin main
 # https://github.com/namburisandeep92/ShriyaMiningIndustries/actions
 
 # 4. Check test SWA (should deploy first)
-# https://swa-smi-invoice-test.azurestaticapps.net
+# https://nice-water-0523f0500.3.azurestaticapps.net
 
 # 5. Check prod SWA (should deploy after test)
-# https://swa-smi-invoice-prod.azurestaticapps.net
+# https://victorious-grass-078778700.3.azurestaticapps.net
 ```
 
 ### What Happens Automatically
@@ -253,19 +253,19 @@ git push origin main
 
 ```bash
 # 1. Check API is healthy
-curl https://swa-smi-invoice-test.azurestaticapps.net/api/health
+curl https://nice-water-0523f0500.3.azurestaticapps.net/api/health
 
 # Expected response:
 # {"status":"healthy","timestamp":"2026-11-06T18:26:41Z","database":"connected","version":"1.0.0","environment":"test"}
 
 # 2. Check current user endpoint
-curl https://swa-smi-invoice-test.azurestaticapps.net/api/me
+curl https://nice-water-0523f0500.3.azurestaticapps.net/api/me
 
 # Expected response (unauthenticated):
 # {"authenticated":false,"user":null}
 
 # 3. Visit frontend in browser
-open https://swa-smi-invoice-test.azurestaticapps.net
+open https://nice-water-0523f0500.3.azurestaticapps.net
 
 # Expected: Vue app loads with login prompt
 ```
@@ -316,7 +316,7 @@ open https://swa-smi-invoice-test.azurestaticapps.net
 ### Login Flow
 
 1. **User visits app**:
-   - Browser loads `https://swa-smi-invoice-prod.azurestaticapps.net`
+   - Browser loads `https://victorious-grass-078778700.3.azurestaticapps.net`
 
 2. **SWA checks authentication**:
    - SWA looks for `x-ms-client-principal` header
@@ -398,8 +398,8 @@ All are handled by existing code.
 
 ## 📞 Quick Reference
 
-**Prod SWA**: https://swa-smi-invoice-prod.azurestaticapps.net
-**Test SWA**: https://swa-smi-invoice-test.azurestaticapps.net
+**Prod SWA**: https://victorious-grass-078778700.3.azurestaticapps.net
+**Test SWA**: https://nice-water-0523f0500.3.azurestaticapps.net
 **GitHub Actions**: https://github.com/namburisandeep92/ShriyaMiningIndustries/actions
 **Azure Portal**: https://portal.azure.com
 

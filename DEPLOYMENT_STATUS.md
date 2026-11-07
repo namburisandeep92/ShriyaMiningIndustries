@@ -32,8 +32,8 @@ Both SWA workflows now:
 - Deploy to SWA with `output_location: public/app/dist`
 
 **Workflows updated**:
-- `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` (PROD)
-- `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml` (TEST)
+- `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml` (PROD)
+- `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` (TEST)
 
 ### ✅ 4. GitHub Secrets Configured
 You've already added:
@@ -191,8 +191,8 @@ Once those are done:
 - `AZURE_SWA_CONFIG.md` - SWA application settings guide
 
 **Modified**:
-- `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` - Build + migration + deploy
 - `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml` - Build + migration + deploy
+- `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml` - Build + migration + deploy
 
 **Built**:
 - `public/app/dist/` - Frontend built output (ready for SWA)

@@ -152,7 +152,7 @@ Once workflows complete:
 ✅ **Frontend** (public/app/)
 - Vue 3 invoice application
 - Deployed to /
-- Accessible at https://swa-smi-invoice-prod.azurestaticapps.net
+- Accessible at https://victorious-grass-078778700.3.azurestaticapps.net
 
 ✅ **API** (/api/)
 - Express.js backend
@@ -186,25 +186,25 @@ When deployment completes, test these:
 ### Test Environment
 ```bash
 # Health check
-curl https://swa-smi-invoice-test.azurestaticapps.net/api/health
+curl https://nice-water-0523f0500.3.azurestaticapps.net/api/health
 
 # Auth endpoint
-curl https://swa-smi-invoice-test.azurestaticapps.net/api/me
+curl https://nice-water-0523f0500.3.azurestaticapps.net/api/me
 
 # Frontend
-https://swa-smi-invoice-test.azurestaticapps.net/
+https://nice-water-0523f0500.3.azurestaticapps.net/
 ```
 
 ### Production Environment
 ```bash
 # Health check
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/health
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/health
 
 # Auth endpoint
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/me
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/me
 
 # Frontend
-https://swa-smi-invoice-prod.azurestaticapps.net/
+https://victorious-grass-078778700.3.azurestaticapps.net/
 ```
 
 ### Expected Responses

@@ -1,4 +1,4 @@
-name: Azure Static Web Apps CI/CD - TEST
+name: Azure Static Web Apps CI/CD - PROD
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Build Vue frontend
-        run: npm --prefix app run build -- --mode test
+        run: npm run app:build
 
       - name: Package Azure Functions API
         run: |
@@ -45,25 +45,25 @@ jobs:
           fi
           echo "✅ Frontend build successful"
 
-      - name: Validate environment variables (test)
+      - name: Validate environment variables (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
-          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_TEST }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_PROD }}
         run: |
-          echo "🔍 Validating test environment..."
+          echo "🔍 Validating production environment..."
           if [ -z "$DB_CONNECTION_STRING" ]; then
-            echo "❌ ERROR: DB_CONNECTION_STRING_TEST not set in GitHub secrets"
+            echo "❌ ERROR: DB_CONNECTION_STRING_PROD not set in GitHub secrets"
             exit 1
           fi
-          
-          node scripts/validate-db-target.js shriyaminingdbtest
 
-      - name: Run database migrations (test)
+          node scripts/validate-db-target.js shriyaminingdb
+
+      - name: Run database migrations (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
-          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_TEST }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING_PROD }}
         run: |
-          echo "🗄️  Running migrations on test database..."
+          echo "🗄️  Running migrations on production database..."
           if npm run migrate; then
             echo "✅ Migrations succeeded"
           else
@@ -84,20 +84,41 @@ jobs:
           skip_app_build: true
           skip_api_build: true
 
-      - name: Run post-deploy smoke tests (test)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - name: Run post-deploy smoke tests (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && success()
         env:
           VITE_API_BASE_URL: ${{ steps.builddeploy.outputs.static_web_app_url }}
-        run: node scripts/smoke-test.js
+          EXPECTED_ENVIRONMENT: production
+          EXPECTED_DATABASE: shriyaminingdb
+        run: |
+          echo "🧪 Running post-deployment smoke tests..."
+
+          # Get the SWA URL from the deployment output or use default
+          SWA_URL="$VITE_API_BASE_URL"
+
+          echo "Testing: $SWA_URL"
+
+          # Wait a moment for deployment to propagate
+          sleep 10
+
+          # Run smoke tests
+          VITE_API_BASE_URL="$SWA_URL" node scripts/smoke-test.js
+
+          if [ $? -eq 0 ]; then
+            echo "✅ Smoke tests passed"
+          else
+            echo "❌ Smoke tests failed"
+            exit 1
+          fi
 
       - name: Log deployment info
         if: success()
         run: |
-          echo "✅ Test SWA deployment succeeded!"
+          echo "✅ Deployment succeeded!"
           echo "Frontend: public/app"
           echo "API: api/"
-          echo "Database: shriyaminingdbtest"
-          echo "Status: Check Azure Portal for details"
+          echo "Prod URL: https://victorious-grass-078778700.3.azurestaticapps.net"
+          echo "Status: Smoke tests passed"
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'

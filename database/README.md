@@ -79,6 +79,19 @@ Versioned migrations track completion in `__MigrationHistory`; repeatables run
 every deployment. Apply V004 before the platform repeatable.
 
 Production uses `shriyaminingdb`; test uses `shriyaminingdbtest`.
+Azure Overview confirms the resource/hostname mapping:
+
+| Environment | Azure resource | URL | Database |
+|---|---|---|---|
+| Production | `swa-smi-invoice-prod` | https://victorious-grass-078778700.3.azurestaticapps.net | `shriyaminingdb` |
+| Test | `swa-smi-invoice-test` | https://nice-water-0523f0500.3.azurestaticapps.net | `shriyaminingdbtest` |
+
+The hostname-matched workflows use the corresponding frontend mode and
+PROD/TEST migration secret. Runtime connection initialization checks `DB_NAME()`
+against `ENVIRONMENT` and refuses cross-environment databases. Health responses
+include the verified `databaseName`; deployment smoke tests check both that
+catalog and the environment, not just HTTP 200.
+
 The deployment workflows validate the exact connection-string catalog before
 running migrations. Obsolete hyphenated names and cross-environment targets
 fail validation instead of producing a warning. The private local `.env`,

@@ -27,7 +27,7 @@ npm run api:dev
 
 ### Test Environment
 
-Navigate to: `https://swa-smi-invoice-test.azurestaticapps.net/api/docs`
+Navigate to: `https://nice-water-0523f0500.3.azurestaticapps.net/api/docs`
 
 ### Production
 

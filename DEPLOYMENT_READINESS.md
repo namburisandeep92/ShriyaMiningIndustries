@@ -53,7 +53,7 @@ npm run app:build
 # Creates /public/app/dist/ with index.html, JavaScript bundles, CSS
 ```
 
-**Then**: Update `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml`:
+**Then**: Update `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml`:
 ```yaml
 jobs:
   build_and_deploy_job:
@@ -134,7 +134,7 @@ jobs:
 # Instead of localhost, use relative URLs or Azure URL
 VUE_APP_API_URL=/api
 # or
-VUE_APP_API_URL=https://swa-smi-invoice-prod.azurestaticapps.net/api
+VUE_APP_API_URL=https://victorious-grass-078778700.3.azurestaticapps.net/api
 ```
 
 **Effort**: 30 minutes
@@ -207,7 +207,7 @@ git commit -m "Add SWA configuration and fix environment URLs"
 ```
 
 ### Phase 3: Update CI/CD Workflow (1 hour)
-Modify `.github/workflows/azure-static-web-apps-nice-water-0523f0500.yml`:
+Modify `.github/workflows/azure-static-web-apps-victorious-grass-078778700.yml`:
 
 ```yaml
 jobs:

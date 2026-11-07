@@ -62,8 +62,8 @@ You have successfully **deployed the SMI Invoice Platform to production** with a
 
 ### 2. When Deployment Completes
 **Test the URLs**:
-- https://swa-smi-invoice-prod.azurestaticapps.net
-- https://swa-smi-invoice-test.azurestaticapps.net
+- https://victorious-grass-078778700.3.azurestaticapps.net
+- https://nice-water-0523f0500.3.azurestaticapps.net
 
 **Expected Results**:
 - Frontend loads
@@ -128,22 +128,22 @@ After workflows complete (in ~10 minutes), verify:
 - [ ] Deployment times reasonable
 
 ### Live URLs
-- [ ] Prod app loads: https://swa-smi-invoice-prod.azurestaticapps.net
-- [ ] Test app loads: https://swa-smi-invoice-test.azurestaticapps.net
+- [ ] Prod app loads: https://victorious-grass-078778700.3.azurestaticapps.net
+- [ ] Test app loads: https://nice-water-0523f0500.3.azurestaticapps.net
 - [ ] Both show Vue app (not error page)
 
 ### API Endpoints
 ```bash
 # Health check
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/health
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/health
 # Expected: HTTP 200, {"status":"healthy",...}
 
 # User endpoint
-curl https://swa-smi-invoice-prod.azurestaticapps.net/api/me
+curl https://victorious-grass-078778700.3.azurestaticapps.net/api/me
 # Expected: HTTP 200, {"authenticated":false,"user":null}
 
 # Frontend
-curl https://swa-smi-invoice-prod.azurestaticapps.net/
+curl https://victorious-grass-078778700.3.azurestaticapps.net/
 # Expected: HTTP 200, HTML page loads
 ```
 
@@ -152,16 +152,16 @@ curl https://swa-smi-invoice-prod.azurestaticapps.net/
 ## 🔗 Live URLs
 
 ### Production
-- **App**: https://swa-smi-invoice-prod.azurestaticapps.net
-- **API**: https://swa-smi-invoice-prod.azurestaticapps.net/api
-- **Health**: https://swa-smi-invoice-prod.azurestaticapps.net/api/health
-- **Docs**: https://swa-smi-invoice-prod.azurestaticapps.net/api/docs
+- **App**: https://victorious-grass-078778700.3.azurestaticapps.net
+- **API**: https://victorious-grass-078778700.3.azurestaticapps.net/api
+- **Health**: https://victorious-grass-078778700.3.azurestaticapps.net/api/health
+- **Docs**: https://victorious-grass-078778700.3.azurestaticapps.net/api/docs
 
 ### Test
-- **App**: https://swa-smi-invoice-test.azurestaticapps.net
-- **API**: https://swa-smi-invoice-test.azurestaticapps.net/api
-- **Health**: https://swa-smi-invoice-test.azurestaticapps.net/api/health
-- **Docs**: https://swa-smi-invoice-test.azurestaticapps.net/api/docs
+- **App**: https://nice-water-0523f0500.3.azurestaticapps.net
+- **API**: https://nice-water-0523f0500.3.azurestaticapps.net/api
+- **Health**: https://nice-water-0523f0500.3.azurestaticapps.net/api/health
+- **Docs**: https://nice-water-0523f0500.3.azurestaticapps.net/api/docs
 
 ### Monitoring
 - **GitHub Actions**: https://github.com/namburisandeep92/ShriyaMiningIndustries/actions
@@ -239,8 +239,8 @@ If deployment takes longer than 15 minutes or shows errors:
 2. ✅ Both workflows complete (prod + test)
 3. ✅ Smoke tests pass
 4. ✅ Both SWAs show "Ready" in Azure Portal
-5. ✅ https://swa-smi-invoice-prod.azurestaticapps.net loads
-6. ✅ https://swa-smi-invoice-test.azurestaticapps.net loads
+5. ✅ https://victorious-grass-078778700.3.azurestaticapps.net loads
+6. ✅ https://nice-water-0523f0500.3.azurestaticapps.net loads
 7. ✅ /api/health returns HTTP 200
 8. ✅ /api/me returns HTTP 200
 
@@ -265,7 +265,7 @@ If deployment takes longer than 15 minutes or shows errors:
 5. App ready for users
 
 ### For Production Users:
-1. They visit: https://swa-smi-invoice-prod.azurestaticapps.net
+1. They visit: https://victorious-grass-078778700.3.azurestaticapps.net
 2. They see Vue app
 3. They login with Microsoft account
 4. They access invoices (if authorized)

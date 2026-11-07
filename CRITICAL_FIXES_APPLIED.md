@@ -169,12 +169,12 @@ Both should show **green checkmarks ✅**
 ### SWA Endpoints
 ```
 Test:
-  https://swa-smi-invoice-test.azurestaticapps.net/
-  https://swa-smi-invoice-test.azurestaticapps.net/api/health
+  https://nice-water-0523f0500.3.azurestaticapps.net/
+  https://nice-water-0523f0500.3.azurestaticapps.net/api/health
 
 Prod:
-  https://swa-smi-invoice-prod.azurestaticapps.net/
-  https://swa-smi-invoice-prod.azurestaticapps.net/api/health
+  https://victorious-grass-078778700.3.azurestaticapps.net/
+  https://victorious-grass-078778700.3.azurestaticapps.net/api/health
 ```
 
 ---
@@ -217,8 +217,8 @@ When possible, let Vite handle type checking:
 - [ ] Smoke tests passed
 
 ### Frontend
-- [ ] https://swa-smi-invoice-test.azurestaticapps.net/ loads (not 404)
-- [ ] https://swa-smi-invoice-prod.azurestaticapps.net/ loads (not 404)
+- [ ] https://nice-water-0523f0500.3.azurestaticapps.net/ loads (not 404)
+- [ ] https://victorious-grass-078778700.3.azurestaticapps.net/ loads (not 404)
 - [ ] Invoice UI visible (no blank page)
 
 ### API

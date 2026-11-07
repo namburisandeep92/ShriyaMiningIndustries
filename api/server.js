@@ -87,7 +87,7 @@ const getCorsOrigins = () => {
     // Production: only allow prod SWA URL
     // This prevents test/dev URLs from accessing prod API
     return [
-      process.env.FRONTEND_URL || 'https://swa-smi-invoice-prod.azurestaticapps.net',
+      process.env.FRONTEND_URL || 'https://victorious-grass-078778700.3.azurestaticapps.net',
     ];
   }
 
@@ -97,7 +97,7 @@ const getCorsOrigins = () => {
     'http://localhost:4280',
     'http://localhost:5173',
     process.env.SWA_ORIGIN || 'http://localhost:4280',
-    'https://swa-smi-invoice-test.azurestaticapps.net',
+    'https://nice-water-0523f0500.3.azurestaticapps.net',
   ];
 };
 
@@ -138,6 +138,7 @@ const createApp = async () => {
       status: isHealthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       database: isHealthy ? 'connected' : 'unavailable',
+      databaseName: db.databaseName,
       version: '1.0.0',
       environment: process.env.ENVIRONMENT || 'unknown',
     });
