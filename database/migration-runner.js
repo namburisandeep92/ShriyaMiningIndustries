@@ -183,6 +183,29 @@ const runMigrations = async () => {
     await pool.connect();
     log('Connected to database');
 
+    // Create migration history table if it doesn't exist
+    const createHistoryTable = `
+      IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = '__MigrationHistory')
+      BEGIN
+        CREATE TABLE __MigrationHistory (
+          MigrationId nvarchar(255) PRIMARY KEY,
+          Description nvarchar(255),
+          Type nvarchar(50),
+          Script nvarchar(max),
+          InstalledOn datetime DEFAULT GETUTCDATE(),
+          ExecutionTime int,
+          Success bit DEFAULT 1
+        );
+      END
+    `;
+    
+    try {
+      await pool.request().query(createHistoryTable);
+      log('Migration history table initialized');
+    } catch (e) {
+      log(`WARNING: Could not ensure migration history table exists: ${e.message}`, 'WARN');
+    }
+
     // Read migrations
     const { versioned, repeatable } = readMigrations();
     log(`Found ${versioned.length} versioned migrations and ${repeatable.length} repeatable migrations`);
@@ -201,6 +224,14 @@ const runMigrations = async () => {
       if (!config.dryRun) {
         try {
           await pool.request().query(migration.content);
+          
+          // Record migration in history
+          const historyInsert = `
+            INSERT INTO __MigrationHistory (MigrationId, Description, Type, Script)
+            VALUES ('${migration.id}', '${migration.name}', 'Versioned', '${migration.file}')
+          `;
+          await pool.request().query(historyInsert);
+          
           log(`OK: ${migration.id} completed`);
         } catch (e) {
           log(`ERROR in ${migration.id}: ${e.message}`, 'ERROR');
