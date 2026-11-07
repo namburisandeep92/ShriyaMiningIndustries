@@ -290,6 +290,22 @@ Environment Isolation:
 
 ## Success Criteria
 
+### API startup diagnostics
+
+The Functions entrypoint returns HTTP 503 with the standard `error.code`,
+`error.referenceId`, and `error.timestamp` fields if initialization fails:
+
+- `API-MODULE-503`: a runtime dependency or API module could not load.
+- `API-CONFIG-503`: required runtime settings are missing or invalid.
+- `DB-CONNECT-503`: the runtime could not connect to its database.
+- `API-ADAPTER-503`: the HTTP adapter could not initialize.
+
+Detailed exceptions are logged server-side with the same reference ID, not
+returned to clients. Initialization is retried on the next request. These errors
+still fail smoke tests; a deployment upload alone does not prove API health.
+An empty HTTP 500 instead indicates a failure outside this initialization boundary
+and requires Azure host/platform diagnostics.
+
 ✅ **Deployment is successful if**:
 - All GitHub Actions steps show green checkmarks
 - Both workflows complete (test first, then prod)
