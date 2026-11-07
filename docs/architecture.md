@@ -1,24 +1,24 @@
-# SMI INVOICE PLATFORM � ARCHITECTURE DOCUMENT (Step 2, Deliverable #1)
+# SMI INVOICE PLATFORM - ARCHITECTURE DOCUMENT (Step 2, Deliverable #1)
 
 ## DELIVERABLE COMPONENTS COMPLETED:
 
-### ? 1. Component Diagram
-- Shows UI ? SWA ? Functions API ? SQL Database ? CI/CD pipeline
+### ✓ 1. Component Diagram
+- Shows UI → SWA → Functions API → SQL Database → CI/CD pipeline
 - Includes auth layer, error handling, Application Insights integration
 - Both prod and test environments clearly separated
 
-### ? 2. Entity Relationship Diagram (Mermaid)
+### ✓ 2. Entity Relationship Diagram (Mermaid)
 - 14 core tables across 4 schemas: security, app, sales, log
 - Master/History pattern: Invoice + InvoiceHistory, etc.
 - Audit columns on every table: CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, IsDeleted, RowVersion
 - Error management: ErrorLog + ErrorCode tables with full details
 
-### ? 3. Data Flow
-- Sign-in: Microsoft Entra ? SWA ? API ? security.User validation
-- Create Invoice: Excel upload ? parse ? validate ? stored proc ? history
-- Error handling: capture everywhere ? CorrelationId ? log ? alert admin
+### ✓ 3. Data Flow
+- Sign-in: Microsoft Entra → SWA → API → security.User validation
+- Create Invoice: Excel upload → parse → validate → stored proc → history
+- Error handling: capture everywhere → CorrelationId → log → alert admin
 
-### ? 4. Naming Conventions (Fully Defined)
+### ✓ 4. Naming Conventions (Fully Defined)
 - Databases: lowercase-kebab (shriyamining-db)
 - Schemas: lowercase, domain-specific (app, security, sales, log, audit)
 - Tables: PascalCase, singular (Invoice, ErrorLog)
@@ -28,7 +28,7 @@
 - API: RESTful with /api/v1/, pagination, error codes
 - Error codes: Layer-Entity-Status format (INV-SAVE-409, DB-CONN-503)
 
-### ? 5. Master/History Strategy
+### ✓ 5. Master/History Strategy
 - Every business table has a _History table (or SQL temporal table)
 - Master tables: Invoice, InvoiceLine (current state only)
 - History tables: InvoiceHistory, InvoiceLineHistory (who/what/when/old/new)
@@ -37,20 +37,20 @@
 - Fallback: Trigger-based history on update/delete
 - Version number tracked for reprinting old invoices
 
-### ? 6. Audit Columns Standard (Defined Once, Applied Everywhere)
+### ✓ 6. Audit Columns Standard (Defined Once, Applied Everywhere)
 Every table has:
 - CreatedOn (UTC datetime, default GETUTCDATE())
 - CreatedBy (nvarchar, user email)
 - ModifiedOn (UTC datetime, default GETUTCDATE())
 - ModifiedBy (nvarchar, user email)
-- IsDeleted (bit, default 0) � soft delete
+- IsDeleted (bit, default 0) - soft delete
 - RowVersion (binary(8), SQL Server managed timestamp)
 
-### ? 7. Error Handling & Logging Design
+### ✓ 7. Error Handling & Logging Design
 THREE-LAYER LOGGING:
-1. Database layer: TRY/CATCH in every procedure ? usp_ErrorLog_Insert
-2. API layer: Global middleware catches all exceptions ? Application Insights + ErrorLog table
-3. UI layer: Global error handlers (window.onerror, unhandledrejection) ? POST /api/errors/client-logs
+1. Database layer: TRY/CATCH in every procedure → usp_ErrorLog_Insert
+2. API layer: Global middleware catches all exceptions → Application Insights + ErrorLog table
+3. UI layer: Global error handlers (window.onerror, unhandledrejection) → POST /api/errors/client-logs
 4. Correlation ID: Generated per request, flows through all layers, returned in response
 
 ERROR CATALOG (log.ErrorCode):
@@ -62,9 +62,9 @@ ERROR CATALOG (log.ErrorCode):
 
 FALLBACK: If database write fails (e.g., DB paused), fall back to Application Insights only
 
-ALERTS: Critical errors ? email to admin@shriyamining Zoho address + Application Insights alert rule
+ALERTS: Critical errors → email to admin@shriyamining Zoho address + Application Insights alert rule
 
-### ? 8. Extensibility Strategy (How to Add New Vendors/Roles/Screens)
+### ✓ 8. Extensibility Strategy (How to Add New Vendors/Roles/Screens)
 
 A. ADD NEW VENDOR WITH DIFFERENT EXCEL FORMAT:
    1. Create new PO schema/template in /db/migrations/
@@ -72,14 +72,14 @@ A. ADD NEW VENDOR WITH DIFFERENT EXCEL FORMAT:
    3. Add to dropdown in UI (vendor selection)
    4. Each vendor has own column mapping rules (stored in database)
    5. Core Invoice table stays same; vendor differences absorbed in mappers
-   ? Zero changes to core logic
+   → Zero changes to core logic
 
 B. ADD NEW SCREEN (e.g., Fulfillment Tracking):
    1. Add endpoint(s) to API: GET /api/v1/fulfillment, GET /api/v1/po/{poId}/fulfillment
    2. Add Vue component + route in UI
    3. No changes needed to Invoice, Auth, Error, or test infrastructure
    4. Inherit same API structure, error handling, auth checks automatically
-   ? Leverage existing patterns
+   → Leverage existing patterns
 
 C. ADD NEW ROLE (e.g., "Approver"):
    1. Insert new row in security.Role
@@ -87,7 +87,7 @@ C. ADD NEW ROLE (e.g., "Approver"):
    3. API checks role in every endpoint that needs it
    4. UI hides/shows features based on role (from user profile)
    5. No structural changes needed
-   ? Purely data-driven
+   → Purely data-driven
 
 D. REUSE FOR FUTURE PROCESSES:
    - Shared authentication (Microsoft Entra + allow-list)
@@ -95,9 +95,9 @@ D. REUSE FOR FUTURE PROCESSES:
    - Shared API conventions (validation, error codes, paging)
    - Shared error logging (one error table serves all)
    - Shared test framework (Playwright, Vitest, tSQLt, CI/CD)
-   ? New process is just another domain schema + new screens
+   → New process is just another domain schema + new screens
 
-### ? 9. Test Automation Strategy & Tool Choices
+### ✓ 9. Test Automation Strategy & Tool Choices
 
 | Layer | Tool | Why | Coverage Target |
 |---|---|---|---|
@@ -125,10 +125,10 @@ CI/CD PIPELINE (<10 min/PR, free Actions minutes):
 - On merge: migrate prod DB, deploy prod, run smoke tests
 - On failure: email admin + GitHub notification + rollback steps
 
-### ? 10. Phase Plan
+### ✓ 10. Phase Plan
 
-**PHASE 1 � BUILD NOW (Steps 2�8):**
-- ? Architecture document (this step)
+**PHASE 1 - BUILD NOW (Steps 2–8):**
+- ✓ Architecture document (this step)
 - [ ] Test catalogue + baseline tests for existing invoice generator
 - [ ] Database schema + procedures + log tables
 - [ ] Azure Functions API (invoices CRUD + admin error log)
@@ -136,24 +136,24 @@ CI/CD PIPELINE (<10 min/PR, free Actions minutes):
 - [ ] Frontend (reuse legacy + new screens)
 - [ ] GitHub Actions (PR pipeline + deploy + smoke)
 - [ ] Documentation (setup guide, error codes, how to investigate)
-? Outcome: Invoice platform on Azure, all tests automated, ready for internal users
+→ Outcome: Invoice platform on Azure, all tests automated, ready for internal users
 
-**PHASE 2 � FULFILLMENT TRACKING:**
-- Design: PO tracking, drill-down from PO ? lines ? invoices
+**PHASE 2 - FULFILLMENT TRACKING:**
+- Design: PO tracking, drill-down from PO → lines → invoices
 - Endpoints: GET /api/fulfillment, GET /api/po/{poId}/fulfillment, drill-down details
 - Screens: PO list, PO detail with fulfillment status, invoice links
-- Tests: E2E covering create PO ? create invoice ? verify fulfillment status
-? Outcome: Users can track which PO lines have been invoiced
+- Tests: E2E covering create PO → create invoice → verify fulfillment status
+→ Outcome: Users can track which PO lines have been invoiced
 
-**PHASE 3 � EMAIL & ATTACHMENTS:**
+**PHASE 3 - EMAIL & ATTACHMENTS:**
 - Design: Email vendor/buyer with invoice PDF + images
 - Vendor email lists: create app.VendorContact, app.ContactGroup (To/CC/BCC)
 - Email service: Zoho SMTP or Zoho ZeptoMail API (recommend ZeptoMail: auth via API key, more reliable)
-- Storage: Invoice PDFs & images in Azure Blob Storage (free storage tier, estimate ~.01�0.02/month initially)
+- Storage: Invoice PDFs & images in Azure Blob Storage (free storage tier, estimate ~.01–0.02/month initially)
 - Logging: log.EmailLog (recipients, attachments, status, sent by, sent on)
-- Error handling: email failures ? error log + retry logic
+- Error handling: email failures → error log + retry logic
 - Smoke test: automated test sends to dedicated Zoho test mailbox, verifies receipt
-? Outcome: One-click email with invoices to customers
+→ Outcome: One-click email with invoices to customers
 
 ---
 
