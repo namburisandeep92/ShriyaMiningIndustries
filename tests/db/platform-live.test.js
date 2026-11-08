@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import ExcelJS from 'exceljs';
-import { crateRanges, createLegacyInvoice, invoiceTotal } from '../../api/services/legacy-invoice.js';
+import { crateRanges, createLegacyInvoice, goodsCategories, invoiceTotal } from '../../api/services/legacy-invoice.js';
 
 const enabled = process.env.SMI_LIVE_DB_TEST === 'test';
 
@@ -115,6 +115,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     expect(parsed.data.rows).toHaveLength(82);
     expect((await call('/po-import/parse', 'POST', { fileName: 'PendingOrders.xlsx', file: file.toString('base64') }, userEmail)).status).toBe(403);
     const document = createLegacyInvoice(parsed.data.rows);
+    document.hsnCodes = Object.fromEntries(goodsCategories(document.lines).map(category => [category, '12345678']));
     document.header['Invoice no'] = `L-${randomUUID().slice(0, 18)}`;
     document.header['Crate starting no'] = '245';
     document.lines.forEach(line => { line.rate = 1.234567; line.crates = 2; });
@@ -265,10 +266,9 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.locator('.po-table tbody input:checked').count()).toBe(shown);
       await page.getByRole('button', { name: 'Clear shown', exact: true }).click();
       await page.getByLabel('Select PO line 1', { exact: true }).check();
-      await page.getByPlaceholder('Search item, SKU, PO#...').fill('172360');
-      await page.getByLabel('Select PO line 2', { exact: true }).check();
+      await page.getByLabel('Select PO line 5', { exact: true }).check();
+      await page.getByPlaceholder('Search item, SKU, PO#...').fill('172203');
       await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
-      await page.getByLabel('Filter UOM', { exact: true }).selectOption('PC');
       expect(await page.locator('.po-table tbody input:checked').count()).toBe(2);
       await page.getByRole('button', { name: 'Create invoice', exact: true }).click();
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
@@ -306,14 +306,29 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.getByLabel('Line 1 Qty', { exact: true }).fill('250');
       await page.getByLabel('Port of discharge', { exact: true }).fill('NEW YORK');
       await page.getByLabel('Amount chargeable in words', { exact: true }).fill('CUSTOM WORDS');
+      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
+      expect(await page.getByLabel('GRANITE TILES HSN code', { exact: true }).getAttribute('aria-invalid')).toBe('true');
+      await page.getByLabel('GRANITE TILES HSN code', { exact: true }).fill('68022310');
+      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
+      await page.getByLabel('SLATE STONE TILES HSN code', { exact: true }).fill('680300');
+      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(false);
       await page.getByRole('button', { name: 'Preview', exact: true }).click();
       const previewFrame = page.frameLocator('iframe[title="Invoice and packing list preview"]');
       await previewFrame.getByRole('heading', { name: 'INV', exact: true }).waitFor();
       expect(await previewFrame.locator('body').textContent()).toContain('CUSTOM WORDS');
+      expect(await previewFrame.locator('body').textContent()).toContain('GRANITE TILES  HSN CODE 68022310');
+      expect(await previewFrame.locator('body').textContent()).toContain('SLATE STONE TILES  HSN CODE 680300');
       await page.getByLabel('Format', { exact: true }).selectOption('pdf');
       await page.getByRole('button', { name: 'Preview', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('iframe')?.getAttribute('srcdoc')?.includes('PACKING LIST'));
       const html = await page.locator('iframe[title="Invoice and packing list preview"]').getAttribute('srcdoc');
+      expect(html).toContain('04 NOS');
+      expect(html).toContain('02 CRATES');
+      expect(html).toContain('GRANITE TILES  HSN CODE 68022310');
+      expect(html).toContain('SLATE STONE TILES  HSN CODE 680300');
+      const packingHtml = html.slice(html.indexOf('PACKING LIST'));
+      expect(packingHtml).not.toContain('<th>Rate</th>');
+      expect(packingHtml).not.toContain('<th>Amount</th>');
       const printPage = await context.newPage();
       await printPage.setContent(html);
       const pdf = await printPage.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
@@ -335,7 +350,21 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.readFile(await download.path());
       expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['INV', 'PACKING']);
+      for (const sheet of workbook.worksheets) {
+        const text = sheet.getSheetValues().flat().map(value => typeof value === 'object' ? JSON.stringify(value) : value).join(' ');
+        expect(text).toContain('04 NOS');
+        expect(text).toContain('02 CRATES');
+        expect(text).toContain('HSN CODE 68022310');
+        expect(text).toContain('HSN CODE 680300');
+        if (sheet.name === 'PACKING') {
+          expect(text).not.toContain('Rate');
+          expect(text).not.toContain('Amount');
+          expect(text).toContain('TOTAL GROSS WEIGHT');
+          expect(text).toContain('TOTAL NET WEIGHT');
+        }
+      }
       expect(created.document.lines.map(line => line.crt)).toEqual(['1001 - 1002', '1003 - 1004']);
+      expect(created.document.hsnCodes).toMatchObject({ 'GRANITE TILES': '68022310', 'SLATE STONE TILES': '680300' });
       expect(created.document.words).toBe('CUSTOM WORDS');
       await page.goto(`${origin}/invoices/${created.id}/edit`);
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
@@ -353,6 +382,8 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.goto(`${origin}/po-import?invoice=${created.id}`);
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
       expect(await page.getByLabel('Port of discharge', { exact: true }).inputValue()).toBe('HOUSTON');
+      expect(await page.getByLabel('GRANITE TILES HSN code', { exact: true }).inputValue()).toBe('68022310');
+      expect(await page.getByLabel('SLATE STONE TILES HSN code', { exact: true }).inputValue()).toBe('680300');
       expect(pageErrors).toEqual([]);
     } finally {
       if (browser) await browser.close();

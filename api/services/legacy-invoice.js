@@ -29,6 +29,8 @@ export const invoiceTotal = lines => Math.round(lines.reduce((sum, line) => sum 
 const numeric = value => typeof value === 'number' || typeof value === 'string';
 const positiveInteger = value => numeric(value) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 const positiveNumber = value => numeric(value) && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
+export const validHsnCode = value => typeof value === 'string' && /^(?:\d{4}|\d{6}|\d{8})$/.test(value);
+export const goodsCategories = lines => [...new Set(lines.map(line => String(line?.kind || '').trim()).filter(Boolean))];
 const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))
   && new Date(value).toISOString().slice(0, 10) === value;
 const esc = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -59,6 +61,13 @@ export function validateLegacyInvoice(document) {
   if (header['Buyer PO date'] && !validDate(header['Buyer PO date'])) errors.push({ field: 'Buyer PO date', message: 'Buyer PO date must be a valid date' });
   if (!positiveInteger(header['Crate starting no'])) errors.push({ field: 'Crate starting no', message: 'Crate start # must be a positive integer' });
   if (!document.lines.length || document.lines.length > 1000) errors.push({ field: 'lines', message: 'Between 1 and 1000 lines are required' });
+  const hsnCodes = document.hsnCodes && typeof document.hsnCodes === 'object' && !Array.isArray(document.hsnCodes)
+    ? document.hsnCodes : {};
+  for (const category of goodsCategories(document.lines)) {
+    const code = hsnCodes[category];
+    if (!String(code || '').trim()) errors.push({ field: 'hsn', category, message: `${category}: HSN code is required` });
+    else if (!validHsnCode(code)) errors.push({ field: 'hsn', category, message: `${category}: HSN code must contain 4, 6, or 8 digits` });
+  }
   const ranges = crateRanges(document.lines, header['Crate starting no']);
   document.lines.forEach((line, index) => {
     const add = (field, message) => errors.push({ line: index, field, message: `Line ${index + 1}: ${message}` });
@@ -66,6 +75,7 @@ export function validateLegacyInvoice(document) {
     for (const field of ['stone', 'finish', 'size', 'ref', 'uom', 'kind', 'crt']) {
       if (typeof line[field] !== 'string') add(field, `${field} must be text`);
     }
+    if (!String(line.kind || '').trim()) add('kind', 'Goods category is required');
     if (!positiveInteger(line.qty)) add('qty', 'Qty must be a positive integer');
     if (Number(line.qty) >= 1e15) add('qty', 'Qty is too large');
     if (!positiveInteger(line.crates)) add('crates', 'Crate count must be a positive integer');
@@ -73,6 +83,7 @@ export function validateLegacyInvoice(document) {
     if (!String(line.uom || '').trim()) add('uom', 'UOM is required');
     if (String(line.uom || '').length > 10) add('uom', 'UOM must not exceed 10 characters');
     if (line.net !== '' && !positiveNumber(line.net)) add('net', 'Weight must be a positive number or blank');
+    if (line.gross !== undefined && line.gross !== '' && !positiveNumber(line.gross)) add('gross', 'Gross weight must be a positive number or blank');
     if (!positiveNumber(line.rate)) add('rate', 'Rate per UOM must be a positive number');
     if (Number(line.rate) >= 1e13 || (Number.isFinite(Number(line.rate))
         && Math.abs(Number(line.rate) - Number(Number(line.rate).toFixed(6))) > 1e-10)) {
@@ -85,10 +96,10 @@ export function validateLegacyInvoice(document) {
   return errors;
 }
 
-export function createLegacyInvoice(rows, previousLines = [], previousHeader = {}) {
+export function createLegacyInvoice(rows, previousLines = [], previousHeader = {}, previousHsnCodes = {}) {
   const previous = new Map(previousLines.filter(line => line.src).map(line => [line.src, line]));
   const lines = rows.map(row => {
-    const parsed = parseItem({ item: row.item });
+    const parsed = parseItem({ item: row.item, sku: row.sku });
     return { stone: parsed.stone, finish: parsed.finish, size: parsed.size,
       ref: `NSR PO # ${row.po}${row.so ? ` // SO # ${row.so}` : ''} (${row.sku})`,
       crates: '', crt: '', qty: row.qty, uom: row.uom, net: '', gross: '',
@@ -105,7 +116,7 @@ export function createLegacyInvoice(rows, previousLines = [], previousHeader = {
     'Crate starting no': previousHeader['Crate starting no'] ?? headerDefaults['Crate starting no'],
   };
   crateRanges(lines, header['Crate starting no']).forEach((range, index) => { lines[index].crt = range; });
-  return { header, lines, words: amountWords(invoiceTotal(lines)) };
+  return { header, lines, words: amountWords(invoiceTotal(lines)), hsnCodes: { ...previousHsnCodes } };
 }
 
 function w(n){const a='ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN'.split(' '),b='_ _ TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY'.split(' ');
@@ -117,7 +128,11 @@ export function parseItem(r){let s=r.item,code='';const m0=s.match(/^([A-Z]{2,4}
  const N='(?:\\d+ \\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:\\.\\d+)?)';const m=s.match(new RegExp('('+N+')\\s?x\\s?('+N+')','i'));const ev=t=>t.split(' ').reduce((q,u)=>q+(u.includes('/')?u.split('/')[0]/u.split('/')[1]:+u),0);let stone=s,finish='',size='',area=0;
  if(m){stone=s.slice(0,m.index).trim();size=`${m[1]}" X ${m[2]}"`;area=ev(m[1])*ev(m[2])/144;finish=(s.slice(m.index+m[0].length).trim().split(' ')[0]||'')}
  else{const w=s.split(' ');finish=w.slice(-3,-2)[0]||''}
- const kind=/granite/i.test(s)?'GRANITE TILES':/slate/i.test(s)?'SLATE STONE TILES':/lime/i.test(s)?'LIMESTONE':'';
+ const categoryText=`${s} ${r.sku||''}`;
+ const kind=/granite|\bGRN|absolute black|black galaxy/i.test(categoryText)?'GRANITE TILES'
+  :/slate|\bSLT|california gold|indian autumn/i.test(categoryText)?'SLATE STONE TILES'
+   :/limestone|\blime|\bLIM|purbeck grey/i.test(categoryText)?'LIMESTONE'
+    :/quartzite|sunwood/i.test(categoryText)?'QUARTZITE':'';
  return{code,stone:stone.toUpperCase(),finish:finish.toUpperCase(),size,area,kind}}
 
 export async function buildLegacyWorkbook(document){
@@ -126,9 +141,11 @@ const H=document.header,L=document.lines,amt=lineAmount,total=()=>invoiceTotal(L
 const WD=document.words||amountWords(total());const h=k=>H[k]||'';const lines=L.map(l=>({...l,amount:amt(l)}));
 const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase();
 const qd=l=>({v:+l.qty||0,nf:(Number.isInteger(+l.qty)?'#,##0':'#,##0.00')+' "'+(un(l.uom)||'QTY')+'"'});
-const rnf=l=>'0.00"/'+(un(l.uom)||'QTY')+'"';
-const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=lines.reduce((a,l)=>a+(+l.net||0),0);
+const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0);
+const netWeight=lines.reduce((a,l)=>a+(+l.net||0),0),grossWeight=lines.reduce((a,l)=>a+(+l.gross||0),0);
 const uk=new Set(lines.map(l=>un(l.uom))),uni=lines.length>0&&uk.size==1,tnf=uni?'#,##0.00 "'+(un(lines[0].uom)||'QTY')+'"':'#,##0.00';
+const packageLabel=value=>value&&!/[.!?]$/.test(value.trim())?`${value.trim()}.`:value.trim();
+const crateLabel=count=>`${String(count).padStart(2,'0')} CRATES`;
 const wb=new ExcelJS.Workbook();wb.creator='Shriya Mining Industries';wb.title='Invoice '+h('Invoice no');
 const EARTH='FF7A5C3E',EARTH_LT='FFC49A6C',LIGHT='FFEDE6DA',MID='FFF1E5D7',LINE='FFC8BEAD',HAIR='FFE0D8CE',ZEB='FFF7F3EE',GOLD='FFF7E2A8';
 const NAVY=EARTH,BLUE=EARTH_LT;
@@ -168,37 +185,44 @@ function sheet(name,title,inv,tab){
  lab(r,1,3,'Port of Destination');lab(r,4,5,'Final Destination');r++;
  val(r,1,3,h('Port of discharge'),{b:1});val(r,4,5,h('Final delivery'),{b:1});ws.getRow(r).height=19;r++;
  const HD={b:1,h:'center',color:'FFFFFFFF',fill:NAVY,bd:{top:Ln,left:Ln,right:Ln,bottom:Ln}};
- put(r,1,2,"Marks & No's",HD);put(r,3,6,'Description of goods',HD);
- put(r,7,7,'Quantity',HD);put(r,8,8,'Weight',HD);put(r,9,9,'Amount',HD);ws.getRow(r).height=22;r++;
+ put(r,1,2,"Marks & No's",HD);put(r,3,4,'No & kind of packages',HD);put(r,5,6,'Description of goods',HD);
+ put(r,7,7,'Quantity',HD);
+ if(inv){put(r,8,8,'Rate',HD);put(r,9,9,'Amount',HD)}
+ ws.getRow(r).height=22;r++;
  const SB={h:'center',b:1,size:9.5,color:NAVY,fill:MID,bd:{left:Ln,right:Ln,bottom:Ln}};
- put(r,1,2,'Container',SB);put(r,3,6,[tc?String(tc).padStart(2,'0')+' NOS':'',h('Packing'),h('Grade')].filter(Boolean).join('  ·  '),SB);
- put(r,7,7,'Qty / Unit',SB);put(r,8,8,'Weight',SB);put(r,9,9,'USD',SB);r++;
- put(r,1,2,h('Marks code'),{b:1,color:NAVY,bd:VB});put(r,3,9,'',{bd:VB});ws.getRow(r).height=19;r++;
+ put(r,1,2,'Container',SB);put(r,3,4,tc?String(tc).padStart(2,'0')+' NOS':'',SB);
+ put(r,5,6,'',{...SB,fill:LIGHT});put(r,7,7,uni?un(lines[0].uom):'',SB);
+ if(inv){put(r,8,8,'U.S.D',SB);put(r,9,9,'U.S.D',SB)}
+ r++;
+ put(r,1,2,h('Marks code'),{b:1,color:NAVY,bd:VB});
+ put(r,3,4,packageLabel(h('Packing')),{b:1,color:NAVY,bd:VB});
+ put(r,5,6,packageLabel(h('Grade')),{b:1,color:NAVY,bd:VB});
+ put(r,7,7,'',{bd:VB});ws.getRow(r).height=19;r++;
  const first=r;let lk=null,z=0;const fl=f=>f?{fill:f}:{};
  lines.forEach(l=>{
-  if(l.kind&&l.kind!==lk){put(r,1,9,l.kind+(l.kind=='GRANITE TILES'?'     HSN CODE 68022310':''),{b:1,color:BLUE,fill:MID,size:10,bd:{left:Ln,right:Ln,top:Ln}});ws.getRow(r).height=20;r++;lk=l.kind;z=0}
+  if(l.kind&&l.kind!==lk){put(r,1,inv?9:7,`${l.kind}  HSN CODE ${document.hsnCodes?.[l.kind]||''}`,{b:1,color:BLUE,fill:MID,size:10,bd:{left:Ln,right:Ln,top:Ln}});ws.getRow(r).height=20;r++;lk=l.kind;z=0}
   const f=z++%2?ZEB:undefined,I={bd:VB,...fl(f)},q=qd(l);
-  put(r,1,2,l.crt?'CRT NO  '+l.crt:'',{...I,b:1,color:NAVY});put(r,3,5,(l.stone+'  '+l.finish).trim(),{...I,b:1,size:11});put(r,6,6,l.size,{...I,h:'center',b:1});
+  put(r,1,1,'CRT NO',{...I,b:1,color:NAVY});put(r,2,2,l.crt,{...I,b:1,color:NAVY});
+  put(r,3,6,`${l.stone}  ${l.finish}  ${l.size}`.trim(),{...I,b:1,size:11});
   put(r,7,7,q.v,{...I,h:'right',nf:q.nf});
-  const weightValue = l.net === '' || l.net === null || l.net === undefined ? '' : +l.net;
-  if(inv){put(r,8,8,weightValue || '',{...I,h:'right',nf:'#,##0.000'});put(r,9,9,l.amount,{...I,h:'right',b:1,nf:'#,##0.00',color:'FF0B5C45'})}
-  else{put(r,8,8,weightValue || '',{...I,h:'right',nf:'#,##0.000'});put(r,9,9,l.amount,{...I,h:'right',nf:'#,##0.00'})}
+  if(inv){put(r,8,8,+l.rate||'',{...I,h:'right',nf:'0.00######'});put(r,9,9,l.amount,{...I,h:'right',b:1,nf:'#,##0.00',color:'FF0B5C45'})}
   ws.getRow(r).height=20;r++;
   const cn=parseInt(l.crates)||0;
-  put(r,1,2,cn>0?String(cn).padStart(2,'0')+(cn>1?' CRATES':' CRATE'):'',{...I,size:10,color:NAVY});
-  put(r,3,6,l.ref,{...I,wrap:1,size:9,i:1,color:'FF5B6578'});put(r,7,7,'',I);put(r,8,9,'',I);ws.getRow(r).height=26;r++;
-  put(r,1,9,'',{bd:{left:Ln,right:Ln,bottom:Hr},...fl(f)});ws.getRow(r).height=5;r++});
- put(r,1,2,'',{bd:VB});put(r,3,6,h('Container no')?'CONT # '+h('Container no'):'',{b:1,color:NAVY,bd:VB});put(r,7,9,'',{bd:VB});ws.getRow(r).height=19;r++;
- put(r,1,9,'',{bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r).height=4;
+  put(r,1,1,'',{...I,size:10,color:NAVY});put(r,2,2,cn>0?crateLabel(cn):'',{...I,size:10,color:NAVY});
+  put(r,3,6,`${l.finish}${l.ref?` / ${l.ref}`:''}`.trim(),{...I,wrap:1,size:9,i:1,color:'FF5B6578'});
+  put(r,7,7,'',I);if(inv){put(r,8,8,'',I);put(r,9,9,'',I)}ws.getRow(r).height=26;r++;
+  put(r,1,inv?9:7,'',{bd:{left:Ln,right:Ln,bottom:Hr},...fl(f)});ws.getRow(r).height=5;r++});
+ put(r,1,2,'',{bd:VB});put(r,3,6,h('Container no')?'CONT # '+h('Container no'):'',{b:1,color:NAVY,bd:VB});put(r,7,7,'',{bd:VB});if(inv){put(r,8,8,'',{bd:VB});put(r,9,9,'',{bd:VB})}ws.getRow(r).height=19;r++;
+ put(r,1,inv?9:7,'',{bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r).height=4;
  const last=r;r++;
  const T={b:1,color:'FFFFFFFF',fill:NAVY,h:'center'};
  if(inv){lab(r,1,6,'Amount chargeable in words');ws.getRow(r).height=15;
   put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`,result:lines.reduce((a,l)=>a+(+l.qty||0),0)}:'',{b:1,h:'right',nf:tnf,fill:LIGHT},r+1);put(r,8,8,'TOTAL (USD)',{...T,size:9},r+1);
   put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',size:13,color:NAVY,nf:'$#,##0.00',fill:GOLD},r+1);
   put(r+1,1,6,WD,{b:1,i:1,wrap:1,color:NAVY,bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r+1).height=26;r+=2}
- else{put(r,1,6,'TOTAL',{...T,h:'left'});put(r,7,7,uni?{formula:`SUM(G${first}:G${last})`,result:lines.reduce((a,l)=>a+(+l.qty||0),0)}:'',{b:1,h:'right',nf:tnf,fill:LIGHT});
-  put(r,8,8,{formula:`SUM(H${first}:H${last})`,result:tn},{b:1,h:'right',nf:'#,##0.000',fill:GOLD});put(r,9,9,{formula:`SUM(I${first}:I${last})`,result:total()},{b:1,h:'right',nf:'$#,##0.00',fill:GOLD});ws.getRow(r).height=24;r++;
-  put(r,1,9,'TOTAL WEIGHT :   '+tn.toFixed(3)+' KGS',{b:1,fill:LIGHT});r++}
+ else{
+  put(r,1,7,`TOTAL GROSS WEIGHT ; ${grossWeight?grossWeight.toFixed(3)+' KGS':''}`,{b:1,fill:LIGHT});ws.getRow(r).height=20;r++;
+  put(r,1,7,`TOTAL NET WEIGHT ; ${netWeight?netWeight.toFixed(3)+' KGS':''}`,{b:1,fill:LIGHT});r++}
  lab(r,1,5,'Declaration');lab(r,6,9,'Signature & Date');r++;
  put(r,1,5,'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.',{wrap:1,v:'top',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln}},r+2);
  put(r,6,9,'For SHRIYA MINING INDUSTRIES',{b:1,h:'center',color:NAVY,bd:{left:Ln,right:Ln}});put(r+1,6,9,'',{bd:{left:Ln,right:Ln}});ws.getRow(r+1).height=34;
@@ -267,10 +291,13 @@ const H=document.header,L=document.lines,amt=lineAmount,total=()=>invoiceTotal(L
 const h=k=>H[k]||'',E=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),ml=v=>E(v).replace(/\n/g,'<br>');
 const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase()||'QTY',nf=(n,d)=>(+n||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const qf=l=>(Number.isInteger(+l.qty)?nf(l.qty,0):nf(l.qty,2))+' '+un(l.uom);
-const tc=L.reduce((a,l)=>a+(parseInt(l.crates)||0),0),tn=L.reduce((a,l)=>a+(+l.net||0),0);
+const tc=L.reduce((a,l)=>a+(parseInt(l.crates)||0),0);
+const netWeight=L.reduce((a,l)=>a+(+l.net||0),0),grossWeight=L.reduce((a,l)=>a+(+l.gross||0),0);
 const uk=new Set(L.map(l=>un(l.uom))),uni=L.length>0&&uk.size==1,tq=uni?nf(L.reduce((a,l)=>a+(+l.qty||0),0),2)+' '+[...uk][0]:'';
 const d=h('Invoice date'),dd=d?d.split('-').reverse().join('-'):'',pd=h('Buyer PO date'),pdd=pd?pd.split('-').reverse().join('-'):'';
 const np=h('Notify party').split('\n'),WD=document.words||amountWords(total());
+const packageLabel=value=>value&&!/[.!?]$/.test(value.trim())?`${value.trim()}.`:value.trim();
+const crateLabel=count=>`${String(count).padStart(2,'0')} CRATES`;
 const box=(t,b,c)=>`<div class="bx ${c||''}"><div class="lb">${t}</div><div class="bv">${b}</div></div>`;
 const exp=h('Exporter').split('\n'),con=h('Consignee').split('\n');
 const nm=a=>`<b class="nm">${E(a[0]||'')}</b><br>${a.slice(1).map(E).join('<br>')}`;
@@ -280,18 +307,25 @@ const top=(ttl)=>`<div class="ban">SHRIYA MINING INDUSTRIES</div><div class="ttl
 <div class="g4">${box('Pre-carriage by',E(h('Pre-carriage by')))}${box('Place of receipt',E(h('Place of receipt')))}${box('Country of origin',E(h('Country of origin')))}${box('Final destination',E(h('Final destination')))}</div>
 <div class="g2b"><div class="g2c">${box('Vessel / Flight No',E(h('Vessel / Flight')))}${box('Port of loading',E(h('Port of loading')))}${box('Port of destination',E(h('Port of discharge')))}${box('Final destination',E(h('Final delivery')))}</div>${box('Terms of payment &amp; delivery','PAYMENT : '+E(h('Payment terms')))}</div>`;
 let lk=null,z=0;
-const body=(inv)=>{let o='';L.forEach(l=>{if(l.kind&&l.kind!==lk){o+=`<tr class="sec"><td colspan="5">${E(l.kind)}${l.kind=='GRANITE TILES'?'&emsp;&emsp;HSN CODE 68022310':''}</td></tr>`;lk=l.kind;z=0}
+const body=(inv)=>{let o='';L.forEach(l=>{
+ if(l.kind&&l.kind!==lk){o+=`<tr class="sec"><td colspan="${inv?9:7}">${E(l.kind)}  HSN CODE ${E(document.hsnCodes?.[l.kind]||'')}</td></tr>`;lk=l.kind;z=0}
  const cn=parseInt(l.crates)||0,zb=z++%2?' zb':'';
- o+=`<tr class="it${zb}"><td class="mk"><b>${l.crt?'CRT NO '+E(l.crt):''}</b><br><span>${cn>0?String(cn).padStart(2,'0')+(cn>1?' CRATES':' CRATE'):''}</span></td><td class="ds"><b>${E((l.stone+'  '+l.finish).trim())}</b>${l.size?` &nbsp;<b>${E(l.size)}</b>`:''}<br><i>${E(l.ref)}</i></td>`+
-  `<td class="n">${qf(l)}</td><td class="n">${+l.net?nf(l.net,3):''}</td><td class="n am">${nf(amt(l),2)}</td>`+'</tr>'});return o};
+ o+=`<tr class="it${zb}"><td class="mk"><b>CRT NO</b></td><td class="range">${E(l.crt)}</td><td class="ds" colspan="4"><b>${E((l.stone+'  '+l.finish).trim())}</b>${l.size?` &nbsp;<b>${E(l.size)}</b>`:''}</td><td class="n">${qf(l)}</td>`;
+ if(inv)o+=`<td class="n">${nf(l.rate,2)}</td><td class="n am">${nf(amt(l),2)}</td>`;
+ o+='</tr>';
+ o+=`<tr class="detail${zb}"><td></td><td class="range"><b>${cn>0?crateLabel(cn):''}</b></td><td colspan="4"><i>${E(l.ref)}</i></td><td></td>${inv?'<td></td><td></td>':''}</tr>`;
+ });return o};
 lk=null;z=0;const B1=body(true);lk=null;z=0;const B2=body(false);
-const th=(a,b,c)=>`<thead><tr><th>Marks &amp; No's</th><th>Description of goods</th><th>${a[0]}</th><th>${a[1]}</th><th>${a[2]}</th></tr><tr class="sb"><th>Container</th><th>${[tc?String(tc).padStart(2,'0')+' NOS':'',h('Packing'),h('Grade')].filter(Boolean).map(E).join(' &middot; ')}</th><th>${b[0]}</th><th>${b[1]}</th><th>${b[2]}</th></tr></thead>`;
-const cont=`<tr class="ft"><td></td><td><b>${h('Container no')?'CONT # '+E(h('Container no')):''}</b></td><td colspan="3"></td></tr>`;
+const heading=(inv)=>`<thead><tr><th colspan="2">Marks &amp; No's</th><th colspan="2">No &amp; kind of packages</th><th colspan="2">Description of goods</th><th>Quantity</th>${inv?'<th>Rate</th><th>Amount</th>':''}</tr>
+<tr class="sb"><th colspan="2">Container</th><th colspan="2">${tc?String(tc).padStart(2,'0')+' NOS':''}</th><th colspan="2"></th><th>${uni?E([...uk][0]):''}</th>${inv?'<th>U.S.D</th><th>U.S.D</th>':''}</tr>
+<tr class="sb"><th colspan="2">${E(h('Marks code'))}</th><th colspan="2">${E(packageLabel(h('Packing')))}</th><th colspan="2">${E(packageLabel(h('Grade')))}</th><th></th>${inv?'<th></th><th></th>':''}</tr></thead>`;
+const cont=(inv)=>`<tr class="ft"><td colspan="2"></td><td colspan="4"><b>${h('Container no')?'CONT # '+E(h('Container no')):''}</b></td><td></td>${inv?'<td></td><td></td>':''}</tr>`;
 const sign=`<div class="g2 dc"><div class="bx"><div class="lb">Declaration</div><div class="bv sm">We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.</div></div><div class="bx sg"><div class="lb">Signature &amp; Date</div><div class="bv" style="text-align:center"><b class="nm">For SHRIYA MINING INDUSTRIES</b><div style="height:34px"></div><span class="sm">Authorised Signatory</span></div></div></div>`;
-const p1=`<section class="pg">${top('INVOICE')}<table class="gd">${th(['Quantity','Weight','Amount'],['Qty / Unit','Weight','USD'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B1}${cont}</tbody></table>
+const p1=`<section class="pg">${top('INVOICE')}<table class="gd">${heading(true)}<tbody>${B1}${cont(true)}</tbody></table>
 <div class="tt"><div class="wd"><div class="lb">Amount chargeable in words</div><b>${E(WD)}</b></div><div class="tq">${tq}</div><div class="tl">TOTAL (USD)</div><div class="ta">$${nf(total(),2)}</div></div>${sign}</section>`;
-const p2=`<section class="pg">${top('PACKING LIST')}<table class="gd pk">${th(['Quantity','Weight','Amount'],['Qty','Weight','USD'])}<tbody><tr class="mc"><td><b>${E(h('Marks code'))}</b></td><td colspan="4"></td></tr>${B2}${cont}<tr class="tr"><td colspan="2">TOTAL</td><td class="n">${tq}</td><td class="n">${nf(tn,3)}</td><td class="n">${nf(total(),2)}</td></tr></tbody></table>
-<div class="tw">TOTAL WEIGHT : ${nf(tn,3)} KGS</div>${sign}</section>`;
+const p2=`<section class="pg">${top('PACKING LIST')}<table class="gd pk">${heading(false)}<tbody>${B2}${cont(false)}
+<tr class="weight-total"><td colspan="7">TOTAL GROSS WEIGHT ; ${grossWeight?nf(grossWeight,3)+' KGS':''}</td></tr>
+<tr class="weight-total"><td colspan="7">TOTAL NET WEIGHT ; ${netWeight?nf(netWeight,3)+' KGS':''}</td></tr></tbody></table>${sign}</section>`;
 const css=`@page{size:A4;margin:10mm 9mm 12mm}*{box-sizing:border-box}html,body{margin:0}body{font:10pt/1.35 Calibri,Carlito,Arial,sans-serif;color:#1b2430;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pg{page-break-after:always;border:2px solid #7a5c3e;border-radius:2px;overflow:hidden}.pg:last-child{page-break-after:auto}
 .ban{background:#7a5c3e;color:#fff;text-align:center;font-weight:700;font-size:19pt;letter-spacing:1.5px;padding:7px}.ttl{background:#f1e5d7;color:#7a5c3e;text-align:center;font-weight:700;font-size:13pt;padding:4px;border-bottom:1px solid #c8bead}
@@ -303,10 +337,10 @@ table.gd{width:100%;border-collapse:collapse;margin-top:-.6pt}.gd th{background:
 .gd tr.sec td{background:#f1e5d7;color:#7a5c3e;font-weight:700;padding:4px 8px;border-top:.6pt solid #c8bead}.gd tr.it td{border-bottom:.4pt solid #d3dbe8}.gd tr.zb td{background:#f7f3ee}
 .gd td.mk{width:20%;color:#7a5c3e}.gd td.mk span{font-size:9pt}.gd td.ds i{color:#5b6578;font-size:8.5pt}.gd td.n{text-align:right;white-space:nowrap}.gd td.am{font-weight:700;color:#6b7052}
 .gd tr.mc td{color:#7a5c3e;padding:4px 6px}.gd tr.ft td{border-bottom:.6pt solid #c8bead;padding:5px 6px;color:#7a5c3e}.gd tr.tr td{background:#7a5c3e;color:#fff;font-weight:700;padding:5px 6px}.gd tr.tr td.n{background:#f7e2a8;color:#1b2430}
-.pk td.n,.gd th:nth-child(n+3){text-align:right}.gd th:nth-child(2){text-align:left}.gd th:first-child{text-align:left}
+.gd th{text-align:center}.gd th:first-child,.gd th:nth-child(2),.gd th:nth-child(3){text-align:left}
 .tt{display:grid;grid-template-columns:1fr auto auto auto;align-items:stretch;border-top:.6pt solid #c8bead;border-bottom:.6pt solid #c8bead}.tt>div{padding:6px 8px;border-right:.6pt solid #c8bead}.tt .wd{color:#7a5c3e}.tt .wd .lb{margin:-6px -8px 4px;border-right:0}
 .tq{background:#f7f3ee;font-weight:700;display:flex;align-items:center}.tl{background:#7a5c3e;color:#fff;font-weight:700;font-size:8.5pt;display:flex;align-items:center}.ta{background:#f7e2a8;color:#7a5c3e;font-weight:700;font-size:13pt;display:flex;align-items:center;border-right:0!important}
-.tw{background:#f7f3ee;font-weight:700;padding:5px 8px;border-top:.6pt solid #c8bead}.dc{margin-top:0;page-break-inside:avoid}
+.weight-total td{background:#f7f3ee;font-weight:700;padding:5px 8px;border-top:.6pt solid #c8bead}.dc{margin-top:0;page-break-inside:avoid}
 @media screen{
  html{background:#e8e4de}
  body{padding:24px 12px}

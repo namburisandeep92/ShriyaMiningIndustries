@@ -75,6 +75,20 @@
         <strong>Correct these fields before preview or download:</strong>
         <ul><li v-for="(issue, index) in issues" :key="index">{{ issue.message }}</li></ul>
       </div>
+      <fieldset v-if="categories.length" :disabled="busy || !canEdit">
+        <legend>Goods category HSN codes</legend>
+        <p>Enter a 4-, 6-, or 8-digit HSN code for each goods category.</p>
+        <div class="fields">
+          <label v-for="category in categories" :key="category">
+            {{ category }} HSN code *
+            <input v-model="invoice.hsnCodes[category]" :aria-label="`${category} HSN code`"
+                   inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"
+                   :aria-invalid="invalidHsn(category)" :class="{ invalid: invalidHsn(category) }"
+                   @input="sanitizeHsnCode(category)" />
+            <small v-if="hsnIssue(category)" class="field-error" role="alert">{{ hsnIssue(category) }}</small>
+          </label>
+        </div>
+      </fieldset>
       <fieldset v-for="group in headerGroups" :key="group.title" :disabled="busy || !canEdit">
         <legend>{{ group.title }}</legend>
         <div class="fields">
@@ -119,7 +133,7 @@
         </table>
       </div>
       <button :disabled="busy || !canEdit" @click="addLine">Add line</button>
-      <p>Total crates: {{ totalCrates }} · {{ quantityTotal }} · Net weight: {{ totalWeight }} KGS · <strong>TOTAL USD {{ money(total) }}</strong></p>
+      <p>Total crates: {{ totalCrates }} · {{ quantityTotal }} · Gross weight: {{ totalGrossWeight }} KGS · Net weight: {{ totalWeight }} KGS · <strong>TOTAL USD {{ money(total) }}</strong></p>
       <label>Amount chargeable in words <input v-model="invoice.words" :disabled="busy || !canEdit" /></label>
       <fieldset :disabled="busy || !!saved || !canEdit">
         <legend>Cloud invoice association</legend>
@@ -152,7 +166,7 @@ import { toastManager } from '@/services/notifications'
 import { downloadBlob, printInvoice } from '@/services/invoice-download'
 import {
   amountWords, buildLegacyPrintHtml, buildLegacyWorkbook, crateRanges, createLegacyInvoice, excelPreviewHtml,
-  headerDefaults, headerGroups, invoiceTotal, lineAmount, validateLegacyInvoice,
+  goodsCategories, headerDefaults, headerGroups, invoiceTotal, lineAmount, validHsnCode, validateLegacyInvoice,
   type LegacyDocument, type LegacyLine, type PORow,
 } from '../../../api/services/legacy-invoice.js'
 
@@ -180,6 +194,9 @@ const buyerId = ref(0)
 const canEdit = computed(() => apiClient.hasPermission(saved.value ? 'invoice.update' : 'invoice.create'))
 const issues = computed(() => invoice.value ? validateLegacyInvoice(invoice.value) : [])
 const invalid = (field: string, line?: number) => issues.value.some(issue => issue.field === field && issue.line === line)
+const categories = computed(() => goodsCategories(invoice.value?.lines || []))
+const invalidHsn = (category: string) => issues.value.some(issue => issue.field === 'hsn' && issue.category === category)
+const hsnIssue = (category: string) => issues.value.find(issue => issue.field === 'hsn' && issue.category === category)?.message
 const visibleColumns = computed(() => columns.value.filter(column => !hidden.value.has(column)))
 const filterOptions = computed(() => Object.fromEntries(columns.value.flatMap(column => {
   const values = [...new Set(rows.value.map(row => row.raw[column]))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
@@ -191,6 +208,7 @@ const visibleRows = computed(() => rows.value.filter(row => row.all.includes(que
 const total = computed(() => invoiceTotal(invoice.value?.lines || []))
 const totalCrates = computed(() => (invoice.value?.lines || []).reduce((sum, line) => sum + (Number(line.crates) || 0), 0))
 const totalWeight = computed(() => (invoice.value?.lines || []).reduce((sum, line) => sum + (Number(line.net) || 0), 0))
+const totalGrossWeight = computed(() => (invoice.value?.lines || []).reduce((sum, line) => sum + (Number(line.gross) || 0), 0))
 const quantityTotal = computed(() => {
   const lines = invoice.value?.lines || []
   const units = new Set(lines.map(line => line.uom.trim().toUpperCase()))
@@ -201,7 +219,8 @@ const message = (value: unknown) => value && typeof value === 'object' && 'messa
 const lineFields: { key: keyof LegacyLine; label: string; numeric?: boolean }[] = [
   { key: 'stone', label: 'Stone / PO ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
   { key: 'crates', label: 'Crate count', numeric: true }, { key: 'crt', label: 'Crate range' }, { key: 'qty', label: 'Qty', numeric: true },
-  { key: 'uom', label: 'UOM' }, { key: 'net', label: 'Weight', numeric: true }, { key: 'rate', label: 'Rate / UOM', numeric: true },
+  { key: 'uom', label: 'UOM' }, { key: 'net', label: 'Net weight', numeric: true }, { key: 'gross', label: 'Gross weight', numeric: true },
+  { key: 'rate', label: 'Rate / UOM', numeric: true },
   { key: 'kind', label: 'Goods group' },
 ]
 const lineWidths = ref<number[]>(lineFields.map(field => field.key === 'stone' || field.key === 'ref' ? 250 : 120))
@@ -220,6 +239,38 @@ function moveColumn(target: string) {
   columns.value.splice(from, 1)
   columns.value.splice(to, 0, dragColumn.value)
   dragColumn.value = ''
+}
+const lastHsnCodesKey = 'smi_last_hsn_codes_v1'
+function readLastHsnCodes(): Record<string, string> {
+  try {
+    const stored = window.localStorage.getItem(lastHsnCodesKey)
+    if (!stored) return {}
+    const parsed: unknown = JSON.parse(stored)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Stored HSN codes have an invalid format')
+    return Object.fromEntries(Object.entries(parsed).filter(([category, code]) => category && validHsnCode(code)))
+  } catch (cause) {
+    error.value = `Could not load remembered HSN codes: ${message(cause)}`
+    return {}
+  }
+}
+function rememberHsnCodes() {
+  if (!invoice.value) return
+  const remembered = readLastHsnCodes()
+  let changed = false
+  for (const category of categories.value) {
+    const code = invoice.value.hsnCodes[category]
+    if (validHsnCode(code) && remembered[category] !== code) {
+      remembered[category] = code
+      changed = true
+    }
+  }
+  if (!changed) return
+  try { window.localStorage.setItem(lastHsnCodesKey, JSON.stringify(remembered)) }
+  catch (cause) { error.value = `Could not remember HSN codes in this browser: ${message(cause)}` }
+}
+function sanitizeHsnCode(category: string) {
+  if (!invoice.value) return
+  invoice.value.hsnCodes[category] = String(invoice.value.hsnCodes[category] || '').replace(/\D/g, '').slice(0, 8)
 }
 async function loadFile(file?: File) {
   if (!file || busy.value) return
@@ -254,13 +305,15 @@ function selectFile(event: Event) {
 function dropFile(event: DragEvent) { void loadFile(event.dataTransfer?.files[0]) }
 function review() {
   if (!selected.value.size) return
-  const next = createLegacyInvoice(rows.value.filter(row => selected.value.has(row.id)), invoice.value?.lines, invoice.value?.header)
+  const hsnCodes = { ...readLastHsnCodes(), ...(invoice.value?.hsnCodes || {}) }
+  const next = createLegacyInvoice(rows.value.filter(row => selected.value.has(row.id)), invoice.value?.lines, invoice.value?.header, hsnCodes)
   if (invoice.value) next.header = { ...next.header, ...invoice.value.header, 'Buyer PO nos': next.header['Buyer PO nos'], 'Buyer PO date': next.header['Buyer PO date'] }
+  next.hsnCodes ||= {}
   invoice.value = next
   step.value = 3
 }
 function addLine() {
-  invoice.value?.lines.push({ stone: '', finish: '', size: '', ref: '', crates: '', crt: '', qty: '', uom: 'SF', net: '', rate: '', kind: '' })
+  invoice.value?.lines.push({ stone: '', finish: '', size: '', ref: '', crates: '', crt: '', qty: '', uom: 'SF', net: '', gross: '', rate: '', kind: '' })
 }
 watch(() => [invoice.value?.header['Crate starting no'], invoice.value?.lines.map(line => line.crates)], () => {
   if (!invoice.value) return
@@ -271,6 +324,7 @@ watch(total, value => {
 }, { flush: 'sync' })
 watch(invoice, () => { previewHtml.value = '' }, { deep: true })
 watch(format, () => { previewHtml.value = '' })
+watch(() => invoice.value?.hsnCodes, rememberHsnCodes, { deep: true })
 async function preview() {
   if (!invoice.value || issues.value.length || busy.value) return
   busy.value = true
@@ -286,6 +340,7 @@ function applySaved(value: InvoiceDocument) {
   saved.value = value
   hydrating = true
   invoice.value = value.document
+  invoice.value.hsnCodes = { ...readLastHsnCodes(), ...(invoice.value.hsnCodes || {}) }
   hydrating = false
   vendorId.value = value.vendorId
   buyerId.value = value.buyerId
@@ -355,6 +410,7 @@ button { cursor: pointer; padding: .5rem .75rem; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 .error { background: #f2e2da; color: #7e3a24; padding: 1rem; }
 .invalid { border: 2px solid #c32032; background: #fff4f4; }
+.field-error { color: #7e3a24; font-weight: 600; }
 .table-scroll { overflow: auto; max-height: 65vh; margin: 1rem 0; }
 table { border-collapse: separate; border-spacing: 0; }
 th, td { border-right: 1px solid var(--rule-lt); border-bottom: 1px solid var(--rule-lt); padding: .5rem; text-align: left; }

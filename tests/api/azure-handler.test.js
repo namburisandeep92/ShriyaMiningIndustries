@@ -54,7 +54,8 @@ describe('Azure Functions Express entrypoint', () => {
     header.DocumentJson = JSON.stringify({
       header: { ...headerDefaults, 'Invoice no': 'BINARY-TEST', 'Invoice date': '2026-11-07' },
       words: 'USD SEVEN AND CENTS FOUR ONLY',
-      lines: [{ stone: 'Stone', finish: '', size: '', ref: '', kind: '', qty: 7, crates: 2,
+      hsnCodes: { 'GRANITE TILES': '68022310' },
+      lines: [{ stone: 'Stone', finish: '', size: '', ref: '', kind: 'GRANITE TILES', qty: 7, crates: 2,
         crt: '1001 - 1002', uom: 'PC', net: '', rate: 1.005 }],
     });
     const legacyExcel = await invoke(`/invoices/${header.InvoiceId}/export?format=excel`);
