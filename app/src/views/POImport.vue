@@ -75,6 +75,15 @@
         <strong>Correct these fields before saving or previewing:</strong>
         {{ summaryMessages.join('. ') }}
       </div>
+      <fieldset class="association-panel" :disabled="busy || !!saved || !canEdit">
+        <legend>Cloud invoice association</legend>
+        <p>Choose the database vendor and buyer before saving. These do not replace the editable exporter and consignee above.</p>
+        <div class="fields">
+          <label>Vendor <select v-model.number="vendorId" aria-label="Vendor"><option :value="0">Select vendor</option><option v-for="vendor in master.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option></select></label>
+          <label>Buyer <select v-model.number="buyerId" aria-label="Buyer"><option :value="0">Select buyer</option><option v-for="buyer in master.buyers" :key="buyer.id" :value="buyer.id">{{ buyer.name }}</option></select></label>
+        </div>
+      </fieldset>
+      <p v-if="!saved && (!vendorId || !buyerId)">Vendor and buyer are required to save &amp; download. Preview does not require a database association.</p>
       <div class="header-groups">
         <fieldset v-for="group in headerGroups" :key="group.title" :disabled="busy || !canEdit">
           <legend>{{ group.title }}</legend>
@@ -98,7 +107,7 @@
         <table class="line-table">
           <thead><tr>
             <th v-for="field in lineFields" :key="field.key">{{ field.label }}</th>
-            <th>Amount USD</th><th>Action</th>
+            <th>Amount<br>USD</th><th>Action</th>
           </tr></thead>
           <tbody>
             <template v-for="category in groupedLines" :key="category.name">
@@ -106,8 +115,8 @@
                 <th :colspan="lineFields.length + 2">
                   <div class="category-heading">
                     <strong>{{ category.name }}</strong>
-                    <label>
-                      HSN code *
+                    <label class="hsn-field">
+                      <span>HSN code *</span>
                       <input v-model="invoice.hsnCodes[category.rawName]" :aria-label="`${category.name} HSN code`" inputmode="numeric"
                              :disabled="busy || !canEdit" :data-validation-key="`category:${category.rawName}:hsn`"
                              :aria-invalid="invalid('hsn', undefined, category.rawName)"
@@ -129,7 +138,7 @@
                              :data-validation-key="`line:${entry.index}:stone`" :aria-invalid="invalid('stone', entry.index)"
                              :class="{ invalid: invalid('stone', entry.index) }" @blur="touch('stone', entry.index)" />
                       <input v-model="entry.line.ref" :aria-label="`Line ${entry.index + 1} PO / ref`" :disabled="busy || !canEdit"
-                             :size="inputSize(entry.line.ref, 'PO / ref')"
+                             :size="inputSize(entry.line.ref, 'PO ref')"
                              :data-validation-key="`line:${entry.index}:ref`" :aria-invalid="invalid('ref', entry.index)"
                              :class="{ invalid: invalid('ref', entry.index) }" @blur="touch('ref', entry.index)" />
                     </div>
@@ -154,18 +163,16 @@
       </div>
       <button data-validation-key="header:lines" :disabled="busy || !canEdit" @click="addLine">Add line</button>
       <p>Total crates: {{ totalCrates }} · {{ quantityTotal }} · Wgt: {{ totalWeight }} KGS · <strong>TOTAL USD {{ money(total) }}</strong></p>
-      <label>Amount chargeable in words <input v-model="invoice.words" aria-label="Amount chargeable in words" readonly /></label>
-      <fieldset :disabled="busy || !!saved || !canEdit">
-        <legend>Cloud invoice association</legend>
-        <p>Choose the database vendor and buyer before saving. These do not replace the editable exporter and consignee above.</p>
-        <div class="fields">
-          <label>Vendor <select v-model.number="vendorId" aria-label="Vendor"><option :value="0">Select vendor</option><option v-for="vendor in master.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option></select></label>
-          <label>Buyer <select v-model.number="buyerId" aria-label="Buyer"><option :value="0">Select buyer</option><option v-for="buyer in master.buyers" :key="buyer.id" :value="buyer.id">{{ buyer.name }}</option></select></label>
-        </div>
-      </fieldset>
-      <p v-if="!saved && (!vendorId || !buyerId)">Vendor and buyer are required to save &amp; download. Preview does not require a database association.</p>
+      <label class="words-field">Amount chargeable in words
+        <input v-model="invoice.words" aria-label="Amount chargeable in words" readonly />
+      </label>
       <div class="toolbar">
-        <label>Format <select v-model="format" aria-label="Format"><option value="excel">Excel (.xlsx)</option><option value="pdf">PDF (Save as PDF in print dialog)</option></select></label>
+        <div class="format-switch" role="group" aria-label="Export format">
+          <button type="button" :aria-pressed="format === 'excel'" :class="{ selected: format === 'excel' }"
+                  :disabled="busy" @click="format = 'excel'">Excel</button>
+          <button type="button" :aria-pressed="format === 'pdf'" :class="{ selected: format === 'pdf' }"
+                  :disabled="busy" @click="format = 'pdf'">PDF</button>
+        </div>
         <button :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save</button>
         <button :disabled="busy" @click="preview">Preview</button>
         <button class="btn btn-primary" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
@@ -257,13 +264,13 @@ const quantityTotal = computed(() => {
 const money = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'Invalid'
 const message = (value: unknown) => value && typeof value === 'object' && 'message' in value ? String(value.message) : String(value)
 const lineFields: { key: keyof LegacyLine; label: string; numeric?: boolean }[] = [
-  { key: 'stone', label: 'Stone / PO ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
-  { key: 'crates', label: 'Crate count', numeric: true }, { key: 'crt', label: 'Crate range' }, { key: 'qty', label: 'Qty', numeric: true },
+  { key: 'stone', label: 'Stone /\nPO ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
+  { key: 'crates', label: 'Crate\nCount', numeric: true }, { key: 'crt', label: 'Crate\nrange' }, { key: 'qty', label: 'Qty', numeric: true },
   { key: 'uom', label: 'UOM' }, { key: 'weight', label: 'Wgt', numeric: true },
-  { key: 'rate', label: 'Rate / UOM', numeric: true },
+  { key: 'rate', label: 'Rate /\nUOM', numeric: true },
 ]
 function inputSize(value: unknown, label: string) {
-  return Math.max(label.length, String(value ?? '').length, 4)
+  return Math.max(...label.split('\n').map(line => line.length), String(value ?? '').length, 4)
 }
 function toggleSelection(id: number) { selected.value.has(id) ? selected.value.delete(id) : selected.value.add(id) }
 function selectShown(on: boolean) { visibleRows.value.forEach(row => on ? selected.value.add(row.id) : selected.value.delete(row.id)) }
@@ -527,6 +534,8 @@ onBeforeRouteLeave(() => !invoice.value || JSON.stringify(invoice.value) === sav
 fieldset { border: 1px solid #c8bead; margin: 1rem 0; }
 legend { color: #7a5c3e; font-weight: bold; }
 .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
+.association-panel { margin: .5rem 0 1rem; padding: .75rem 1rem 1rem; border: 1px solid #c8bead; border-radius: 5px; background: #fbf8f3; }
+.association-panel .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .header-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem 1rem; align-items: start; }
 .header-groups fieldset { min-width: 0; margin: .5rem 0; }
 .header-groups .fields { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; }
@@ -534,11 +543,16 @@ label { display: grid; gap: .3rem; }
 input, select, textarea { border: 1px solid #aaa; border-radius: 3px; padding: .5rem; min-width: 0; font: inherit; }
 button { cursor: pointer; padding: .5rem .75rem; }
 button:disabled { cursor: not-allowed; opacity: .55; }
+.format-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid #bca88f; border-radius: 999px; background: #f3eee6; }
+.format-switch button { min-width: 5.25rem; border: 0; border-radius: 999px; background: transparent; color: #60442f; font-weight: 600; }
+.format-switch button.selected { background: #7a5c3e; color: white; box-shadow: 0 1px 3px #0002; }
 .error { background: #f2e2da; color: #7e3a24; padding: 1rem; }
 .category-row th { background: #e4d3bd; color: #60442f; }
-.category-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.category-heading label { display: grid; grid-template-columns: auto minmax(8rem, 12rem); align-items: center; gap: .5rem; }
-.category-heading small { grid-column: 1 / -1; }
+.category-heading { display: flex; align-items: center; justify-content: flex-start; gap: 1.25rem; }
+.category-heading > strong { font-size: 1rem; letter-spacing: .02em; }
+.category-heading .hsn-field { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.category-heading .hsn-field input { width: 10rem; }
+.category-heading small { flex-basis: 100%; }
 .line-table input[type="checkbox"] { width: auto; }
 .invalid { border: 2px solid #c32032; background: #fff4f4; }
 .field-error { color: #7e3a24; font-weight: 600; }
@@ -558,11 +572,17 @@ th { background: #ede6da; position: relative; }
 .chosen td { background: #f1e5d7; }
 .line-table { table-layout: auto; width: max-content; }
 .line-table th { position: sticky; top: 0; z-index: 2; }
+.line-table thead th { white-space: pre-line; vertical-align: bottom; }
 .line-table th:first-child, .line-table td:first-child { position: sticky; left: 0; background: white; z-index: 1; box-shadow: 2px 0 0 #c8bead; }
 .line-table th:first-child { background: #ede6da; z-index: 3; }
 .stone-ref { display: grid; gap: .3rem; }
 .line-table input { width: auto; box-sizing: border-box; }
+.words-field { width: min(100%, 48rem); margin-top: 1rem; font-weight: 600; }
+.words-field input { width: 100%; min-height: 2.75rem; background: #f5f1e9; color: #29231d; font-size: 1.05rem; font-weight: 600; letter-spacing: .02em; }
 .column-option { display: flex; padding: .2rem; }
 .preview { width: 100%; height: 800px; border: 1px solid #c8bead; }
-@media (max-width: 900px) { .header-groups { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) {
+  .header-groups, .association-panel .fields { grid-template-columns: minmax(0, 1fr); }
+  .category-heading { align-items: flex-start; flex-direction: column; gap: .5rem; }
+}
 </style>

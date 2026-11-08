@@ -275,9 +275,15 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.locator('.line-table input[aria-label$="Stone"]').count()).toBe(2);
       expect(await page.locator('[data-validation-summary]').count()).toBe(0);
       expect(await page.locator('.line-table .invalid').count()).toBe(0);
+      expect(await page.locator('.association-panel').evaluate(panel =>
+        panel.compareDocumentPosition(panel.parentElement.querySelector('.header-groups')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+      expect(await page.getByRole('button', { name: 'Excel', exact: true }).getAttribute('aria-pressed')).toBe('true');
+      expect(await page.locator('.line-table thead th').nth(3).innerText()).toBe('Crate\nCount');
+      expect(await page.locator('.line-table thead th').nth(3).evaluate(element => element.getBoundingClientRect().width)).toBeLessThan(120);
       expect(await page.locator('.category-row input[aria-label$="HSN code"]').count()).toBe(2);
       expect(await page.getByLabel('GRANITE TILES HSN code', { exact: true }).inputValue()).toBe('');
       expect(await page.getByLabel('SLATE STONE TILES HSN code', { exact: true }).inputValue()).toBe('');
+      expect(await page.locator('.category-heading').first().innerText()).toContain('GRANITE TILES\nHSN code *');
       await page.getByRole('button', { name: 'Preview', exact: true }).click();
       expect(await page.locator('[data-validation-summary]').textContent()).toContain('HSN code');
       expect(await page.getByLabel('Invoice no', { exact: true }).evaluate(element => element === document.activeElement)).toBe(true);
@@ -335,7 +341,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await previewFrame.locator('body').textContent()).toContain(expectedWords);
       expect(await previewFrame.locator('body').textContent()).toContain('GRANITE TILES  HSN CODE 68022310');
       expect(await previewFrame.locator('body').textContent()).toContain('SLATE STONE TILES  HSN CODE 680300');
-      await page.getByLabel('Format', { exact: true }).selectOption('pdf');
+      await page.getByRole('button', { name: 'PDF', exact: true }).click();
       await page.getByRole('button', { name: 'Preview', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('iframe')?.getAttribute('srcdoc')?.includes('PACKING LIST'));
       const html = await page.locator('iframe[title="Invoice and packing list preview"]').getAttribute('srcdoc');
@@ -352,7 +358,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
       expect((pdf.toString('latin1').match(/\/Type \/Page\b/g) || [])).toHaveLength(2);
       await printPage.close();
-      await page.getByLabel('Format', { exact: true }).selectOption('excel');
+      await page.getByRole('button', { name: 'Excel', exact: true }).click();
       await page.getByLabel('Vendor', { exact: true }).selectOption(String(vendorId));
       await page.getByLabel('Buyer', { exact: true }).selectOption(String(buyerId));
       const createdResponse = page.waitForResponse(response => response.url().endsWith('/api/invoices') && response.request().method() === 'POST');
