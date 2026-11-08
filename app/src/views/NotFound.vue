@@ -30,9 +30,9 @@
 }
 
 .content h2 {
-  font-size: 2rem;
+  font-size: var(--font-size-section-title);
   margin: 0.5rem 0 1rem 0;
-  color: var(--ink-mid);
+  color: var(--text-heading);
 }
 
 .content p {

@@ -69,8 +69,9 @@ const hasPermission = (permission: string) => {
 .app-title {
   margin: 0;
   font-size: 1.5rem;
+  line-height: 1.2;
   font-weight: 600;
-  color: var(--earth);
+  color: var(--text-heading);
 }
 
 .app-nav {

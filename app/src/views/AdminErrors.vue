@@ -162,7 +162,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 }
 
 .errors-table-container {
-  background: white;
+  background: var(--surface-card);
   border: 1px solid var(--rule-lt);
   border-radius: 4px;
   overflow-x: auto;
@@ -207,18 +207,18 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 }
 
 .severity-error {
-  background-color: #f2e2da;
-  color: #7e3a24;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .severity-warning {
-  background-color: #f5ecd9;
-  color: #7a5c3e;
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
 }
 
 .severity-info {
-  background-color: #e9e4da;
-  color: #5c5248;
+  background-color: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
 }
 
 .modal-overlay {
@@ -235,7 +235,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 }
 
 .modal {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   max-width: 700px;
@@ -252,7 +252,7 @@ const showDetails = (errorLog: ErrorLogRecord) => {
   border-bottom: 1px solid var(--rule-lt);
   position: sticky;
   top: 0;
-  background: white;
+  background: var(--surface-card);
 }
 
 .modal-header h2 {
@@ -311,9 +311,9 @@ const showDetails = (errorLog: ErrorLogRecord) => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f2e2da;
-  color: #7e3a24;
-  border: 1px solid #e0c4b4;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   border-radius: 4px;
 }
 

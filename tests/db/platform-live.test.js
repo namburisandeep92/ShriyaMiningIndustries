@@ -276,6 +276,15 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.locator('.po-table tbody input:checked').count()).toBe(2);
       await page.getByRole('button', { name: 'Create invoice', exact: true }).click();
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
+      const headingSizes = await page.evaluate(() => Object.fromEntries([
+        ['brand', '.app-title'],
+        ['page', '.po-flow > header h1'],
+        ['section', '.review-heading-row h2'],
+        ['subsection', '.header-group legend'],
+        ['category', '.category-heading > strong'],
+        ['table', '.line-table thead th'],
+      ].map(([name, selector]) => [name, parseFloat(getComputedStyle(document.querySelector(selector)).fontSize)])));
+      expect(headingSizes).toEqual({ brand: 24, page: 28, section: 20, subsection: 16, category: 16, table: 14 });
       const reviewActions = await page.locator('.review-heading-row').evaluate(row => {
         const actions = row.querySelector('.review-actions');
         const panel = row.closest('.panel');
@@ -289,9 +298,19 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       });
       expect(Math.abs(reviewActions.rightGap - reviewActions.panelPadding)).toBeLessThan(1);
       expect(reviewActions.topGap).toBeLessThan(1);
-      expect(await page.locator('.line-table textarea[aria-label$="Stone / PO ref"]').count()).toBe(2);
-      expect(await page.getByLabel('Line 1 Stone / PO ref', { exact: true }).inputValue()).toContain('\nNSR PO #');
-      expect(await page.locator('.line-table input[aria-label$="PO / ref"]').count()).toBe(0);
+      expect(await page.locator('.line-table input[aria-label$=" Stone"]').count()).toBe(2);
+      expect(await page.locator('.line-table textarea[aria-label$=" PO / ref"]').count()).toBe(2);
+      expect(await page.getByLabel('Line 1 Stone', { exact: true }).inputValue()).toBe('ABSOLUTE BLACK');
+      expect(await page.getByLabel('Line 1 PO / ref', { exact: true }).inputValue()).toContain('NSR PO #');
+      const lineDescriptionStyles = await page.locator('.line-table textarea[aria-label$=" PO / ref"]').evaluateAll(elements => elements.map(element => ({
+        fontSize: parseFloat(getComputedStyle(element).fontSize),
+        fontStyle: getComputedStyle(element).fontStyle,
+        hasInternalScroll: element.scrollHeight - element.clientHeight > 1,
+        stoneWeight: getComputedStyle(element.parentElement.querySelector('input')).fontWeight,
+      })));
+      expect(lineDescriptionStyles).toHaveLength(2);
+      expect(lineDescriptionStyles.every(style => style.fontSize <= 12 && style.fontStyle === 'italic' && !style.hasInternalScroll
+        && Number(style.stoneWeight) >= 600)).toBe(true);
       expect(await page.locator('[data-validation-summary]').count()).toBe(0);
       expect(await page.locator('.line-table .invalid').count()).toBe(0);
       expect(await page.locator('.association-panel').count()).toBe(0);
@@ -306,12 +325,31 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.getByLabel('GRANITE TILES HSN code', { exact: true }).inputValue()).toBe('');
       expect(await page.getByLabel('SLATE STONE TILES HSN code', { exact: true }).inputValue()).toBe('');
       expect(await page.locator('.category-heading').first().innerText()).toContain('GRANITE TILES\nHSN code *');
+      const lineTableWidth = await page.locator('.line-table').evaluate(table => table.getBoundingClientRect().width);
       await page.getByRole('button', { name: 'Preview', exact: true }).click();
-      expect(await page.locator('[data-validation-summary]').textContent()).toContain('HSN code');
+      expect(await page.locator('.line-table').evaluate(table => table.getBoundingClientRect().width)).toBe(lineTableWidth);
+      const inlineError = page.locator('.line-table td.has-field-error > .field-error').first();
+      const inlineErrorLayout = await inlineError.evaluate(element => ({
+        error: element.getBoundingClientRect().toJSON(),
+        cell: element.parentElement.getBoundingClientRect().toJSON(),
+        inputBottom: element.parentElement.querySelector('input').getBoundingClientRect().bottom,
+      }));
+      expect(inlineErrorLayout.error.top).toBeGreaterThanOrEqual(inlineErrorLayout.inputBottom);
+      expect(inlineErrorLayout.error.bottom).toBeLessThanOrEqual(inlineErrorLayout.cell.bottom);
+      expect(inlineErrorLayout.error.width).toBeLessThanOrEqual(inlineErrorLayout.cell.width);
+      expect(await page.locator('[data-validation-summary] .validation-group h3').allTextContents())
+        .toEqual(['HSN codes', 'Line items', 'Invoice details']);
+      expect(await page.locator('[data-validation-summary]').textContent()).toContain('GRANITE TILES');
+      const crateCountSummary = page.locator('[data-validation-summary] .validation-group')
+        .filter({ has: page.getByRole('heading', { name: 'Line items' }) })
+        .locator(':scope > ul > li').filter({ hasText: 'Crate count must be a positive integer' });
+      expect(await crateCountSummary.count()).toBe(1);
+      expect(await crateCountSummary.textContent()).toContain('Line 1');
+      expect(await crateCountSummary.textContent()).toContain('Line 2');
       expect(await page.getByLabel('Invoice no', { exact: true }).evaluate(element => element === document.activeElement)).toBe(true);
       const frozenLine = await page.locator('.line-table').evaluate(async table => {
         const scroller = table.parentElement;
-        const cells = table.querySelector('tbody tr:has(textarea[aria-label="Line 1 Stone / PO ref"])').children;
+        const cells = table.querySelector('tbody tr:has(input[aria-label="Line 1 Stone"])').children;
         const before = [cells[0], cells[1]].map(cell => cell.getBoundingClientRect().left);
         scroller.scrollLeft = 400;
         await new Promise(resolve => requestAnimationFrame(resolve));

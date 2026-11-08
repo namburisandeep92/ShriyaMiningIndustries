@@ -357,13 +357,15 @@ onMounted(async () => {
 
 .page-header h1 {
   margin: 0;
+  font-size: var(--font-size-page-title);
+  color: var(--text-heading);
 }
 
 .conflict-warning {
   padding: 1rem;
-  background-color: #f5ecd9;
-  color: #7a5c3e;
-  border: 1px solid #e5d4b0;
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--earth-lt);
   border-radius: 4px;
 }
 
@@ -374,7 +376,7 @@ onMounted(async () => {
 }
 
 .form-section {
-  background: white;
+  background: var(--surface-card);
   padding: 1.5rem;
   border: 1px solid var(--rule-lt);
   border-radius: 4px;
@@ -383,8 +385,8 @@ onMounted(async () => {
 .form-section h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  font-size: 1.25rem;
-  color: var(--ink);
+  font-size: var(--font-size-section-title);
+  color: var(--text-heading);
   border-bottom: 2px solid var(--parchment);
   padding-bottom: 1rem;
 }
@@ -515,9 +517,9 @@ onMounted(async () => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f2e2da;
-  color: #7e3a24;
-  border: 1px solid #e0c4b4;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   border-radius: 4px;
 }
 

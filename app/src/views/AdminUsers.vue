@@ -167,7 +167,7 @@ onMounted(() => {
 }
 
 .users-table-container {
-  background: white;
+  background: var(--surface-card);
   border: 1px solid var(--rule-lt);
   border-radius: 4px;
   overflow-x: auto;
@@ -209,7 +209,7 @@ onMounted(() => {
 }
 
 .modal {
-  background: white;
+  background: var(--surface-card);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   max-width: 500px;
@@ -267,9 +267,9 @@ onMounted(() => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f2e2da;
-  color: #7e3a24;
-  border: 1px solid #e0c4b4;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   border-radius: 4px;
 }
 

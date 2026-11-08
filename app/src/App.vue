@@ -26,10 +26,31 @@ onMounted(() => {
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   line-height: 1.5;
-  color: var(--ink-mid);
+  color: var(--text-primary);
   background-color: var(--cream);
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-heading);
+}
+
+h1 {
+  font-size: var(--font-size-page-title);
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: var(--font-size-section-title);
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: var(--font-size-subsection-title);
+  line-height: 1.35;
 }
 
 a {

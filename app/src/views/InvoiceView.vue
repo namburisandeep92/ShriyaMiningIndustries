@@ -295,6 +295,8 @@ const showComparison = async (version: number) => {
 .page-header h1 {
   margin: 0;
   flex: 1;
+  font-size: var(--font-size-page-title);
+  color: var(--text-heading);
 }
 
 .header-actions {
@@ -309,7 +311,7 @@ const showComparison = async (version: number) => {
 }
 
 .invoice-section {
-  background: white;
+  background: var(--surface-card);
   padding: 1.5rem;
   border: 1px solid var(--rule-lt);
   border-radius: 4px;
@@ -318,8 +320,8 @@ const showComparison = async (version: number) => {
 .invoice-section h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  font-size: 1.25rem;
-  color: var(--ink);
+  font-size: var(--font-size-section-title);
+  color: var(--text-heading);
   border-bottom: 2px solid var(--parchment);
   padding-bottom: 1rem;
 }
@@ -332,9 +334,9 @@ const showComparison = async (version: number) => {
 
 .section-col h3 {
   margin: 0 0 0.5rem 0;
-  font-size: 0.875rem;
+  font-size: var(--font-size-subsection-title);
   text-transform: uppercase;
-  color: var(--stone);
+  color: var(--text-heading);
   font-weight: 600;
 }
 
@@ -381,18 +383,18 @@ const showComparison = async (version: number) => {
 }
 
 .status-ready {
-  background-color: #e4e8d4;
-  color: #44502c;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
 }
 
 .status-sent {
-  background-color: #e9e4da;
-  color: #5c5248;
+  background-color: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
 }
 
 .status-paid {
-  background-color: #d6dcbb;
-  color: #44502c;
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
 }
 
 .totals {
@@ -475,9 +477,9 @@ const showComparison = async (version: number) => {
 
 .error-box {
   padding: 1rem;
-  background-color: #f2e2da;
-  color: #7e3a24;
-  border: 1px solid #e0c4b4;
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
   border-radius: 4px;
 }
 

@@ -18,4 +18,28 @@
   --rule: #c8bead;
   --rule-lt: #e0d8ce;
   --white: #fdfaf6;
+  --surface-card: #fdfaf6;
+  --surface-muted: #ede6da;
+  --surface-alt: #faf7f2;
+  --surface-hover: #efe4d4;
+  --surface-selected: #edf3e3;
+  --text-primary: #3e3830;
+  --text-secondary: #5c5248;
+  --text-heading: #7a5c3e;
+  --danger-bg: #f2e2da;
+  --danger-text: #7e3a24;
+  --danger-border: #c32032;
+  --warning-bg: #f5ecd9;
+  --warning-text: #7a5c3e;
+  --status-success-bg: #e4e8d4;
+  --status-success-text: #44502c;
+  --status-neutral-bg: #e9e4da;
+  --status-neutral-text: #5c5248;
+  --font-size-page-title: 1.75rem;
+  --font-size-section-title: 1.25rem;
+  --font-size-subsection-title: 1rem;
+  --font-size-body: 0.875rem;
+  --font-size-label: 0.875rem;
+  --font-size-table-heading: 0.875rem;
+  --font-size-caption: 0.75rem;
 }

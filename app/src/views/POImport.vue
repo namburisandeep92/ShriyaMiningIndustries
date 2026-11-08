@@ -86,17 +86,28 @@
             <button type="button" :aria-pressed="format === 'pdf'" :class="{ selected: format === 'pdf' }"
                     :disabled="busy" @click="format = 'pdf'">PDF</button>
           </div>
-          <button :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save</button>
-          <button :disabled="busy" @click="preview">Preview</button>
-          <button class="btn btn-primary" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
+          <button class="save-action" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save invoice</button>
+          <button class="preview-action" :disabled="busy" @click="preview">Preview</button>
+          <button class="save-download-action" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
           <button v-if="saved" :disabled="busy" @click="reload">Reload saved invoice (discard edits)</button>
         </div>
       </div>
       <p class="review-note">Amounts are USD, quantity × rate (no tax). Crate ranges follow table order. Rates start at the legacy defaults; check every line.</p>
       <p v-if="saved" role="status">Saved invoice {{ saved.invoiceNumber }} · version {{ saved.version }}</p>
-      <div v-if="summaryMessages.length" class="error" role="alert" tabindex="-1" data-validation-summary>
+      <div v-if="summaryGroups.length" class="error validation-summary" role="alert" tabindex="-1" data-validation-summary>
         <strong>Correct these fields before saving or previewing:</strong>
-        {{ summaryMessages.join('. ') }}
+        <section v-for="group in summaryGroups" :key="group.title" class="validation-group">
+          <h3>{{ group.title }}</h3>
+          <ul>
+            <li v-for="item in group.items" :key="item.message">
+              {{ item.message }}
+              <template v-if="item.categories?.length"> — {{ item.categories.join(', ') }}</template>
+              <ul v-if="item.lines?.length" class="affected-lines">
+                <li v-for="line in item.lines" :key="line">Line {{ line }}</li>
+              </ul>
+            </li>
+          </ul>
+        </section>
       </div>
       <p v-if="!saved && (!vendorId || !buyerId)">Select the vendor and buyer on the Upload PO step before saving &amp; downloading.</p>
       <div class="header-groups">
@@ -147,19 +158,22 @@
                 </th>
               </tr>
               <tr v-for="entry in category.lines" :key="entry.line.src || entry.index">
-                  <td v-for="field in lineFields" :key="field.key">
+                  <td v-for="field in lineFields" :key="field.key"
+                      :class="{ 'has-field-error': field.key === 'stone'
+                        ? fieldIssue('stone', entry.index) || fieldIssue('ref', entry.index)
+                        : fieldIssue(field.key, entry.index) }">
                     <div v-if="field.key === 'stone'" class="stone-ref">
-                      <textarea :value="lineDescription(entry.line)" :aria-label="`Line ${entry.index + 1} Stone / PO ref`"
-                                :disabled="busy || !canEdit" rows="2"
-                                :data-validation-key="`line:${entry.index}:stone`"
-                                :data-validation-keys="`line:${entry.index}:stone line:${entry.index}:ref`"
-                                :aria-invalid="invalid('stone', entry.index) || invalid('ref', entry.index)"
-                                :class="{ invalid: invalid('stone', entry.index) || invalid('ref', entry.index) }"
-                                @input="updateLineDescription(entry.line, $event)"
-                                @blur="touch('stone', entry.index); touch('ref', entry.index)" />
+                      <input v-model="entry.line.stone" :aria-label="`Line ${entry.index + 1} Stone`"
+                             :disabled="busy || !canEdit" :data-validation-key="`line:${entry.index}:stone`"
+                             :aria-invalid="invalid('stone', entry.index)" :class="{ invalid: invalid('stone', entry.index) }"
+                             @blur="touch('stone', entry.index)" />
                       <small v-if="fieldIssue('stone', entry.index)" class="field-error" role="alert">
                         {{ fieldIssue('stone', entry.index) }}
                       </small>
+                      <textarea v-model="entry.line.ref" v-auto-grow rows="1" :aria-label="`Line ${entry.index + 1} PO / ref`"
+                                :disabled="busy || !canEdit" :data-validation-key="`line:${entry.index}:ref`"
+                                :aria-invalid="invalid('ref', entry.index)" :class="{ invalid: invalid('ref', entry.index) }"
+                                @blur="touch('ref', entry.index)" />
                       <small v-if="fieldIssue('ref', entry.index)" class="field-error" role="alert">
                         {{ fieldIssue('ref', entry.index) }}
                       </small>
@@ -253,6 +267,8 @@ const vendorId = ref(0)
 const buyerId = ref(0)
 const canEdit = computed(() => apiClient.hasPermission(saved.value ? 'invoice.update' : 'invoice.create'))
 const issues = computed(() => invoice.value ? validateLegacyInvoice(invoice.value) : [])
+interface ValidationSummaryItem { message: string; categories?: string[]; lines?: number[] }
+interface ValidationSummaryGroup { title: string; items: ValidationSummaryItem[] }
 const issueKey = (field: string, line?: number, category?: string) => category
   ? `category:${category}:${field}` : line === undefined ? `header:${field}` : `line:${line}:${field}`
 const visibleIssues = computed(() => issues.value.filter(issue => validationAttempted.value
@@ -261,7 +277,37 @@ const invalid = (field: string, line?: number, category?: string) => visibleIssu
   issue.field === field && issue.line === line && issue.category === category)
 const fieldIssue = (field: string, line?: number, category?: string) => visibleIssues.value.find(issue =>
   issue.field === field && issue.line === line && issue.category === category)?.message
-const summaryMessages = computed(() => validationAttempted.value ? issues.value.map(issue => issue.message) : [])
+const summaryGroups = computed<ValidationSummaryGroup[]>(() => {
+  if (!validationAttempted.value) return []
+  const categories = new Map<string, string[]>()
+  const lines = new Map<string, number[]>()
+  const details = new Set<string>()
+  for (const issue of issues.value) {
+    if (issue.category) {
+      const message = issue.message.slice(issue.category.length).trim()
+      categories.set(message, [...(categories.get(message) || []), issue.category])
+    } else if (issue.line !== undefined) {
+      const message = issue.message.replace(/^Line \d+:\s*/, '')
+      lines.set(message, [...(lines.get(message) || []), issue.line + 1])
+    } else {
+      details.add(issue.message)
+    }
+  }
+  const groups: ValidationSummaryGroup[] = []
+  if (categories.size) groups.push({
+    title: 'HSN codes',
+    items: [...categories].map(([message, names]) => ({ message, categories: names })),
+  })
+  if (lines.size) groups.push({
+    title: 'Line items',
+    items: [...lines].map(([message, numbers]) => ({ message, lines: [...new Set(numbers)] })),
+  })
+  if (details.size) groups.push({
+    title: 'Invoice details',
+    items: [...details].map(message => ({ message })),
+  })
+  return groups
+})
 const groupedLines = computed(() => {
   const document = invoice.value
   if (!document) return []
@@ -299,15 +345,6 @@ const lineFields: { key: keyof LegacyLine; label: string; numeric?: boolean }[] 
 ]
 function inputSize(value: unknown, label: string) {
   return Math.max(...label.split('\n').map(line => line.length), String(value ?? '').length, 4)
-}
-function lineDescription(line: LegacyLine) {
-  return `${line.stone}\n${line.ref}`
-}
-function updateLineDescription(line: LegacyLine, event: Event) {
-  if (!(event.target instanceof HTMLTextAreaElement)) return
-  const [stone = '', ...reference] = event.target.value.replace(/\r\n/g, '\n').split('\n')
-  line.stone = stone
-  line.ref = reference.join('\n')
 }
 function toggleSelection(id: number) { selected.value.has(id) ? selected.value.delete(id) : selected.value.add(id) }
 function selectShown(on: boolean) { visibleRows.value.forEach(row => on ? selected.value.add(row.id) : selected.value.delete(row.id)) }
@@ -567,98 +604,119 @@ onBeforeRouteLeave(() => !invoice.value || JSON.stringify(invoice.value) === sav
 <style scoped>
 .po-flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
+.po-flow > header h1 { margin: 0; color: var(--text-heading); font-size: var(--font-size-page-title); line-height: 1.2; }
 .step-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--parchment); }
 .step-button { display: inline-flex; align-items: center; gap: .5rem; padding: .45rem .8rem; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--stone-dk); font-weight: 600; }
 .step-button span { display: grid; place-items: center; width: 1.45rem; height: 1.45rem; border: 1px solid currentColor; border-radius: 50%; font-size: .8rem; }
 .step-button.active { border-color: var(--earth); background: var(--earth); color: white; }
 .step-button.complete { border-color: var(--olive); color: var(--olive); }
-.panel { padding: 1.1rem 1.25rem; background: var(--white); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 1px 4px rgb(58 38 25 / 8%); min-width: 0; }
+.panel { padding: 1.1rem 1.25rem; background: var(--surface-card); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 1px 4px rgb(58 38 25 / 8%); min-width: 0; }
 .selection-panel { border-top: 4px solid var(--olive); }
 .review-panel { border-top: 4px solid var(--earth); }
-.panel > h2 { margin: 0 0 .45rem; color: var(--earth); font-size: 1.15rem; }
+.panel > h2 { margin: 0 0 .45rem; color: var(--text-heading); font-size: var(--font-size-section-title); line-height: 1.3; }
 .panel > p { margin: .35rem 0 .75rem; }
 .review-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .review-heading-row h2 { margin: 0; }
 .review-actions { justify-content: flex-end; }
-.review-note { color: var(--stone-dk); font-size: .88rem; }
-.invoice-totals { margin: .75rem 0 0; padding: .55rem .75rem; border-radius: 6px; background: var(--parchment); color: var(--earth); font-variant-numeric: tabular-nums; }
+.review-actions > button { min-height: 2.5rem; padding: .55rem 1rem; border: 1px solid transparent; border-radius: 6px; font-size: var(--font-size-body); font-weight: 600; transition: background .15s, color .15s, box-shadow .15s; }
+.review-actions > .save-action { border-color: var(--earth); background: transparent; color: var(--earth); }
+.review-actions > .save-action:hover:not(:disabled) { background: var(--parchment); }
+.review-actions > .preview-action { border-color: var(--terracotta); background: var(--terracotta); color: white; }
+.review-actions > .preview-action:hover:not(:disabled) { background: var(--terracotta); border-color: var(--terracotta); filter: brightness(.9); }
+.review-actions > .save-download-action { border-color: var(--olive); background: var(--olive); color: white; }
+.review-actions > .save-download-action:hover:not(:disabled) { background: var(--olive); border-color: var(--olive); filter: brightness(.85); }
+.review-note { color: var(--text-secondary); font-size: var(--font-size-label); }
+.validation-summary { display: grid; gap: .5rem; }
+.validation-summary > strong { margin-bottom: .15rem; }
+.validation-group h3 { margin: .25rem 0; font-size: var(--font-size-subsection-title); line-height: 1.35; }
+.validation-group > ul { margin: 0; padding-left: 1.25rem; }
+.validation-group li { margin: .15rem 0; }
+.affected-lines { margin: .2rem 0 .4rem; padding-left: 1.25rem; color: var(--text-secondary); font-size: var(--font-size-label); }
+.invoice-totals { margin: .75rem 0 0; padding: .55rem .75rem; border-radius: 6px; background: var(--surface-muted); color: var(--text-heading); font-variant-numeric: tabular-nums; }
 .invoice-totals span { padding: 0 .2rem; color: var(--stone); }
 fieldset { border: 1px solid var(--rule); margin: 1rem 0; }
 legend { color: var(--earth); font-weight: bold; }
 .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .65rem; align-items: start; }
-.association-panel { width: min(100%, 34rem); margin: .5rem 0 1rem auto; padding: .4rem .75rem .75rem; border: 1px solid var(--rule); border-radius: 8px; background: #fbf8f3; }
-.association-panel p { margin: 0 0 .45rem; font-size: .85rem; }
+.association-panel { width: min(100%, 34rem); margin: .5rem 0 1rem auto; padding: .4rem .75rem .75rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface-card); }
+.association-panel p { margin: 0 0 .45rem; font-size: var(--font-size-label); }
 .association-panel .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
 .upload-association { margin-left: 0; }
 .header-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: .75rem; align-items: start; }
-.header-groups .header-group { min-width: 0; margin: 0; padding: .65rem .75rem .75rem; border: 1px solid var(--rule); border-top: 4px solid var(--earth); border-radius: 8px; background: var(--white); }
+.header-groups .header-group { min-width: 0; margin: 0; padding: .65rem .75rem .75rem; border: 1px solid var(--rule); border-top: 4px solid var(--earth); border-radius: 8px; background: var(--surface-card); }
 .header-groups .header-group:nth-child(2) { border-top-color: var(--olive); }
 .header-groups .header-group:nth-child(3) { border-top-color: var(--earth-lt); }
 .header-groups .header-group:nth-child(4) { border-top-color: var(--stone); }
-.header-groups .header-group legend { padding: 0 .25rem; }
+.header-groups .header-group legend { padding: 0 .25rem; font-size: var(--font-size-subsection-title); }
 .header-groups .fields { gap: .5rem .65rem; }
 .header-groups .wide-field { grid-column: 1 / -1; }
 .header-groups textarea { display: block; width: 100%; min-height: 2rem; overflow: hidden; resize: none; white-space: pre-wrap; }
-label { display: grid; gap: .3rem; }
-input, select, textarea { border: 1px solid var(--rule); border-radius: 4px; padding: .5rem; min-width: 0; font: inherit; }
+label { display: grid; gap: .3rem; color: var(--text-secondary); font-size: var(--font-size-label); }
+input, select, textarea { border: 1px solid var(--rule); border-radius: 4px; padding: .5rem; min-width: 0; color: var(--text-primary); font: inherit; }
 button { cursor: pointer; padding: .5rem .75rem; }
 button:disabled { cursor: not-allowed; opacity: .55; }
-.selection-toolbar { gap: .5rem; margin: .75rem 0; padding: .6rem .7rem; border-radius: 8px; background: var(--parchment); }
-.selection-toolbar > button:not(.btn), .columns-menu summary { min-height: 2.25rem; padding: .4rem .65rem; border: 1px solid var(--earth); border-radius: 6px; background: var(--white); color: var(--earth); font-weight: 600; }
-.selection-toolbar > button:not(.btn):hover:not(:disabled), .columns-menu summary:hover { background: #efe4d4; }
-.selection-toolbar .filter-search { display: grid; grid-template-columns: auto minmax(12rem, 17rem); align-items: center; gap: .45rem; font-size: .85rem; font-weight: 600; }
-.selection-toolbar .filter-search input { width: 100%; background: var(--white); }
-.selection-count { padding: .35rem .7rem; border-radius: 999px; background: var(--olive); color: white; font-size: .85rem; white-space: nowrap; }
+.selection-toolbar { gap: .5rem; margin: .75rem 0; padding: .6rem .7rem; border-radius: 8px; background: var(--surface-muted); }
+.selection-toolbar > button:not(.btn), .columns-menu summary { min-height: 2.25rem; padding: .4rem .65rem; border: 1px solid var(--earth); border-radius: 6px; background: var(--surface-card); color: var(--text-heading); font-weight: 600; }
+.selection-toolbar > button:not(.btn):hover:not(:disabled), .columns-menu summary:hover { background: var(--surface-hover); }
+.selection-toolbar .filter-search { display: grid; grid-template-columns: auto minmax(12rem, 17rem); align-items: center; gap: .45rem; color: var(--text-secondary); font-size: var(--font-size-label); font-weight: 600; }
+.selection-toolbar .filter-search input { width: 100%; background: var(--surface-card); }
+.selection-count { padding: .35rem .7rem; border-radius: 999px; background: var(--olive); color: white; font-size: var(--font-size-label); white-space: nowrap; }
 .columns-menu { position: relative; }
 .columns-menu summary { display: flex; align-items: center; list-style: none; cursor: pointer; }
 .columns-menu[open] { z-index: 4; }
-.column-options { position: absolute; top: calc(100% + .25rem); left: 0; z-index: 5; min-width: 13rem; max-height: 20rem; overflow: auto; padding: .4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--white); box-shadow: 0 4px 12px rgb(58 38 25 / 16%); }
+.column-options { position: absolute; top: calc(100% + .25rem); left: 0; z-index: 5; min-width: 13rem; max-height: 20rem; overflow: auto; padding: .4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface-card); box-shadow: 0 4px 12px rgb(58 38 25 / 16%); }
 .columns-menu .column-option { display: flex; align-items: center; gap: .4rem; padding: .3rem; }
 .columns-menu .column-option input { width: auto; }
-.format-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid #bca88f; border-radius: 999px; background: #f3eee6; }
-.format-switch button { min-width: 5.25rem; border: 0; border-radius: 999px; background: transparent; color: #60442f; font-weight: 600; }
-.format-switch button.selected { background: #7a5c3e; color: white; box-shadow: 0 1px 3px #0002; }
-.error { background: #f2e2da; color: #7e3a24; padding: 1rem; }
-.category-row th { background: #e4d3bd; color: #60442f; }
+.format-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid var(--rule); border-radius: 999px; background: var(--surface-muted); }
+.format-switch button { min-width: 5.25rem; border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary); font-weight: 600; }
+.format-switch button.selected { background: var(--earth); color: white; box-shadow: 0 1px 3px #0002; }
+.error { background: var(--danger-bg); color: var(--danger-text); padding: 1rem; }
+.category-row th { background: var(--earth); color: white; }
 .category-heading { display: flex; align-items: center; justify-content: flex-start; gap: 1.25rem; }
-.category-heading > strong { font-size: 1rem; letter-spacing: .02em; }
-.category-heading .hsn-field { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.category-heading > strong { color: white; font-size: var(--font-size-subsection-title); letter-spacing: .02em; }
+.category-heading .hsn-field { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; color: white; }
 .category-heading .hsn-field input { width: 10rem; }
 .category-heading small { flex-basis: 100%; }
+.category-heading .field-error { display: block; padding: .25rem .45rem; border: 1px solid var(--danger-border); border-radius: 4px; background: var(--white); color: var(--danger-text); font-size: var(--font-size-caption); font-weight: 700; }
 .line-table input[type="checkbox"] { width: auto; }
-.invalid { border: 2px solid #c32032; background: #fff4f4; }
-.field-error { color: #7e3a24; font-weight: 600; }
+.invalid { border-color: var(--danger-border); background: var(--danger-bg); box-shadow: inset 0 0 0 1px var(--danger-border); }
+.field-error { color: var(--danger-text); font-weight: 600; }
+.line-table td.has-field-error { position: relative; padding-bottom: 2.35rem; }
+.line-table td.has-field-error > .field-error { position: absolute; right: .4rem; bottom: .25rem; left: .4rem; display: block; width: auto; margin: 0; overflow-wrap: anywhere; white-space: normal; font-size: var(--font-size-caption); line-height: 1.2; }
+.line-table .stone-ref > .field-error { position: static; width: auto; }
 .table-scroll { overflow: auto; max-height: 60vh; margin: 1rem 0; }
 .line-scroll { max-height: none; }
 table { border-collapse: separate; border-spacing: 0; }
 th, td { border-right: 1px solid var(--rule-lt); border-bottom: 1px solid var(--rule-lt); padding: .4rem .45rem; text-align: left; }
 th { background: var(--parchment); position: relative; }
 .po-table { width: max-content; min-width: 100%; }
-.po-table th { position: sticky; top: 0; z-index: 2; height: 40px; box-sizing: border-box; white-space: nowrap; background: var(--earth); color: white; font-size: .82rem; }
+.po-table th { position: sticky; top: 0; z-index: 2; height: 40px; box-sizing: border-box; white-space: nowrap; background: var(--earth); color: white; font-size: var(--font-size-table-heading); }
 .po-table thead tr:nth-child(2) th { top: 40px; height: auto; }
-.po-table td { white-space: nowrap; background: var(--white); }
-.po-table tbody tr:nth-child(even) td { background: #faf7f2; }
-.po-table tbody tr:hover td { background: #efe4d4; }
+.po-table td { white-space: nowrap; background: var(--surface-card); }
+.po-table tbody tr:nth-child(even) td { background: var(--surface-alt); }
+.po-table tbody tr:hover td { background: var(--surface-hover); }
 .select-column { width: 65px; }
-.pinned-check { position: sticky; left: 0; background: white; width: 65px; min-width: 65px; max-width: 65px; box-sizing: border-box; z-index: 1; }
+.pinned-check { position: sticky; left: 0; background: var(--surface-card); width: 65px; min-width: 65px; max-width: 65px; box-sizing: border-box; z-index: 1; }
 .pinned-check input { width: auto; min-width: 0; }
-.pinned { position: sticky; left: 65px; background: var(--white); z-index: 1; }
+.pinned { position: sticky; left: 65px; background: var(--surface-card); z-index: 1; }
 .po-table th.pinned, .po-table th.pinned-check { z-index: 3; background: var(--earth); color: white; }
-.chosen td, .po-table tbody tr.chosen td { background: #edf3e3; }
-.po-table tbody tr.chosen:hover td { background: #e2ebd6; }
+.chosen td, .po-table tbody tr.chosen td { background: var(--surface-selected); }
+.po-table tbody tr.chosen:hover td { background: var(--surface-selected); }
 .line-table { table-layout: auto; width: max-content; }
-.line-table th { position: sticky; top: 0; z-index: 2; background: var(--earth); color: white; font-size: .82rem; }
+.line-table th { position: sticky; top: 0; z-index: 2; background: var(--earth); color: white; font-size: var(--font-size-table-heading); }
 .line-table thead th { white-space: pre-line; vertical-align: bottom; }
-.line-table tbody tr:not(.category-row) td { background: var(--white); }
-.line-table tbody tr:not(.category-row):nth-child(odd) td { background: #faf7f2; }
-.line-table tbody tr:not(.category-row):hover td { background: #efe4d4; }
-.line-table th:first-child, .line-table td:first-child { position: sticky; left: 0; background: var(--white); z-index: 1; box-shadow: 2px 0 0 var(--rule); }
+.line-table tbody tr:not(.category-row) td { background: var(--surface-card); }
+.line-table tbody tr:not(.category-row):nth-child(odd) td { background: var(--surface-alt); }
+.line-table tbody tr:not(.category-row):hover td { background: var(--surface-hover); }
+.line-table th:first-child, .line-table td:first-child { position: sticky; left: 0; background: var(--surface-card); z-index: 1; box-shadow: 2px 0 0 var(--rule); }
 .line-table th:first-child { background: var(--earth); color: white; z-index: 3; }
-.stone-ref { display: grid; gap: .25rem; width: 16rem; max-width: 24rem; }
-.stone-ref textarea { width: 100%; min-width: 0; min-height: 3.75rem; resize: vertical; font-size: .9rem; line-height: 1.35; }
+.stone-ref { display: grid; gap: .2rem; width: 16rem; max-width: 24rem; }
+.stone-ref input { width: 100%; min-width: 0; padding: 2px 4px; border-color: transparent; color: var(--text-primary); font-weight: 600; }
+.stone-ref input:hover, .stone-ref input:focus { border-color: var(--rule); background: var(--surface-card); }
+.stone-ref textarea { display: block; width: 100%; min-width: 0; min-height: 1.35rem; padding: 2px 4px; overflow: hidden; overflow-wrap: anywhere; resize: none; border-color: transparent; background: transparent; color: var(--text-secondary); font-size: var(--font-size-caption); font-style: italic; line-height: 1.3; white-space: pre-wrap; }
+.stone-ref textarea:hover, .stone-ref textarea:focus { border-color: var(--rule); background: var(--surface-card); }
 .line-table input { width: auto; box-sizing: border-box; }
-.words-field { width: min(100%, 48rem); margin-top: 1rem; color: var(--stone-dk); font-size: .85rem; font-weight: 600; }
-.words-field input { width: 100%; min-height: 2.2rem; background: var(--white); color: var(--ink-mid); font-size: .9rem; font-weight: 500; letter-spacing: 0; }
+.words-field { width: min(100%, 48rem); margin-top: 1rem; color: var(--text-secondary); font-size: var(--font-size-label); font-weight: 600; }
+.words-field input { width: 100%; min-height: 2.2rem; background: var(--surface-card); color: var(--text-primary); font-size: var(--font-size-body); font-weight: 500; letter-spacing: 0; }
 .column-option { display: flex; padding: .2rem; }
 .preview { width: 100%; height: 800px; border: 1px solid #c8bead; }
 @media (max-width: 900px) {
