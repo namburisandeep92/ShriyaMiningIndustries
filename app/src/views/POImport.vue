@@ -340,7 +340,7 @@ const quantityTotal = computed(() => {
 const money = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'Invalid'
 const message = (value: unknown) => value && typeof value === 'object' && 'message' in value ? String(value.message) : String(value)
 const lineFields: { key: keyof LegacyLine; label: string; numeric?: boolean }[] = [
-  { key: 'stone', label: 'Stone /\nPO ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
+  { key: 'stone', label: 'Stone /\nPO / shipment ref' }, { key: 'finish', label: 'Finish' }, { key: 'size', label: 'Size' },
   { key: 'crates', label: 'Crate\nCount', numeric: true }, { key: 'crt', label: 'Crate\nrange' }, { key: 'qty', label: 'Qty', numeric: true },
   { key: 'uom', label: 'UOM' }, { key: 'weight', label: 'Wgt', numeric: true },
   { key: 'rate', label: 'Rate /\nUOM', numeric: true },

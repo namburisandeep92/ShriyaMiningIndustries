@@ -68,10 +68,35 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(parseItem({ item: 'Purbeck Grey Limestone Paver', sku: 'LIMPURGRY1624D' }).kind).toBe('LIMESTONE');
     expect(parseItem({ item: 'Sunwood Quartzite Display Board', sku: 'MKTSUNWOODB' }).kind).toBe('QUARTZITE');
     const po = await parsePendingOrders(await readFile(fixture), 'PendingOrders.xlsx');
-    const initial = createLegacyInvoice([po.rows[0]]);
-    expect(initial.lines[0]).toMatchObject({ qty: 250, uom: 'PC', rate: 0, size: '3/4" X 12"', ref: 'NSR PO # 172203 (GRNABSBLKLN34P)' });
+    const sourceRow = {
+      ...po.rows[0],
+      raw: { ...po.rows[0].raw, Supplier: 'DALTILE', NOTES: 'PO # 4503404129 // LINE # 30 // SHIPMENT #3000965895' },
+    };
+    const initial = createLegacyInvoice([sourceRow]);
+    expect(initial.lines[0]).toMatchObject({
+      qty: 250, uom: 'PC', rate: 0, size: '3/4" X 12"',
+      ref: 'DALTILE / NSR PO # 172203 // PO # 4503404129 // LINE # 30 // SHIPMENT #3000965895 (GRNABSBLKLN34P)',
+    });
+    initial.header['Invoice no'] = '2370';
+    initial.lines[0].crates = 1;
+    initial.lines[0].rate = 1;
+    initial.lines[0].crt = crateRanges(initial.lines, initial.header['Crate starting no'])[0];
+    initial.hsnCodes['GRANITE TILES'] = '68022310';
+    const persisted = legacyInvoiceInput(initial);
+    expect(JSON.parse(persisted.documentJson).lines[0].ref).toBe(initial.lines[0].ref);
+    expect(persisted.items[0].description).toContain(initial.lines[0].ref);
+    expect(buildLegacyPrintHtml(initial, '2370')).toContain(initial.lines[0].ref);
+    const workbook = await buildLegacyWorkbook(initial);
+    const workbookText = workbook.worksheets.flatMap(sheet => {
+      const values = [];
+      sheet.eachRow(row => row.eachCell(cell => {
+        if (typeof cell.value === 'string') values.push(cell.value);
+      }));
+      return values;
+    }).join('\n');
+    expect(workbookText).toContain(initial.lines[0].ref);
     initial.lines[0].rate = 7;
-    expect(createLegacyInvoice([po.rows[0], po.rows[1]], initial.lines).lines[0].rate).toBe(7);
+    expect(createLegacyInvoice([sourceRow, po.rows[1]], initial.lines).lines[0].rate).toBe(7);
     expect(createLegacyInvoice([po.rows[0]], [], {}, { categoryCodes: { 'GRANITE TILES': '6802.23.10' } }).hsnCodes['GRANITE TILES']).toBe('68022310');
     expect(initial.header['Buyer PO date']).toBe('2026-10-05');
   });
@@ -154,6 +179,29 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(migrated.lines[0].gross).toBeUndefined();
     expect(lineAmount({ qty: 7, rate: 1.005 })).toBe(7.04);
     expect(lineAmount({ qty: 1, rate: 1.005 })).toBe(1.01);
+  });
+
+  it('rounds each line to cents before summing and spells the rounded total consistently', () => {
+    const lines = [{ qty: 1, rate: 1.005 }, { qty: 1, rate: 1.005 }];
+    expect(invoiceTotal(lines)).toBe(2.02);
+    expect(amountWords(4382.4)).toBe('USD FOUR THOUSAND THREE HUNDRED EIGHTY TWO AND CENTS FORTY ONLY');
+    expect(amountWords(1.999)).toBe('USD TWO AND CENTS ZERO ONLY');
+    expect(amountWords(0)).toBe('USD ZERO AND CENTS ZERO ONLY');
+  });
+
+  it('matches the reference invoice USD line amounts, total, and amount-in-words format', () => {
+    const lines = [
+      { qty: 1700, rate: 1.75 },
+      { qty: 1440, rate: 1.62 },
+      { qty: 1440, rate: 1.62 },
+      { qty: 1440, rate: 1.62 },
+      { qty: 1800, rate: 1.62 },
+    ];
+    expect(lines.map(lineAmount)).toEqual([2975, 2332.8, 2332.8, 2332.8, 2916]);
+    expect(invoiceTotal(lines)).toBe(12889.4);
+    expect(amountWords(invoiceTotal(lines))).toBe(
+      'USD TWELVE THOUSAND EIGHT HUNDRED EIGHTY NINE AND CENTS FORTY ONLY',
+    );
   });
 
   it('defaults new invoices to crate 1001, recalculates counts, and preserves an edited start', async () => {

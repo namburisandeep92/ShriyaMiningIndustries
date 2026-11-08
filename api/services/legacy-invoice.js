@@ -53,7 +53,14 @@ export function lineAmount(line) {
   }
   return Math.round(quantity * rate * 100) / 100;
 }
-export const invoiceTotal = lines => Math.round(lines.reduce((sum, line) => sum + lineAmount(line), 0) * 100) / 100;
+export const invoiceTotal = lines => {
+  const cents = lines.reduce((sum, line) => {
+    const amount = lineAmount(line);
+    if (!Number.isFinite(amount)) return null;
+    return sum === null ? null : sum + BigInt(amount.toFixed(2).replace('.', ''));
+  }, 0n);
+  return cents === null ? NaN : Number(cents) / 100;
+};
 const numeric = value => typeof value === 'number' || typeof value === 'string';
 const positiveInteger = value => numeric(value) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 const positiveNumber = value => numeric(value) && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
@@ -145,8 +152,16 @@ export function createLegacyInvoice(rows, previousLines = [], previousHeader = {
     const previousLine = previous.get(row.key);
     const previousLineEdits = { ...previousLine };
     delete previousLineEdits.hsnCode;
+    const supplier = String(row.raw?.Supplier ?? '').trim();
+    const sourceNotes = String(row.raw?.NOTES ?? '').trim();
+    const referenceDetails = [
+      row.po ? `NSR PO # ${row.po}` : '',
+      row.so ? `SO # ${row.so}` : '',
+      sourceNotes,
+    ].filter(Boolean).join(' // ');
+    const reference = `${supplier ? `${supplier} / ` : ''}${referenceDetails}${row.sku ? ` (${row.sku})` : ''}`.trim();
     return { stone: parsed.stone, finish: parsed.finish, size: parsed.size,
-      ref: `NSR PO # ${row.po}${row.so ? ` // SO # ${row.so}` : ''} (${row.sku})`,
+      ref: reference,
       crates: '', crt: '', qty: row.qty, uom: row.uom, weight: '',
       rate: row.uom === 'SF' ? ({ '12" X 12"': 1.62, '12" X 24"': 1.75 }[parsed.size] || 0) : 0,
       ...previousLineEdits,
@@ -177,7 +192,10 @@ export function createLegacyInvoice(rows, previousLines = [], previousHeader = {
 function w(n){const a='ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN'.split(' '),b='_ _ TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY'.split(' ');
  if(n<20)return a[n];if(n<100)return b[n/10|0]+(n%10?' '+a[n%10]:'');if(n<1000)return a[n/100|0]+' HUNDRED'+(n%100?' '+w(n%100):'');
  if(n<1e6)return w(n/1000|0)+' THOUSAND'+(n%1000?' '+w(n%1000):'');return w(Math.floor(n/1e6))+' MILLION'+(n%1e6?' '+w(n%1e6):'')}
-export function amountWords(t){const d=Math.floor(t),c=Math.round((t-d)*100);return`USD ${w(d)} AND CENTS ${w(c)} ONLY`}
+export function amountWords(t){
+ const cents=Math.round(t*100),d=Math.floor(cents/100),c=cents%100;
+ return`USD ${w(d)} AND CENTS ${w(c)} ONLY`
+}
 
 export function parseItem(r){let s=r.item,code='';const m0=s.match(/^([A-Z]{2,4}) - /);if(m0){code=m0[1];s=s.slice(m0[0].length)}
  const N='(?:\\d+ \\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:\\.\\d+)?)';const m=s.match(new RegExp('('+N+')\\s?x\\s?('+N+')','i'));const ev=t=>t.split(' ').reduce((q,u)=>q+(u.includes('/')?u.split('/')[0]/u.split('/')[1]:+u),0);let stone=s,finish='',size='',area=0;
