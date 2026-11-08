@@ -115,7 +115,8 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     expect(parsed.data.rows).toHaveLength(82);
     expect((await call('/po-import/parse', 'POST', { fileName: 'PendingOrders.xlsx', file: file.toString('base64') }, userEmail)).status).toBe(403);
     const document = createLegacyInvoice(parsed.data.rows);
-    document.hsnCodes = Object.fromEntries(goodsCategories(document.lines).map(category => [category, '12345678']));
+    document.lines.forEach(line => { line.hsnCode = '12345678'; });
+    document.knownHsnCodes = Object.fromEntries(goodsCategories(document.lines).map(category => [category, ['12345678']]));
     document.header['Invoice no'] = `L-${randomUUID().slice(0, 18)}`;
     document.header['Crate starting no'] = '245';
     document.lines.forEach(line => { line.rate = 1.234567; line.crates = 2; });
@@ -272,10 +273,18 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.locator('.po-table tbody input:checked').count()).toBe(2);
       await page.getByRole('button', { name: 'Create invoice', exact: true }).click();
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
-      expect(await page.locator('.line-table tbody tr').count()).toBe(2);
+      expect(await page.locator('.line-table input[aria-label$="Stone"]').count()).toBe(2);
+      expect(await page.locator('[data-validation-summary]').count()).toBe(0);
+      expect(await page.locator('.line-table .invalid').count()).toBe(0);
+      expect(await page.getByText('Goods category HSN codes').count()).toBe(0);
+      expect(await page.getByLabel('Line 1 HSN code', { exact: true }).inputValue()).toBe('');
+      expect(await page.getByLabel('Line 2 HSN code', { exact: true }).inputValue()).toBe('');
+      await page.getByRole('button', { name: 'Preview', exact: true }).click();
+      expect(await page.locator('[data-validation-summary]').textContent()).toContain('HSN code');
+      expect(await page.getByLabel('Invoice no', { exact: true }).evaluate(element => element === document.activeElement)).toBe(true);
       const frozenLine = await page.locator('.line-table').evaluate(async table => {
         const scroller = table.parentElement;
-        const cells = table.querySelector('tbody tr').children;
+        const cells = table.querySelector('tbody tr:has(input[aria-label="Line 1 Stone"])').children;
         const before = [cells[0], cells[1]].map(cell => cell.getBoundingClientRect().left);
         scroller.scrollLeft = 400;
         await new Promise(resolve => requestAnimationFrame(resolve));
@@ -288,8 +297,6 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(Math.abs(frozenLine.after[0] - frozenLine.before[0])).toBeLessThan(1);
       expect(frozenLine.before[1] - frozenLine.after[1]).toBeGreaterThan(100);
       expect(await page.getByLabel('Crate starting no', { exact: true }).inputValue()).toBe('1001');
-      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
-      expect(await page.getByRole('button', { name: 'Save & download', exact: true }).isDisabled()).toBe(true);
       await page.getByLabel('Invoice no', { exact: true }).fill(`B-${randomUUID().slice(0, 18)}`);
       for (let index = 1; index <= 2; index++) {
         await page.getByLabel(`Line ${index} Crate count`, { exact: true }).fill('2');
@@ -306,12 +313,11 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.getByLabel('Line 1 Qty', { exact: true }).fill('250');
       await page.getByLabel('Port of discharge', { exact: true }).fill('NEW YORK');
       await page.getByLabel('Amount chargeable in words', { exact: true }).fill('CUSTOM WORDS');
-      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
-      expect(await page.getByLabel('GRANITE TILES HSN code', { exact: true }).getAttribute('aria-invalid')).toBe('true');
-      await page.getByLabel('GRANITE TILES HSN code', { exact: true }).fill('68022310');
-      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(true);
-      await page.getByLabel('SLATE STONE TILES HSN code', { exact: true }).fill('680300');
-      expect(await page.getByRole('button', { name: 'Preview', exact: true }).isDisabled()).toBe(false);
+      expect(await page.locator('[data-validation-summary]').textContent()).not.toContain('Line 1: Qty');
+      expect(await page.getByLabel('Line 1 HSN code', { exact: true }).getAttribute('aria-invalid')).toBe('true');
+      await page.getByLabel('Line 1 HSN code', { exact: true }).fill('6802.23.10');
+      expect(await page.getByLabel('Line 1 HSN code', { exact: true }).inputValue()).toBe('68022310');
+      await page.getByLabel('Line 2 HSN code', { exact: true }).fill('680300');
       await page.getByRole('button', { name: 'Preview', exact: true }).click();
       const previewFrame = page.frameLocator('iframe[title="Invoice and packing list preview"]');
       await previewFrame.getByRole('heading', { name: 'INV', exact: true }).waitFor();
@@ -364,7 +370,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
         }
       }
       expect(created.document.lines.map(line => line.crt)).toEqual(['1001 - 1002', '1003 - 1004']);
-      expect(created.document.hsnCodes).toMatchObject({ 'GRANITE TILES': '68022310', 'SLATE STONE TILES': '680300' });
+      expect(created.document.lines.map(line => line.hsnCode)).toEqual(['68022310', '680300']);
       expect(created.document.words).toBe('CUSTOM WORDS');
       await page.goto(`${origin}/invoices/${created.id}/edit`);
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
@@ -382,8 +388,8 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.goto(`${origin}/po-import?invoice=${created.id}`);
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
       expect(await page.getByLabel('Port of discharge', { exact: true }).inputValue()).toBe('HOUSTON');
-      expect(await page.getByLabel('GRANITE TILES HSN code', { exact: true }).inputValue()).toBe('68022310');
-      expect(await page.getByLabel('SLATE STONE TILES HSN code', { exact: true }).inputValue()).toBe('680300');
+      expect(await page.getByLabel('Line 1 HSN code', { exact: true }).inputValue()).toBe('68022310');
+      expect(await page.getByLabel('Line 2 HSN code', { exact: true }).inputValue()).toBe('680300');
       expect(pageErrors).toEqual([]);
     } finally {
       if (browser) await browser.close();

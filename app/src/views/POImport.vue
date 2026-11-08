@@ -71,34 +71,23 @@
       <h2>Review &amp; edit invoice</h2>
       <p>Amounts are USD, quantity × rate (no tax). Crate ranges follow table order. Rates start at the legacy defaults; check every line.</p>
       <p v-if="saved" role="status">Saved invoice {{ saved.invoiceNumber }} · version {{ saved.version }}</p>
-      <div v-if="issues.length" class="error" role="alert">
-        <strong>Correct these fields before preview or download:</strong>
-        <ul><li v-for="(issue, index) in issues" :key="index">{{ issue.message }}</li></ul>
+      <div v-if="summaryMessages.length" class="error" role="alert" tabindex="-1" data-validation-summary>
+        <strong>Correct these fields before saving or previewing:</strong>
+        {{ summaryMessages.join('. ') }}
       </div>
-      <fieldset v-if="categories.length" :disabled="busy || !canEdit">
-        <legend>Goods category HSN codes</legend>
-        <p>Enter a 4-, 6-, or 8-digit HSN code for each goods category.</p>
-        <div class="fields">
-          <label v-for="category in categories" :key="category">
-            {{ category }} HSN code *
-            <input v-model="invoice.hsnCodes[category]" :aria-label="`${category} HSN code`"
-                   inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"
-                   :aria-invalid="invalidHsn(category)" :class="{ invalid: invalidHsn(category) }"
-                   @input="sanitizeHsnCode(category)" />
-            <small v-if="hsnIssue(category)" class="field-error" role="alert">{{ hsnIssue(category) }}</small>
-          </label>
-        </div>
-      </fieldset>
       <fieldset v-for="group in headerGroups" :key="group.title" :disabled="busy || !canEdit">
         <legend>{{ group.title }}</legend>
         <div class="fields">
           <label v-for="key in group.fields" :key="key">
             {{ key }}
             <textarea v-if="headerDefaults[key].includes('\n')" v-model="invoice.header[key]" rows="4"
-                      :aria-invalid="invalid(key)" :class="{ invalid: invalid(key) }"></textarea>
+                      :data-validation-key="`header:${key}`" :aria-invalid="invalid(key)" :class="{ invalid: invalid(key) }"
+                      @blur="touch(key)"></textarea>
             <input v-else v-model="invoice.header[key]" :type="/date/i.test(key) ? 'date' : 'text'"
                    :inputmode="key === 'Crate starting no' ? 'numeric' : undefined"
-                   :aria-invalid="invalid(key)" :class="{ invalid: invalid(key) }" />
+                   :data-validation-key="`header:${key}`" :aria-invalid="invalid(key)" :class="{ invalid: invalid(key) }"
+                   @blur="touch(key)" />
+            <small v-if="fieldIssue(key)" class="field-error" role="alert">{{ fieldIssue(key) }}</small>
           </label>
         </div>
       </fieldset>
@@ -106,33 +95,94 @@
         <table class="line-table">
           <colgroup>
             <col v-for="(field, index) in lineFields" :key="field.key" :style="{ width: `${lineWidths[index]}px` }" />
-            <col style="width:140px" /><col style="width:100px" />
+            <col style="width:200px" /><col style="width:140px" /><col style="width:100px" />
           </colgroup>
           <thead><tr>
             <th v-for="(field, index) in lineFields" :key="field.key" :style="{ minWidth: `${lineWidths[index]}px`, width: `${lineWidths[index]}px` }">
               {{ field.label }} <span class="resize" @pointerdown.prevent="resizeColumn($event, index)" title="Drag to resize"></span>
-            </th><th>Amount USD</th><th>Action</th>
+            </th><th>HSN code</th><th>Amount USD</th><th>Action</th>
           </tr></thead>
           <tbody>
-            <tr v-for="(line, index) in invoice.lines" :key="index">
-              <td v-for="field in lineFields" :key="field.key">
-                <div v-if="field.key === 'stone'" class="stone-ref">
-                  <input v-model="line.stone" :aria-label="`Line ${index + 1} Stone`" :disabled="busy || !canEdit"
-                         :aria-invalid="invalid('stone', index)" :class="{ invalid: invalid('stone', index) }" />
-                  <input v-model="line.ref" :aria-label="`Line ${index + 1} PO / ref`" :disabled="busy || !canEdit"
-                         :aria-invalid="invalid('ref', index)" :class="{ invalid: invalid('ref', index) }" />
-                </div>
-                <input v-else v-model="line[field.key]" :aria-label="`Line ${index + 1} ${field.label}`"
-                       :inputmode="field.numeric ? 'decimal' : undefined" :readonly="field.key === 'crt'"
-                       :disabled="busy || !canEdit" :aria-invalid="invalid(field.key, index)" :class="{ invalid: invalid(field.key, index) }" />
-              </td>
-              <td>{{ money(lineAmount(line)) }}</td>
-              <td><button :disabled="busy || !canEdit" @click="invoice.lines.splice(index, 1)">Remove</button></td>
-            </tr>
+            <template v-for="category in groupedLines" :key="category.name">
+              <tr class="category-row">
+                <th :colspan="lineFields.length + 3">
+                  {{ category.name }}
+                  <button v-if="category.missing.length" class="missing-count" type="button" @click="jumpToFirstMissing(category)">
+                    ⚠ {{ category.missing.length }} {{ category.missing.length === 1 ? 'line needs' : 'lines need' }} HSN
+                  </button>
+                  <span v-else class="missing-count">All lines have HSN</span>
+                  <label class="hsn-action">Fill empty lines with…
+                    <input v-model="fillHsn[category.rawName]" :list="hsnListId(category.index)" :aria-label="`${category.name} fill empty HSN`"
+                           :disabled="busy || !canEdit" @input="sanitizeBulkHsn(category.rawName)" @blur="sanitizeBulkHsn(category.rawName)" />
+                  </label>
+                  <button type="button" :disabled="busy || !canEdit || !category.missing.length || !validHsnCode(fillHsn[category.rawName])"
+                          @click="fillEmptyHsn(category)">Fill</button>
+                </th>
+              </tr>
+              <template v-for="section in category.sections" :key="section.key">
+                <tr :class="section.missing ? 'needs-hsn-row' : 'hsn-group-row'">
+                  <th :colspan="lineFields.length + 3">
+                    <template v-if="section.missing">
+                      Needs HSN ({{ section.lines.length }})
+                      <label><input type="checkbox" :checked="allMissingSelected(section.lines)"
+                                    :disabled="busy || !canEdit" @change="toggleMissingSelection(section.lines)" /> Select all</label>
+                      <label class="hsn-action">Set HSN…
+                        <input v-model="bulkHsn[category.rawName]" :list="hsnListId(category.index)" :aria-label="`${category.name} set HSN`"
+                               :disabled="busy || !canEdit" @input="sanitizeBulkHsn(category.rawName)" @blur="sanitizeBulkHsn(category.rawName)" />
+                      </label>
+                      <button type="button" :disabled="busy || !canEdit || !selectedMissingCount(section.lines) || !validHsnCode(bulkHsn[category.rawName])"
+                              @click="setSelectedHsn(category)">Set HSN</button>
+                    </template>
+                    <template v-else>HSN {{ section.code }}</template>
+                  </th>
+                </tr>
+                <tr v-for="entry in section.lines" :key="entry.line.src || entry.index">
+                  <td v-for="field in lineFields" :key="field.key">
+                    <div v-if="field.key === 'stone'" class="stone-ref">
+                      <input v-model="entry.line.stone" :aria-label="`Line ${entry.index + 1} Stone`" :disabled="busy || !canEdit"
+                             :data-validation-key="`line:${entry.index}:stone`" :aria-invalid="invalid('stone', entry.index)"
+                             :class="{ invalid: invalid('stone', entry.index) }" @blur="touch('stone', entry.index)" />
+                      <input v-model="entry.line.ref" :aria-label="`Line ${entry.index + 1} PO / ref`" :disabled="busy || !canEdit"
+                             :data-validation-key="`line:${entry.index}:ref`" :aria-invalid="invalid('ref', entry.index)"
+                             :class="{ invalid: invalid('ref', entry.index) }" @blur="touch('ref', entry.index)" />
+                    </div>
+                    <template v-else>
+                      <input v-model="entry.line[field.key]" :aria-label="`Line ${entry.index + 1} ${field.label}`"
+                             :inputmode="field.numeric ? 'decimal' : undefined" :readonly="field.key === 'crt'"
+                             :disabled="busy || !canEdit" :data-validation-key="`line:${entry.index}:${field.key}`"
+                             :aria-invalid="invalid(field.key, entry.index)" :class="{ invalid: invalid(field.key, entry.index) }"
+                             @blur="touch(field.key, entry.index)" />
+                      <small v-if="fieldIssue(field.key, entry.index)" class="field-error" role="alert">
+                        {{ fieldIssue(field.key, entry.index) }}
+                      </small>
+                    </template>
+                  </td>
+                  <td class="hsn-cell">
+                    <input v-if="section.missing" type="checkbox" :aria-label="`Select line ${entry.index + 1} for HSN assignment`"
+                           :checked="selectedMissing.has(entry.index)" :disabled="busy || !canEdit"
+                           @change="toggleMissingLine(entry.index)" />
+                        <input :value="hsnDrafts[entry.index] ?? entry.line.hsnCode" :list="hsnListId(category.index)"
+                               :aria-label="`Line ${entry.index + 1} HSN code`"
+                               :disabled="busy || !canEdit" :data-validation-key="`line:${entry.index}:hsn`"
+                               :aria-invalid="invalid('hsn', entry.index)" :class="{ invalid: invalid('hsn', entry.index) }"
+                               @input="updateLineHsnDraft(entry.index, $event)"
+                               @blur="sanitizeLineHsn(entry.index); touch('hsn', entry.index)" />
+                    <small v-if="fieldIssue('hsn', entry.index)" class="field-error" role="alert">{{ fieldIssue('hsn', entry.index) }}</small>
+                    <button type="button" :disabled="busy || !canEdit || !previousHsn(entry.index)"
+                            @click="copyPreviousHsn(entry.index)">Same as above</button>
+                  </td>
+                  <td>{{ money(lineAmount(entry.line)) }}</td>
+                  <td><button :disabled="busy || !canEdit" @click="invoice.lines.splice(entry.index, 1)">Remove</button></td>
+                </tr>
+              </template>
+            </template>
           </tbody>
         </table>
+        <datalist v-for="category in groupedLines" :key="`hsn-list-${category.index}`" :id="hsnListId(category.index)">
+          <option v-for="code in category.knownCodes" :key="code" :value="code" />
+        </datalist>
       </div>
-      <button :disabled="busy || !canEdit" @click="addLine">Add line</button>
+      <button data-validation-key="header:lines" :disabled="busy || !canEdit" @click="addLine">Add line</button>
       <p>Total crates: {{ totalCrates }} · {{ quantityTotal }} · Gross weight: {{ totalGrossWeight }} KGS · Net weight: {{ totalWeight }} KGS · <strong>TOTAL USD {{ money(total) }}</strong></p>
       <label>Amount chargeable in words <input v-model="invoice.words" :disabled="busy || !canEdit" /></label>
       <fieldset :disabled="busy || !!saved || !canEdit">
@@ -146,8 +196,9 @@
       <p v-if="!saved && (!vendorId || !buyerId)">Vendor and buyer are required to save &amp; download. Preview does not require a database association.</p>
       <div class="toolbar">
         <label>Format <select v-model="format" aria-label="Format"><option value="excel">Excel (.xlsx)</option><option value="pdf">PDF (Save as PDF in print dialog)</option></select></label>
-        <button :disabled="busy || !!issues.length" @click="preview">Preview</button>
-        <button class="btn btn-primary" :disabled="busy || !!issues.length || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
+        <button :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save</button>
+        <button :disabled="busy" @click="preview">Preview</button>
+        <button class="btn btn-primary" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
         <button v-if="saved" :disabled="busy" @click="reload">Reload saved invoice (discard edits)</button>
       </div>
       <div v-if="previewHtml">
@@ -159,14 +210,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { apiClient, type InvoiceDocument, type InvoiceInput } from '@/services/api'
 import { toastManager } from '@/services/notifications'
 import { downloadBlob, printInvoice } from '@/services/invoice-download'
 import {
-  amountWords, buildLegacyPrintHtml, buildLegacyWorkbook, crateRanges, createLegacyInvoice, excelPreviewHtml,
-  goodsCategories, headerDefaults, headerGroups, invoiceTotal, lineAmount, validHsnCode, validateLegacyInvoice,
+  amountWords, buildLegacyPrintHtml, buildLegacyWorkbook, cleanHsnCode, crateRanges, createLegacyInvoice, excelPreviewHtml,
+  groupedLinesByHsn, headerDefaults, headerGroups, invoiceTotal, lineAmount, validHsnCode, validateLegacyInvoice,
   type LegacyDocument, type LegacyLine, type PORow,
 } from '../../../api/services/legacy-invoice.js'
 
@@ -188,15 +239,55 @@ const savedJson = ref('')
 const format = ref('excel')
 const previewHtml = ref('')
 let hydrating = false
+const validationAttempted = ref(false)
+const touchedFields = ref(new Set<string>())
+const selectedMissing = ref(new Set<number>())
+const bulkHsn = ref<Record<string, string>>({})
+const fillHsn = ref<Record<string, string>>({})
+const hsnDrafts = ref<Record<number, string>>({})
+interface HsnMemory { skuCodes: Record<string, string>; categoryCodes: Record<string, string[]> }
+const hsnMemory = ref<HsnMemory>({ skuCodes: {}, categoryCodes: {} })
 const master = ref<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }>({ vendors: [], buyers: [] })
 const vendorId = ref(0)
 const buyerId = ref(0)
 const canEdit = computed(() => apiClient.hasPermission(saved.value ? 'invoice.update' : 'invoice.create'))
 const issues = computed(() => invoice.value ? validateLegacyInvoice(invoice.value) : [])
-const invalid = (field: string, line?: number) => issues.value.some(issue => issue.field === field && issue.line === line)
-const categories = computed(() => goodsCategories(invoice.value?.lines || []))
-const invalidHsn = (category: string) => issues.value.some(issue => issue.field === 'hsn' && issue.category === category)
-const hsnIssue = (category: string) => issues.value.find(issue => issue.field === 'hsn' && issue.category === category)?.message
+const issueKey = (field: string, line?: number) => line === undefined ? `header:${field}` : `line:${line}:${field}`
+const visibleIssues = computed(() => issues.value.filter(issue => validationAttempted.value || touchedFields.value.has(issueKey(issue.field, issue.line))))
+const invalid = (field: string, line?: number) => visibleIssues.value.some(issue => issue.field === field && issue.line === line)
+const fieldIssue = (field: string, line?: number) => visibleIssues.value.find(issue => issue.field === field && issue.line === line)?.message
+const summaryMessages = computed(() => {
+  if (!validationAttempted.value) return []
+  const missingByCategory = new Map<string, number>()
+  const other = issues.value.filter(issue => {
+    if (issue.field !== 'hsn' || issue.line === undefined) return true
+    const category = String(invoice.value?.lines[issue.line]?.kind || 'Other')
+    missingByCategory.set(category, (missingByCategory.get(category) || 0) + 1)
+    return false
+  }).map(issue => issue.message)
+  return [...other, ...[...missingByCategory].map(([category, count]) => `${count} ${count === 1 ? 'line' : 'lines'} in ${category} ${count === 1 ? 'needs' : 'need'} an HSN code`)]
+})
+const groupedLines = computed(() => {
+  const document = invoice.value
+  if (!document) return []
+  const invoiceCodes = document.lines.map(line => cleanHsnCode(line.hsnCode))
+  return groupedLinesByHsn(document.lines, document).map((category, index) => {
+    const lines = category.codes.flatMap(group => group.lines)
+    const missing = lines.filter(entry => !cleanHsnCode(entry.line.hsnCode))
+    const sections = category.codes.filter(group => group.code).map(group => ({
+      key: `${category.category}:${group.code}`, code: group.code, missing: false, lines: group.lines,
+    }))
+    if (missing.length) sections.push({ key: `${category.category}:missing`, code: '', missing: true, lines: missing })
+    const knownCodes = [...new Set([
+      ...(hsnMemory.value.categoryCodes[category.category] || []),
+      ...(document.knownHsnCodes?.[category.category] || []),
+      ...invoiceCodes,
+      ...lines.map(entry => cleanHsnCode(entry.line.hsnCode)),
+    ].map(cleanHsnCode).filter(Boolean))]
+    return { name: category.category || 'Uncategorized', rawName: category.category, index, sections, missing, knownCodes }
+  })
+})
+const hsnListId = (index: number) => `hsn-options-${index}`
 const visibleColumns = computed(() => columns.value.filter(column => !hidden.value.has(column)))
 const filterOptions = computed(() => Object.fromEntries(columns.value.flatMap(column => {
   const values = [...new Set(rows.value.map(row => row.raw[column]))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
@@ -240,37 +331,164 @@ function moveColumn(target: string) {
   columns.value.splice(to, 0, dragColumn.value)
   dragColumn.value = ''
 }
-const lastHsnCodesKey = 'smi_last_hsn_codes_v1'
-function readLastHsnCodes(): Record<string, string> {
+const hsnMemoryKey = 'smi_hsn_memory_v2'
+const oldHsnCodesKey = 'smi_last_hsn_codes_v1'
+function readHsnMemory(): HsnMemory {
   try {
-    const stored = window.localStorage.getItem(lastHsnCodesKey)
-    if (!stored) return {}
-    const parsed: unknown = JSON.parse(stored)
+    const stored = window.localStorage.getItem(hsnMemoryKey)
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored)
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Stored HSN memory has an invalid format')
+      const value = parsed as Partial<HsnMemory>
+      const skuCodes = value.skuCodes && typeof value.skuCodes === 'object' && !Array.isArray(value.skuCodes) ? value.skuCodes : {}
+      const categoryCodes = value.categoryCodes && typeof value.categoryCodes === 'object' && !Array.isArray(value.categoryCodes) ? value.categoryCodes : {}
+      return {
+        skuCodes: Object.fromEntries(Object.entries(skuCodes).map(([sku, code]) => [sku, cleanHsnCode(code)]).filter(([, code]) => code)),
+        categoryCodes: Object.fromEntries(Object.entries(categoryCodes).map(([category, codes]) => [
+          category, [...new Set((Array.isArray(codes) ? codes : []).map(cleanHsnCode).filter(Boolean))],
+        ])),
+      }
+    }
+    const old = window.localStorage.getItem(oldHsnCodesKey)
+    if (!old) return { skuCodes: {}, categoryCodes: {} }
+    const parsed: unknown = JSON.parse(old)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Stored HSN codes have an invalid format')
-    return Object.fromEntries(Object.entries(parsed).filter(([category, code]) => category && validHsnCode(code)))
+    return {
+      skuCodes: {},
+      categoryCodes: Object.fromEntries(Object.entries(parsed).map(([category, code]) => [category, [cleanHsnCode(code)]])
+        .filter(([, codes]) => codes[0])),
+    }
   } catch (cause) {
     error.value = `Could not load remembered HSN codes: ${message(cause)}`
-    return {}
+    return { skuCodes: {}, categoryCodes: {} }
   }
 }
-function rememberHsnCodes() {
-  if (!invoice.value) return
-  const remembered = readLastHsnCodes()
-  let changed = false
-  for (const category of categories.value) {
-    const code = invoice.value.hsnCodes[category]
-    if (validHsnCode(code) && remembered[category] !== code) {
-      remembered[category] = code
-      changed = true
-    }
-  }
-  if (!changed) return
-  try { window.localStorage.setItem(lastHsnCodesKey, JSON.stringify(remembered)) }
-  catch (cause) { error.value = `Could not remember HSN codes in this browser: ${message(cause)}` }
+function touch(field: string, line?: number) {
+  const updated = new Set(touchedFields.value)
+  updated.add(issueKey(field, line))
+  touchedFields.value = updated
 }
-function sanitizeHsnCode(category: string) {
+function sanitizeLineHsn(index: number) {
+  const line = invoice.value?.lines[index]
+  if (!line) return
+  const draft = hsnDrafts.value[index]
+  line.hsnCode = cleanHsnCode(draft === undefined ? line.hsnCode : draft)
+  const drafts = { ...hsnDrafts.value }
+  delete drafts[index]
+  hsnDrafts.value = drafts
+}
+function updateLineHsnDraft(index: number, event: Event) {
+  const input = event.target
+  if (input instanceof HTMLInputElement) hsnDrafts.value[index] = cleanHsnCode(input.value)
+}
+function sanitizeBulkHsn(category: string) {
+  bulkHsn.value[category] = cleanHsnCode(bulkHsn.value[category])
+  fillHsn.value[category] = cleanHsnCode(fillHsn.value[category])
+}
+function toggleMissingLine(index: number) {
+  const updated = new Set(selectedMissing.value)
+  updated.has(index) ? updated.delete(index) : updated.add(index)
+  selectedMissing.value = updated
+}
+function allMissingSelected(lines: { index: number }[]) {
+  return !!lines.length && lines.every(({ index }) => selectedMissing.value.has(index))
+}
+function selectedMissingCount(lines: { index: number }[]) {
+  return lines.filter(({ index }) => selectedMissing.value.has(index)).length
+}
+function toggleMissingSelection(lines: { index: number }[]) {
+  const updated = new Set(selectedMissing.value)
+  const shouldSelect = !allMissingSelected(lines)
+  lines.forEach(({ index }) => shouldSelect ? updated.add(index) : updated.delete(index))
+  selectedMissing.value = updated
+}
+function setSelectedHsn(category: { rawName: string; missing: { index: number }[] }) {
   if (!invoice.value) return
-  invoice.value.hsnCodes[category] = String(invoice.value.hsnCodes[category] || '').replace(/\D/g, '').slice(0, 8)
+  const code = cleanHsnCode(bulkHsn.value[category.rawName])
+  if (!code) return
+  category.missing.filter(({ index }) => selectedMissing.value.has(index))
+    .forEach(({ index }) => { invoice.value!.lines[index].hsnCode = code })
+  const updatedSelection = new Set(selectedMissing.value)
+  category.missing.forEach(({ index }) => updatedSelection.delete(index))
+  selectedMissing.value = updatedSelection
+}
+function fillEmptyHsn(category: { rawName: string; missing: { index: number }[] }) {
+  if (!invoice.value) return
+  const code = cleanHsnCode(fillHsn.value[category.rawName])
+  if (!code) return
+  category.missing.forEach(({ index }) => { invoice.value!.lines[index].hsnCode = code })
+}
+function previousHsn(index: number) {
+  return cleanHsnCode(invoice.value?.lines[index - 1]?.hsnCode)
+}
+function copyPreviousHsn(index: number) {
+  if (invoice.value && previousHsn(index)) {
+    invoice.value.lines[index].hsnCode = previousHsn(index)
+    const drafts = { ...hsnDrafts.value }
+    delete drafts[index]
+    hsnDrafts.value = drafts
+  }
+}
+function jumpToFirstMissing(category: { missing: { index: number }[] }) {
+  const first = category.missing[0]
+  if (!first) return
+  document.querySelectorAll<HTMLElement>('[data-validation-key]')
+    .forEach(element => {
+      if (element.dataset.validationKey === `line:${first.index}:hsn`) {
+        element.focus()
+        element.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      }
+    })
+}
+function hsnMemoryForDocument(document: LegacyDocument): HsnMemory {
+  const memory: HsnMemory = {
+    skuCodes: { ...hsnMemory.value.skuCodes },
+    categoryCodes: Object.fromEntries(Object.entries(hsnMemory.value.categoryCodes).map(([category, codes]) => [category, [...codes]])),
+  }
+  document.knownHsnCodes ||= {}
+  for (const line of document.lines) {
+    const code = cleanHsnCode(line.hsnCode)
+    line.hsnCode = code
+    if (!code) continue
+    const category = line.kind || ''
+    const known = new Set([
+      ...(memory.categoryCodes[category] || []),
+      ...(document.knownHsnCodes[category] || []),
+      code,
+    ].map(cleanHsnCode).filter(Boolean))
+    memory.categoryCodes[category] = [...known]
+    document.knownHsnCodes[category] = [...known]
+    if (line.sku) memory.skuCodes[line.sku] = code
+  }
+  return memory
+}
+function rememberSavedHsnCodes(document: LegacyDocument) {
+  const memory = hsnMemoryForDocument(document)
+  try {
+    window.localStorage.setItem(hsnMemoryKey, JSON.stringify(memory))
+    hsnMemory.value = memory
+  } catch (cause) {
+    throw new Error(`Could not remember saved HSN codes in this browser: ${message(cause)}`)
+  }
+}
+function resetValidation() {
+  validationAttempted.value = false
+  touchedFields.value = new Set()
+  hsnDrafts.value = {}
+}
+async function validateForAction() {
+  if (!invoice.value) return false
+  invoice.value.lines.forEach((line, index) => sanitizeLineHsn(index))
+  validationAttempted.value = true
+  if (!issues.value.length) return true
+  await nextTick()
+  const first = issues.value[0]
+  const key = first.line === undefined ? `header:${first.field}` : `line:${first.line}:${first.field}`
+  const target = [...document.querySelectorAll<HTMLElement>('[data-validation-key]')]
+    .find(element => element.dataset.validationKey === key)
+  target?.focus()
+  target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  return false
 }
 async function loadFile(file?: File) {
   if (!file || busy.value) return
@@ -305,15 +523,19 @@ function selectFile(event: Event) {
 function dropFile(event: DragEvent) { void loadFile(event.dataTransfer?.files[0]) }
 function review() {
   if (!selected.value.size) return
-  const hsnCodes = { ...readLastHsnCodes(), ...(invoice.value?.hsnCodes || {}) }
-  const next = createLegacyInvoice(rows.value.filter(row => selected.value.has(row.id)), invoice.value?.lines, invoice.value?.header, hsnCodes)
+  hsnMemory.value = readHsnMemory()
+  const next = createLegacyInvoice(rows.value.filter(row => selected.value.has(row.id)), invoice.value?.lines, invoice.value?.header, hsnMemory.value)
   if (invoice.value) next.header = { ...next.header, ...invoice.value.header, 'Buyer PO nos': next.header['Buyer PO nos'], 'Buyer PO date': next.header['Buyer PO date'] }
-  next.hsnCodes ||= {}
+  hsnMemoryForDocument(next)
   invoice.value = next
+  selectedMissing.value = new Set()
+  bulkHsn.value = {}
+  fillHsn.value = {}
+  resetValidation()
   step.value = 3
 }
 function addLine() {
-  invoice.value?.lines.push({ stone: '', finish: '', size: '', ref: '', crates: '', crt: '', qty: '', uom: 'SF', net: '', gross: '', rate: '', kind: '' })
+  invoice.value?.lines.push({ stone: '', finish: '', size: '', ref: '', crates: '', crt: '', qty: '', uom: 'SF', net: '', gross: '', rate: '', kind: '', hsnCode: '', sku: '' })
 }
 watch(() => [invoice.value?.header['Crate starting no'], invoice.value?.lines.map(line => line.crates)], () => {
   if (!invoice.value) return
@@ -324,9 +546,8 @@ watch(total, value => {
 }, { flush: 'sync' })
 watch(invoice, () => { previewHtml.value = '' }, { deep: true })
 watch(format, () => { previewHtml.value = '' })
-watch(() => invoice.value?.hsnCodes, rememberHsnCodes, { deep: true })
 async function preview() {
-  if (!invoice.value || issues.value.length || busy.value) return
+  if (!invoice.value || busy.value || !await validateForAction()) return
   busy.value = true
   error.value = ''
   try {
@@ -340,11 +561,22 @@ function applySaved(value: InvoiceDocument) {
   saved.value = value
   hydrating = true
   invoice.value = value.document
-  invoice.value.hsnCodes = { ...readLastHsnCodes(), ...(invoice.value.hsnCodes || {}) }
+  const documentWithLegacyCodes = invoice.value as LegacyDocument & { hsnCodes?: Record<string, string> }
+  for (const line of invoice.value.lines) {
+    line.hsnCode = cleanHsnCode(line.hsnCode || documentWithLegacyCodes.hsnCodes?.[line.kind])
+    line.sku ||= ''
+  }
+  delete documentWithLegacyCodes.hsnCodes
+  invoice.value.knownHsnCodes ||= {}
+  for (const [category, codes] of Object.entries(invoice.value.knownHsnCodes)) {
+    invoice.value.knownHsnCodes[category] = [...new Set((Array.isArray(codes) ? codes : []).map(cleanHsnCode).filter(Boolean))]
+  }
+  hsnMemory.value = readHsnMemory()
   hydrating = false
   vendorId.value = value.vendorId
   buyerId.value = value.buyerId
   savedJson.value = JSON.stringify(value.document)
+  resetValidation()
   step.value = 3
 }
 async function reload() {
@@ -356,11 +588,10 @@ async function reload() {
   catch (cause) { error.value = message(cause); toastManager.error(error.value) }
   finally { busy.value = false }
 }
-async function saveDownload() {
-  if (!invoice.value || issues.value.length || busy.value || !canEdit.value || (!saved.value && (!vendorId.value || !buyerId.value))) return
-  busy.value = true
-  error.value = ''
-  try {
+async function persistInvoice() {
+  if (!invoice.value) throw new Error('Invoice details are unavailable')
+  hsnMemoryForDocument(invoice.value)
+  if (!saved.value) {
     const input: InvoiceInput = {
       invoiceDate: invoice.value.header['Invoice date'], vendorId: vendorId.value, buyerId: buyerId.value,
       document: invoice.value, lineItems: invoice.value.lines.map(line => ({
@@ -368,8 +599,33 @@ async function saveDownload() {
         quantity: Number(line.qty), unitPrice: Number(line.rate), taxPercent: 0, unitOfMeasure: line.uom,
       })),
     }
-    if (!saved.value) applySaved((await apiClient.createInvoice(input)).data)
-    else if (JSON.stringify(invoice.value) !== savedJson.value) applySaved((await apiClient.updateInvoice(saved.value.id, { document: invoice.value }, saved.value.rowVersion)).data)
+    applySaved((await apiClient.createInvoice(input)).data)
+  } else if (JSON.stringify(invoice.value) !== savedJson.value) {
+    applySaved((await apiClient.updateInvoice(saved.value.id, { document: invoice.value }, saved.value.rowVersion)).data)
+  }
+  if (!invoice.value) throw new Error('Saved invoice document is unavailable')
+  rememberSavedHsnCodes(invoice.value)
+}
+async function saveInvoice() {
+  if (!invoice.value || busy.value || !canEdit.value || (!saved.value && (!vendorId.value || !buyerId.value))
+      || !await validateForAction()) return
+  busy.value = true
+  error.value = ''
+  try {
+    await persistInvoice()
+    toastManager.success('Invoice saved')
+  } catch (cause) {
+    error.value = message(cause)
+    toastManager.error(error.value)
+  } finally { busy.value = false }
+}
+async function saveDownload() {
+  if (!invoice.value || busy.value || !canEdit.value || (!saved.value && (!vendorId.value || !buyerId.value))
+      || !await validateForAction()) return
+  busy.value = true
+  error.value = ''
+  try {
+    await persistInvoice()
     const id = saved.value!.id
     const name = `Invoice_${invoice.value!.header['Invoice no'].replace(/[^a-zA-Z0-9_-]/g, '-')}_${new Date().toISOString().replace(/[-:TZ.]/g, '')}`
     if (format.value === 'excel') downloadBlob(await apiClient.exportInvoiceAsExcel(id), `${name}.xlsx`)
@@ -380,7 +636,7 @@ async function saveDownload() {
     toastManager.success('Invoice saved')
   } catch (cause) {
     error.value = saved.value && JSON.stringify(invoice.value) === savedJson.value
-      ? `Invoice is saved, but download failed: ${message(cause)}. Retry Save & download to download it without creating another invoice.`
+      ? `Invoice is saved, but a follow-up action failed: ${message(cause)}. Retry Save & download to continue.`
       : message(cause)
     toastManager.error(error.value)
   }
@@ -409,6 +665,17 @@ input, select, textarea { border: 1px solid #aaa; border-radius: 3px; padding: .
 button { cursor: pointer; padding: .5rem .75rem; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 .error { background: #f2e2da; color: #7e3a24; padding: 1rem; }
+.missing-count { margin-left: 1rem; color: #7e3a24; }
+.hsn-action { display: inline-flex; align-items: center; gap: .35rem; margin-left: 1rem; }
+.hsn-action input { width: 10rem; }
+.category-row th { background: #e4d3bd; color: #60442f; }
+.hsn-group-row th, .needs-hsn-row th { background: #f7f3ee; color: #7a5c3e; }
+.hsn-group-row th { padding-left: 1.5rem; }
+.needs-hsn-row label { display: inline-flex; align-items: center; gap: .35rem; margin-left: 1rem; }
+.hsn-cell { display: grid; grid-template-columns: auto minmax(7rem, 1fr); align-items: center; gap: .3rem; }
+.hsn-cell input[type="checkbox"], .needs-hsn-row input[type="checkbox"] { width: auto; }
+.hsn-cell small, .hsn-cell button { grid-column: 2; }
+.line-table input[type="checkbox"] { width: auto; }
 .invalid { border: 2px solid #c32032; background: #fff4f4; }
 .field-error { color: #7e3a24; font-weight: 600; }
 .table-scroll { overflow: auto; max-height: 65vh; margin: 1rem 0; }

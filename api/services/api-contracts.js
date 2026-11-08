@@ -1,11 +1,22 @@
 import { ApiError, Errors } from '../middleware/error-handler.js';
-import { validateLegacyInvoice } from './legacy-invoice.js';
+import { cleanHsnCode, validateLegacyInvoice } from './legacy-invoice.js';
 
 export function legacyInvoiceInput(document) {
   const issues = validateLegacyInvoice(document);
   if (issues.length) throw new ApiError(400, 'INV-VALIDATE-400', issues.map(issue => issue.message).join('; '), issues);
+  const legacyCodes = document.hsnCodes || {};
+  const normalizedDocument = {
+    ...document,
+    lines: document.lines.map(line => ({
+      ...line, hsnCode: cleanHsnCode(line.hsnCode || legacyCodes[line.kind]),
+    })),
+    knownHsnCodes: Object.fromEntries(Object.entries(document.knownHsnCodes || {}).map(([category, codes]) => [
+      category, [...new Set((Array.isArray(codes) ? codes : []).map(cleanHsnCode).filter(Boolean))],
+    ])),
+  };
+  delete normalizedDocument.hsnCodes;
   return {
-    documentJson: JSON.stringify(document),
+    documentJson: JSON.stringify(normalizedDocument),
     requestedInvoiceNumber: document.header['Invoice no'].trim(),
     invoiceDate: new Date(document.header['Invoice date']),
     poNumber: document.header['Buyer PO nos'] || null,

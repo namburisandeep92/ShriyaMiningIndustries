@@ -29,8 +29,31 @@ export const invoiceTotal = lines => Math.round(lines.reduce((sum, line) => sum 
 const numeric = value => typeof value === 'number' || typeof value === 'string';
 const positiveInteger = value => numeric(value) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
 const positiveNumber = value => numeric(value) && String(value).trim() !== '' && Number.isFinite(Number(value)) && Number(value) > 0;
-export const validHsnCode = value => typeof value === 'string' && /^(?:\d{4}|\d{6}|\d{8})$/.test(value);
+export const cleanHsnCode = value => String(value ?? '').replace(/\D/g, '');
+export const validHsnCode = value => cleanHsnCode(value).length > 0;
 export const goodsCategories = lines => [...new Set(lines.map(line => String(line?.kind || '').trim()).filter(Boolean))];
+const lineHsnCode = (line, document) => cleanHsnCode(line?.hsnCode || document?.hsnCodes?.[line?.kind] || '');
+export function groupedLinesByHsn(lines, document) {
+  const categories = [];
+  const byCategory = new Map();
+  lines.forEach((line, index) => {
+    const category = String(line?.kind || '').trim();
+    let group = byCategory.get(category);
+    if (!group) {
+      group = { category, codes: [] };
+      byCategory.set(category, group);
+      categories.push(group);
+    }
+    const code = lineHsnCode(line, document);
+    let codeGroup = group.codes.find(item => item.code === code);
+    if (!codeGroup) {
+      codeGroup = { code, lines: [] };
+      group.codes.push(codeGroup);
+    }
+    codeGroup.lines.push({ line, index });
+  });
+  return categories;
+}
 const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))
   && new Date(value).toISOString().slice(0, 10) === value;
 const esc = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -61,17 +84,11 @@ export function validateLegacyInvoice(document) {
   if (header['Buyer PO date'] && !validDate(header['Buyer PO date'])) errors.push({ field: 'Buyer PO date', message: 'Buyer PO date must be a valid date' });
   if (!positiveInteger(header['Crate starting no'])) errors.push({ field: 'Crate starting no', message: 'Crate start # must be a positive integer' });
   if (!document.lines.length || document.lines.length > 1000) errors.push({ field: 'lines', message: 'Between 1 and 1000 lines are required' });
-  const hsnCodes = document.hsnCodes && typeof document.hsnCodes === 'object' && !Array.isArray(document.hsnCodes)
-    ? document.hsnCodes : {};
-  for (const category of goodsCategories(document.lines)) {
-    const code = hsnCodes[category];
-    if (!String(code || '').trim()) errors.push({ field: 'hsn', category, message: `${category}: HSN code is required` });
-    else if (!validHsnCode(code)) errors.push({ field: 'hsn', category, message: `${category}: HSN code must contain 4, 6, or 8 digits` });
-  }
   const ranges = crateRanges(document.lines, header['Crate starting no']);
   document.lines.forEach((line, index) => {
     const add = (field, message) => errors.push({ line: index, field, message: `Line ${index + 1}: ${message}` });
     if (!line || typeof line !== 'object') { add('line', 'Invalid line'); return; }
+    if (!validHsnCode(lineHsnCode(line, document))) add('hsn', `${line.kind || 'Goods'} line ${index + 1}: HSN code is required`);
     for (const field of ['stone', 'finish', 'size', 'ref', 'uom', 'kind', 'crt']) {
       if (typeof line[field] !== 'string') add(field, `${field} must be text`);
     }
@@ -96,16 +113,18 @@ export function validateLegacyInvoice(document) {
   return errors;
 }
 
-export function createLegacyInvoice(rows, previousLines = [], previousHeader = {}, previousHsnCodes = {}) {
+export function createLegacyInvoice(rows, previousLines = [], previousHeader = {}, previousHsnMemory = {}) {
   const previous = new Map(previousLines.filter(line => line.src).map(line => [line.src, line]));
   const lines = rows.map(row => {
     const parsed = parseItem({ item: row.item, sku: row.sku });
+    const previousLine = previous.get(row.key);
     return { stone: parsed.stone, finish: parsed.finish, size: parsed.size,
       ref: `NSR PO # ${row.po}${row.so ? ` // SO # ${row.so}` : ''} (${row.sku})`,
       crates: '', crt: '', qty: row.qty, uom: row.uom, net: '', gross: '',
       rate: row.uom === 'SF' ? ({ '12" X 12"': 1.62, '12" X 24"': 1.75 }[parsed.size] || 0) : 0,
-      code: parsed.code, kind: parsed.kind, src: row.key, poQty: row.qty, poUom: row.uom,
-      ...previous.get(row.key),
+      ...previousLine,
+      code: parsed.code, kind: parsed.kind, src: row.key, sku: row.sku, poQty: row.qty, poUom: row.uom,
+      hsnCode: cleanHsnCode(previousLine?.hsnCode || row.hsnCode || previousHsnMemory.skuCodes?.[row.sku] || ''),
     };
   }).sort((a, b) => a.kind.localeCompare(b.kind));
   const dates = rows.map(row => new Date(row.date)).filter(date => !Number.isNaN(date.getTime())).sort((a, b) => a - b);
@@ -116,7 +135,9 @@ export function createLegacyInvoice(rows, previousLines = [], previousHeader = {
     'Crate starting no': previousHeader['Crate starting no'] ?? headerDefaults['Crate starting no'],
   };
   crateRanges(lines, header['Crate starting no']).forEach((range, index) => { lines[index].crt = range; });
-  return { header, lines, words: amountWords(invoiceTotal(lines)), hsnCodes: { ...previousHsnCodes } };
+  return { header, lines, words: amountWords(invoiceTotal(lines)),
+    knownHsnCodes: Object.fromEntries(Object.entries(previousHsnMemory.categoryCodes || {}).map(([category, codes]) =>
+      [category, [...new Set((Array.isArray(codes) ? codes : []).map(cleanHsnCode).filter(Boolean))]])) };
 }
 
 function w(n){const a='ZERO ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN'.split(' '),b='_ _ TWENTY THIRTY FORTY FIFTY SIXTY SEVENTY EIGHTY NINETY'.split(' ');
@@ -139,6 +160,7 @@ export async function buildLegacyWorkbook(document){
 const {default:ExcelJS}=await import('exceljs');
 const H=document.header,L=document.lines,amt=lineAmount,total=()=>invoiceTotal(L);
 const WD=document.words||amountWords(total());const h=k=>H[k]||'';const lines=L.map(l=>({...l,amount:amt(l)}));
+const categoryGroups=groupedLinesByHsn(lines,document);
 const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase();
 const qd=l=>({v:+l.qty||0,nf:(Number.isInteger(+l.qty)?'#,##0':'#,##0.00')+' "'+(un(l.uom)||'QTY')+'"'});
 const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0);
@@ -198,10 +220,9 @@ function sheet(name,title,inv,tab){
  put(r,3,4,packageLabel(h('Packing')),{b:1,color:NAVY,bd:VB});
  put(r,5,6,packageLabel(h('Grade')),{b:1,color:NAVY,bd:VB});
  put(r,7,7,'',{bd:VB});ws.getRow(r).height=19;r++;
- const first=r;let lk=null,z=0;const fl=f=>f?{fill:f}:{};
- lines.forEach(l=>{
-  if(l.kind&&l.kind!==lk){put(r,1,inv?9:7,`${l.kind}  HSN CODE ${document.hsnCodes?.[l.kind]||''}`,{b:1,color:BLUE,fill:MID,size:10,bd:{left:Ln,right:Ln,top:Ln}});ws.getRow(r).height=20;r++;lk=l.kind;z=0}
-  const f=z++%2?ZEB:undefined,I={bd:VB,...fl(f)},q=qd(l);
+ const first=r;const fl=f=>f?{fill:f}:{};
+ const writeLine=l=>{
+  const f=writeLine.row++%2?ZEB:undefined,I={bd:VB,...fl(f)},q=qd(l);
   put(r,1,1,'CRT NO',{...I,b:1,color:NAVY});put(r,2,2,l.crt,{...I,b:1,color:NAVY});
   put(r,3,6,`${l.stone}  ${l.finish}  ${l.size}`.trim(),{...I,b:1,size:11});
   put(r,7,7,q.v,{...I,h:'right',nf:q.nf});
@@ -211,7 +232,13 @@ function sheet(name,title,inv,tab){
   put(r,1,1,'',{...I,size:10,color:NAVY});put(r,2,2,cn>0?crateLabel(cn):'',{...I,size:10,color:NAVY});
   put(r,3,6,`${l.finish}${l.ref?` / ${l.ref}`:''}`.trim(),{...I,wrap:1,size:9,i:1,color:'FF5B6578'});
   put(r,7,7,'',I);if(inv){put(r,8,8,'',I);put(r,9,9,'',I)}ws.getRow(r).height=26;r++;
-  put(r,1,inv?9:7,'',{bd:{left:Ln,right:Ln,bottom:Hr},...fl(f)});ws.getRow(r).height=5;r++});
+  put(r,1,inv?9:7,'',{bd:{left:Ln,right:Ln,bottom:Hr},...fl(f)});ws.getRow(r).height=5;r++};
+ writeLine.row=0;
+ categoryGroups.forEach(category=>category.codes.forEach(group=>{
+  put(r,1,inv?9:7,`${category.category}  HSN CODE ${group.code}`,{b:1,color:BLUE,fill:MID,size:10,bd:{left:Ln,right:Ln,top:Ln}});ws.getRow(r).height=20;r++;
+  writeLine.row=0;
+  group.lines.forEach(({line})=>writeLine(line));
+ }));
  put(r,1,2,'',{bd:VB});put(r,3,6,h('Container no')?'CONT # '+h('Container no'):'',{b:1,color:NAVY,bd:VB});put(r,7,7,'',{bd:VB});if(inv){put(r,8,8,'',{bd:VB});put(r,9,9,'',{bd:VB})}ws.getRow(r).height=19;r++;
  put(r,1,inv?9:7,'',{bd:{left:Ln,right:Ln,bottom:Ln}});ws.getRow(r).height=4;
  const last=r;r++;
@@ -301,21 +328,22 @@ const crateLabel=count=>`${String(count).padStart(2,'0')} CRATES`;
 const box=(t,b,c)=>`<div class="bx ${c||''}"><div class="lb">${t}</div><div class="bv">${b}</div></div>`;
 const exp=h('Exporter').split('\n'),con=h('Consignee').split('\n');
 const nm=a=>`<b class="nm">${E(a[0]||'')}</b><br>${a.slice(1).map(E).join('<br>')}`;
+const categoryGroups=groupedLinesByHsn(L,document);
 const top=(ttl)=>`<div class="ban">SHRIYA MINING INDUSTRIES</div><div class="ttl">${ttl}</div>
 <div class="g2"><div>${box('Exporter',nm(exp))}${box('Consignee',nm(con))}</div>
 <div>${box('Invoice no &amp; Date',`<b class="nm">${E(h('Invoice no'))}</b><span class="r">${E(dd)}</span>`)}${box("Buyer's order no &amp; Date",`<b>PO NO ${E(h('Buyer PO nos'))}</b><span class="r">DATE ${E(pdd)}</span><br>Other reference(s): ${E(h('Other reference'))}`)}${box('Buyer (if other than consignee)',E(h('Buyer (if other)'))||'&nbsp;')}${box('Notify Party',`<b class="nm">${E(np[0]||'')}</b><br>${E(np.slice(1).join(', '))}`)}</div></div>
 <div class="g4">${box('Pre-carriage by',E(h('Pre-carriage by')))}${box('Place of receipt',E(h('Place of receipt')))}${box('Country of origin',E(h('Country of origin')))}${box('Final destination',E(h('Final destination')))}</div>
 <div class="g2b"><div class="g2c">${box('Vessel / Flight No',E(h('Vessel / Flight')))}${box('Port of loading',E(h('Port of loading')))}${box('Port of destination',E(h('Port of discharge')))}${box('Final destination',E(h('Final delivery')))}</div>${box('Terms of payment &amp; delivery','PAYMENT : '+E(h('Payment terms')))}</div>`;
-let lk=null,z=0;
-const body=(inv)=>{let o='';L.forEach(l=>{
- if(l.kind&&l.kind!==lk){o+=`<tr class="sec"><td colspan="${inv?9:7}">${E(l.kind)}  HSN CODE ${E(document.hsnCodes?.[l.kind]||'')}</td></tr>`;lk=l.kind;z=0}
- const cn=parseInt(l.crates)||0,zb=z++%2?' zb':'';
+const body=(inv)=>{let o='';categoryGroups.forEach(category=>category.codes.forEach(group=>{
+ o+=`<tr class="sec"><td colspan="${inv?9:7}">${E(category.category)}  HSN CODE ${E(group.code)}</td></tr>`;
+ group.lines.forEach(({line:l},z)=>{
+ const cn=parseInt(l.crates)||0,zb=z%2?' zb':'';
  o+=`<tr class="it${zb}"><td class="mk"><b>CRT NO</b></td><td class="range">${E(l.crt)}</td><td class="ds" colspan="4"><b>${E((l.stone+'  '+l.finish).trim())}</b>${l.size?` &nbsp;<b>${E(l.size)}</b>`:''}</td><td class="n">${qf(l)}</td>`;
  if(inv)o+=`<td class="n">${nf(l.rate,2)}</td><td class="n am">${nf(amt(l),2)}</td>`;
  o+='</tr>';
  o+=`<tr class="detail${zb}"><td></td><td class="range"><b>${cn>0?crateLabel(cn):''}</b></td><td colspan="4"><i>${E(l.ref)}</i></td><td></td>${inv?'<td></td><td></td>':''}</tr>`;
- });return o};
-lk=null;z=0;const B1=body(true);lk=null;z=0;const B2=body(false);
+ })}));return o};
+const B1=body(true);const B2=body(false);
 const heading=(inv)=>`<thead><tr><th colspan="2">Marks &amp; No's</th><th colspan="2">No &amp; kind of packages</th><th colspan="2">Description of goods</th><th>Quantity</th>${inv?'<th>Rate</th><th>Amount</th>':''}</tr>
 <tr class="sb"><th colspan="2">Container</th><th colspan="2">${tc?String(tc).padStart(2,'0')+' NOS':''}</th><th colspan="2"></th><th>${uni?E([...uk][0]):''}</th>${inv?'<th>U.S.D</th><th>U.S.D</th>':''}</tr>
 <tr class="sb"><th colspan="2">${E(h('Marks code'))}</th><th colspan="2">${E(packageLabel(h('Packing')))}</th><th colspan="2">${E(packageLabel(h('Grade')))}</th><th></th>${inv?'<th></th><th></th>':''}</tr></thead>`;

@@ -34,6 +34,10 @@ export async function parsePendingOrders(buffer, fileName) {
   sheet.getRow(1).eachCell((cell, index) => { columns.push({ name: display(cell.value), index }); });
   if (!columns.length) throw Errors.InvalidExcelFormat('The PO file has no readable headings');
   if (new Set(columns.map(column => column.name)).size !== columns.length) throw Errors.InvalidExcelFormat('PO headings must be unique');
+  const hsnColumn = columns.find(column => {
+    const heading = column.name.toLowerCase().replace(/[^a-z]/g, '');
+    return heading === 'hsn' || heading === 'hsncode' || heading === 'hsnsac' || heading === 'hsnsaccode';
+  });
   const rows = [];
   const occurrences = new Map();
   sheet.eachRow((row, index) => {
@@ -46,6 +50,7 @@ export async function parsePendingOrders(buffer, fileName) {
     rows.push({
       id: rows.length, key: `${base}#${occurrence}`, raw,
       all: Object.values(raw).join(' ').toLowerCase(), item: raw['SPS Item'] || '', sku: raw.SKU || '',
+      hsnCode: hsnColumn ? raw[hsnColumn.name].replace(/\D/g, '') : '',
       po: raw['PO#'] || '', date: raw['PO Date'] || '', so: raw['SO Ref#'] || '', qty, uom: raw.UOM || '',
     });
   });
