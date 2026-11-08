@@ -4,37 +4,46 @@
       <h1>PO to invoice</h1>
       <router-link to="/invoices" class="btn btn-secondary">Back to invoices</router-link>
     </header>
-    <nav class="toolbar" aria-label="Invoice steps">
-      <button :disabled="busy || !!saved" @click="step = 1">1. Upload PO</button>
-      <button :disabled="busy || !rows.length || !!saved" @click="step = 2">2. Select lines</button>
-      <button :disabled="busy || !invoice" @click="step = 3">3. Review, preview &amp; download</button>
+    <nav class="step-nav" aria-label="Invoice steps">
+      <button class="step-button" :class="{ active: step === 1, complete: step > 1 }" :disabled="busy || !!saved" @click="step = 1"><span>1</span> Upload PO</button>
+      <button class="step-button" :class="{ active: step === 2, complete: step > 2 }" :disabled="busy || !rows.length || !!saved" @click="step = 2"><span>2</span> Select lines</button>
+      <button class="step-button" :class="{ active: step === 3 }" :disabled="busy || !invoice" @click="step = 3"><span>3</span> Review, preview &amp; download</button>
     </nav>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     <p v-if="busy" role="status">Processing...</p>
 
     <section v-if="step === 1" class="panel" @dragover.prevent @drop.prevent="dropFile">
       <h2>Upload PendingOrders</h2>
-      <p>Select or drop the PendingOrders workbook. No vendor or PO number is needed to read the file.</p>
+      <p>Select the vendor and buyer this invoice is for, then choose or drop the PendingOrders workbook.</p>
+      <fieldset class="association-panel upload-association" :disabled="busy || !canEdit">
+        <legend>Invoice association</legend>
+        <div class="fields">
+          <label>Vendor <select v-model.number="vendorId" aria-label="Vendor"><option :value="0">Select vendor</option><option v-for="vendor in master.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option></select></label>
+          <label>Buyer <select v-model.number="buyerId" aria-label="Buyer"><option :value="0">Select buyer</option><option v-for="buyer in master.buyers" :key="buyer.id" :value="buyer.id">{{ buyer.name }}</option></select></label>
+        </div>
+      </fieldset>
       <label>PO file <input type="file" accept=".xlsx,.csv" :disabled="busy" @change="selectFile" /></label>
       <p>Supported: .xlsx and .csv, up to 10 MB. Convert older .xls files to .xlsx first.</p>
     </section>
 
-    <section v-if="step === 2" class="panel">
+    <section v-if="step === 2" class="panel selection-panel">
       <h2>Select PO lines</h2>
       <p role="status">{{ fileName }} loaded successfully. Invoice fields are validated after selecting lines.</p>
-      <div class="toolbar">
-        <label>Search <input v-model="query" placeholder="Search item, SKU, PO#..." /></label>
-        <button @click="clearFilters">Clear filters</button>
-        <button @click="selectShown(true)">Select shown</button>
-        <button @click="selectShown(false)">Clear shown</button>
-        <details>
+      <div class="toolbar selection-toolbar">
+        <label class="filter-search">Search <input v-model="query" placeholder="Search item, SKU, PO#..." /></label>
+        <button class="secondary-action" @click="clearFilters">Clear filters</button>
+        <button class="secondary-action" @click="selectShown(true)">Select shown</button>
+        <button class="secondary-action" @click="selectShown(false)">Clear shown</button>
+        <details class="columns-menu">
           <summary>Columns</summary>
-          <label v-for="column in columns" :key="column" class="column-option">
-            <input type="checkbox" :checked="!hidden.has(column)" :disabled="column === 'SPS Item'" @change="toggleColumn(column)" />
-            {{ column }}
-          </label>
+          <div class="column-options">
+            <label v-for="column in columns" :key="column" class="column-option">
+              <input type="checkbox" :checked="!hidden.has(column)" :disabled="column === 'SPS Item'" @change="toggleColumn(column)" />
+              {{ column }}
+            </label>
+          </div>
         </details>
-        <strong role="status">{{ selected.size }} selected · {{ visibleRows.length }} of {{ rows.length }} shown</strong>
+        <strong class="selection-count" role="status">{{ selected.size }} selected · {{ visibleRows.length }} of {{ rows.length }} shown</strong>
         <button class="btn btn-primary" :disabled="!selected.size" @click="review">Create invoice</button>
       </div>
       <div class="table-scroll">
@@ -67,30 +76,37 @@
       </div>
     </section>
 
-    <section v-if="step === 3 && invoice" class="panel">
-      <h2>Review &amp; edit invoice</h2>
-      <p>Amounts are USD, quantity × rate (no tax). Crate ranges follow table order. Rates start at the legacy defaults; check every line.</p>
+    <section v-if="step === 3 && invoice" class="panel review-panel">
+      <div class="review-heading-row">
+        <h2>Review &amp; edit invoice</h2>
+        <div class="toolbar review-actions">
+          <div class="format-switch" role="group" aria-label="Export format">
+            <button type="button" :aria-pressed="format === 'excel'" :class="{ selected: format === 'excel' }"
+                    :disabled="busy" @click="format = 'excel'">Excel</button>
+            <button type="button" :aria-pressed="format === 'pdf'" :class="{ selected: format === 'pdf' }"
+                    :disabled="busy" @click="format = 'pdf'">PDF</button>
+          </div>
+          <button :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save</button>
+          <button :disabled="busy" @click="preview">Preview</button>
+          <button class="btn btn-primary" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
+          <button v-if="saved" :disabled="busy" @click="reload">Reload saved invoice (discard edits)</button>
+        </div>
+      </div>
+      <p class="review-note">Amounts are USD, quantity × rate (no tax). Crate ranges follow table order. Rates start at the legacy defaults; check every line.</p>
       <p v-if="saved" role="status">Saved invoice {{ saved.invoiceNumber }} · version {{ saved.version }}</p>
       <div v-if="summaryMessages.length" class="error" role="alert" tabindex="-1" data-validation-summary>
         <strong>Correct these fields before saving or previewing:</strong>
         {{ summaryMessages.join('. ') }}
       </div>
-      <fieldset class="association-panel" :disabled="busy || !!saved || !canEdit">
-        <legend>Cloud invoice association</legend>
-        <p>Choose the database vendor and buyer before saving. These do not replace the editable exporter and consignee above.</p>
-        <div class="fields">
-          <label>Vendor <select v-model.number="vendorId" aria-label="Vendor"><option :value="0">Select vendor</option><option v-for="vendor in master.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option></select></label>
-          <label>Buyer <select v-model.number="buyerId" aria-label="Buyer"><option :value="0">Select buyer</option><option v-for="buyer in master.buyers" :key="buyer.id" :value="buyer.id">{{ buyer.name }}</option></select></label>
-        </div>
-      </fieldset>
-      <p v-if="!saved && (!vendorId || !buyerId)">Vendor and buyer are required to save &amp; download. Preview does not require a database association.</p>
+      <p v-if="!saved && (!vendorId || !buyerId)">Select the vendor and buyer on the Upload PO step before saving &amp; downloading.</p>
       <div class="header-groups">
-        <fieldset v-for="group in headerGroups" :key="group.title" :disabled="busy || !canEdit">
+        <fieldset v-for="group in headerGroups" :key="group.title" class="header-group" :disabled="busy || !canEdit">
           <legend>{{ group.title }}</legend>
           <div class="fields">
-            <label v-for="key in group.fields" :key="key">
+            <label v-for="key in group.fields" :key="key"
+                   :class="{ 'wide-field': headerDefaults[key].includes('\n') || key === 'Buyer PO nos' || key === 'Other reference' }">
               {{ key }}
-              <textarea v-if="headerDefaults[key].includes('\n')" v-model="invoice.header[key]" rows="4"
+              <textarea v-if="headerDefaults[key].includes('\n')" v-model="invoice.header[key]" v-auto-grow rows="1"
                         :data-validation-key="`header:${key}`" :aria-invalid="invalid(key)" :class="{ invalid: invalid(key) }"
                         @blur="touch(key)"></textarea>
               <input v-else v-model="invoice.header[key]" :type="/date/i.test(key) ? 'date' : 'text'"
@@ -102,7 +118,7 @@
           </div>
         </fieldset>
       </div>
-      <p v-if="groupedLines.length">Enter one required HSN code for each category in its heading. Non-digits are removed automatically.</p>
+      <p v-if="groupedLines.length" class="review-note">Enter one required HSN code for each category in its heading. Non-digits are removed automatically.</p>
       <div class="table-scroll line-scroll">
         <table class="line-table">
           <thead><tr>
@@ -133,14 +149,20 @@
               <tr v-for="entry in category.lines" :key="entry.line.src || entry.index">
                   <td v-for="field in lineFields" :key="field.key">
                     <div v-if="field.key === 'stone'" class="stone-ref">
-                      <input v-model="entry.line.stone" :aria-label="`Line ${entry.index + 1} Stone`" :disabled="busy || !canEdit"
-                             :size="inputSize(entry.line.stone, 'Stone')"
-                             :data-validation-key="`line:${entry.index}:stone`" :aria-invalid="invalid('stone', entry.index)"
-                             :class="{ invalid: invalid('stone', entry.index) }" @blur="touch('stone', entry.index)" />
-                      <input v-model="entry.line.ref" :aria-label="`Line ${entry.index + 1} PO / ref`" :disabled="busy || !canEdit"
-                             :size="inputSize(entry.line.ref, 'PO ref')"
-                             :data-validation-key="`line:${entry.index}:ref`" :aria-invalid="invalid('ref', entry.index)"
-                             :class="{ invalid: invalid('ref', entry.index) }" @blur="touch('ref', entry.index)" />
+                      <textarea :value="lineDescription(entry.line)" :aria-label="`Line ${entry.index + 1} Stone / PO ref`"
+                                :disabled="busy || !canEdit" rows="2"
+                                :data-validation-key="`line:${entry.index}:stone`"
+                                :data-validation-keys="`line:${entry.index}:stone line:${entry.index}:ref`"
+                                :aria-invalid="invalid('stone', entry.index) || invalid('ref', entry.index)"
+                                :class="{ invalid: invalid('stone', entry.index) || invalid('ref', entry.index) }"
+                                @input="updateLineDescription(entry.line, $event)"
+                                @blur="touch('stone', entry.index); touch('ref', entry.index)" />
+                      <small v-if="fieldIssue('stone', entry.index)" class="field-error" role="alert">
+                        {{ fieldIssue('stone', entry.index) }}
+                      </small>
+                      <small v-if="fieldIssue('ref', entry.index)" class="field-error" role="alert">
+                        {{ fieldIssue('ref', entry.index) }}
+                      </small>
                     </div>
                     <template v-else>
                       <input v-model="entry.line[field.key]" :aria-label="`Line ${entry.index + 1} ${field.label}`"
@@ -162,22 +184,10 @@
         </table>
       </div>
       <button data-validation-key="header:lines" :disabled="busy || !canEdit" @click="addLine">Add line</button>
-      <p>Total crates: {{ totalCrates }} · {{ quantityTotal }} · Wgt: {{ totalWeight }} KGS · <strong>TOTAL USD {{ money(total) }}</strong></p>
+      <p class="invoice-totals">Total crates: {{ totalCrates }} <span>·</span> {{ quantityTotal }} <span>·</span> Wgt: {{ totalWeight }} KGS <span>·</span> <strong>TOTAL USD {{ money(total) }}</strong></p>
       <label class="words-field">Amount chargeable in words
         <input v-model="invoice.words" aria-label="Amount chargeable in words" readonly />
       </label>
-      <div class="toolbar">
-        <div class="format-switch" role="group" aria-label="Export format">
-          <button type="button" :aria-pressed="format === 'excel'" :class="{ selected: format === 'excel' }"
-                  :disabled="busy" @click="format = 'excel'">Excel</button>
-          <button type="button" :aria-pressed="format === 'pdf'" :class="{ selected: format === 'pdf' }"
-                  :disabled="busy" @click="format = 'pdf'">PDF</button>
-        </div>
-        <button :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save</button>
-        <button :disabled="busy" @click="preview">Preview</button>
-        <button class="btn btn-primary" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
-        <button v-if="saved" :disabled="busy" @click="reload">Reload saved invoice (discard edits)</button>
-      </div>
       <div v-if="previewHtml">
         <h3>Preview</h3>
         <iframe title="Invoice and packing list preview" :srcdoc="previewHtml" sandbox="" class="preview"></iframe>
@@ -187,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch, type ObjectDirective } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { apiClient, type InvoiceDocument, type InvoiceInput } from '@/services/api'
 import { toastManager } from '@/services/notifications'
@@ -215,6 +225,24 @@ const saved = ref<InvoiceDocument>()
 const savedJson = ref('')
 const format = ref('excel')
 const previewHtml = ref('')
+const textareaObservers = new WeakMap<HTMLTextAreaElement, ResizeObserver>()
+function resizeTextarea(element: HTMLTextAreaElement) {
+  element.style.height = 'auto'
+  element.style.height = `${element.scrollHeight}px`
+}
+const vAutoGrow: ObjectDirective<HTMLTextAreaElement> = {
+  mounted(element) {
+    resizeTextarea(element)
+    const observer = new ResizeObserver(() => resizeTextarea(element))
+    observer.observe(element)
+    textareaObservers.set(element, observer)
+  },
+  updated: resizeTextarea,
+  beforeUnmount(element) {
+    textareaObservers.get(element)?.disconnect()
+    textareaObservers.delete(element)
+  },
+}
 let hydrating = false
 const validationAttempted = ref(false)
 const touchedFields = ref(new Set<string>())
@@ -271,6 +299,15 @@ const lineFields: { key: keyof LegacyLine; label: string; numeric?: boolean }[] 
 ]
 function inputSize(value: unknown, label: string) {
   return Math.max(...label.split('\n').map(line => line.length), String(value ?? '').length, 4)
+}
+function lineDescription(line: LegacyLine) {
+  return `${line.stone}\n${line.ref}`
+}
+function updateLineDescription(line: LegacyLine, event: Event) {
+  if (!(event.target instanceof HTMLTextAreaElement)) return
+  const [stone = '', ...reference] = event.target.value.replace(/\r\n/g, '\n').split('\n')
+  line.stone = stone
+  line.ref = reference.join('\n')
 }
 function toggleSelection(id: number) { selected.value.has(id) ? selected.value.delete(id) : selected.value.add(id) }
 function selectShown(on: boolean) { visibleRows.value.forEach(row => on ? selected.value.add(row.id) : selected.value.delete(row.id)) }
@@ -357,7 +394,7 @@ async function validateForAction() {
   const key = first.category ? `category:${first.category}:${first.field}`
     : first.line === undefined ? `header:${first.field}` : `line:${first.line}:${first.field}`
   const target = [...document.querySelectorAll<HTMLElement>('[data-validation-key]')]
-    .find(element => element.dataset.validationKey === key)
+    .find(element => element.dataset.validationKey === key || element.dataset.validationKeys?.split(' ').includes(key))
   target?.focus()
   target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   return false
@@ -530,19 +567,54 @@ onBeforeRouteLeave(() => !invoice.value || JSON.stringify(invoice.value) === sav
 <style scoped>
 .po-flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
 .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; }
-.panel { padding: 1.5rem; background: white; border: 1px solid #c8bead; border-radius: 5px; min-width: 0; }
-fieldset { border: 1px solid #c8bead; margin: 1rem 0; }
-legend { color: #7a5c3e; font-weight: bold; }
-.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; }
-.association-panel { margin: .5rem 0 1rem; padding: .75rem 1rem 1rem; border: 1px solid #c8bead; border-radius: 5px; background: #fbf8f3; }
-.association-panel .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.header-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem 1rem; align-items: start; }
-.header-groups fieldset { min-width: 0; margin: .5rem 0; }
-.header-groups .fields { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; }
+.step-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--parchment); }
+.step-button { display: inline-flex; align-items: center; gap: .5rem; padding: .45rem .8rem; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--stone-dk); font-weight: 600; }
+.step-button span { display: grid; place-items: center; width: 1.45rem; height: 1.45rem; border: 1px solid currentColor; border-radius: 50%; font-size: .8rem; }
+.step-button.active { border-color: var(--earth); background: var(--earth); color: white; }
+.step-button.complete { border-color: var(--olive); color: var(--olive); }
+.panel { padding: 1.1rem 1.25rem; background: var(--white); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 1px 4px rgb(58 38 25 / 8%); min-width: 0; }
+.selection-panel { border-top: 4px solid var(--olive); }
+.review-panel { border-top: 4px solid var(--earth); }
+.panel > h2 { margin: 0 0 .45rem; color: var(--earth); font-size: 1.15rem; }
+.panel > p { margin: .35rem 0 .75rem; }
+.review-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.review-heading-row h2 { margin: 0; }
+.review-actions { justify-content: flex-end; }
+.review-note { color: var(--stone-dk); font-size: .88rem; }
+.invoice-totals { margin: .75rem 0 0; padding: .55rem .75rem; border-radius: 6px; background: var(--parchment); color: var(--earth); font-variant-numeric: tabular-nums; }
+.invoice-totals span { padding: 0 .2rem; color: var(--stone); }
+fieldset { border: 1px solid var(--rule); margin: 1rem 0; }
+legend { color: var(--earth); font-weight: bold; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .65rem; align-items: start; }
+.association-panel { width: min(100%, 34rem); margin: .5rem 0 1rem auto; padding: .4rem .75rem .75rem; border: 1px solid var(--rule); border-radius: 8px; background: #fbf8f3; }
+.association-panel p { margin: 0 0 .45rem; font-size: .85rem; }
+.association-panel .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+.upload-association { margin-left: 0; }
+.header-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: .75rem; align-items: start; }
+.header-groups .header-group { min-width: 0; margin: 0; padding: .65rem .75rem .75rem; border: 1px solid var(--rule); border-top: 4px solid var(--earth); border-radius: 8px; background: var(--white); }
+.header-groups .header-group:nth-child(2) { border-top-color: var(--olive); }
+.header-groups .header-group:nth-child(3) { border-top-color: var(--earth-lt); }
+.header-groups .header-group:nth-child(4) { border-top-color: var(--stone); }
+.header-groups .header-group legend { padding: 0 .25rem; }
+.header-groups .fields { gap: .5rem .65rem; }
+.header-groups .wide-field { grid-column: 1 / -1; }
+.header-groups textarea { display: block; width: 100%; min-height: 2rem; overflow: hidden; resize: none; white-space: pre-wrap; }
 label { display: grid; gap: .3rem; }
-input, select, textarea { border: 1px solid #aaa; border-radius: 3px; padding: .5rem; min-width: 0; font: inherit; }
+input, select, textarea { border: 1px solid var(--rule); border-radius: 4px; padding: .5rem; min-width: 0; font: inherit; }
 button { cursor: pointer; padding: .5rem .75rem; }
 button:disabled { cursor: not-allowed; opacity: .55; }
+.selection-toolbar { gap: .5rem; margin: .75rem 0; padding: .6rem .7rem; border-radius: 8px; background: var(--parchment); }
+.selection-toolbar > button:not(.btn), .columns-menu summary { min-height: 2.25rem; padding: .4rem .65rem; border: 1px solid var(--earth); border-radius: 6px; background: var(--white); color: var(--earth); font-weight: 600; }
+.selection-toolbar > button:not(.btn):hover:not(:disabled), .columns-menu summary:hover { background: #efe4d4; }
+.selection-toolbar .filter-search { display: grid; grid-template-columns: auto minmax(12rem, 17rem); align-items: center; gap: .45rem; font-size: .85rem; font-weight: 600; }
+.selection-toolbar .filter-search input { width: 100%; background: var(--white); }
+.selection-count { padding: .35rem .7rem; border-radius: 999px; background: var(--olive); color: white; font-size: .85rem; white-space: nowrap; }
+.columns-menu { position: relative; }
+.columns-menu summary { display: flex; align-items: center; list-style: none; cursor: pointer; }
+.columns-menu[open] { z-index: 4; }
+.column-options { position: absolute; top: calc(100% + .25rem); left: 0; z-index: 5; min-width: 13rem; max-height: 20rem; overflow: auto; padding: .4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--white); box-shadow: 0 4px 12px rgb(58 38 25 / 16%); }
+.columns-menu .column-option { display: flex; align-items: center; gap: .4rem; padding: .3rem; }
+.columns-menu .column-option input { width: auto; }
 .format-switch { display: inline-flex; gap: .2rem; padding: .2rem; border: 1px solid #bca88f; border-radius: 999px; background: #f3eee6; }
 .format-switch button { min-width: 5.25rem; border: 0; border-radius: 999px; background: transparent; color: #60442f; font-weight: 600; }
 .format-switch button.selected { background: #7a5c3e; color: white; box-shadow: 0 1px 3px #0002; }
@@ -556,33 +628,55 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .line-table input[type="checkbox"] { width: auto; }
 .invalid { border: 2px solid #c32032; background: #fff4f4; }
 .field-error { color: #7e3a24; font-weight: 600; }
-.table-scroll { overflow: auto; max-height: 65vh; margin: 1rem 0; }
+.table-scroll { overflow: auto; max-height: 60vh; margin: 1rem 0; }
+.line-scroll { max-height: none; }
 table { border-collapse: separate; border-spacing: 0; }
-th, td { border-right: 1px solid var(--rule-lt); border-bottom: 1px solid var(--rule-lt); padding: .5rem; text-align: left; }
-th { background: #ede6da; position: relative; }
+th, td { border-right: 1px solid var(--rule-lt); border-bottom: 1px solid var(--rule-lt); padding: .4rem .45rem; text-align: left; }
+th { background: var(--parchment); position: relative; }
 .po-table { width: max-content; min-width: 100%; }
-.po-table th { position: sticky; top: 0; z-index: 2; height: 40px; box-sizing: border-box; white-space: nowrap; }
+.po-table th { position: sticky; top: 0; z-index: 2; height: 40px; box-sizing: border-box; white-space: nowrap; background: var(--earth); color: white; font-size: .82rem; }
 .po-table thead tr:nth-child(2) th { top: 40px; height: auto; }
-.po-table td { white-space: nowrap; }
+.po-table td { white-space: nowrap; background: var(--white); }
+.po-table tbody tr:nth-child(even) td { background: #faf7f2; }
+.po-table tbody tr:hover td { background: #efe4d4; }
 .select-column { width: 65px; }
 .pinned-check { position: sticky; left: 0; background: white; width: 65px; min-width: 65px; max-width: 65px; box-sizing: border-box; z-index: 1; }
 .pinned-check input { width: auto; min-width: 0; }
-.pinned { position: sticky; left: 65px; background: white; z-index: 1; }
-.po-table th.pinned, .po-table th.pinned-check { z-index: 3; background: #ede6da; }
-.chosen td { background: #f1e5d7; }
+.pinned { position: sticky; left: 65px; background: var(--white); z-index: 1; }
+.po-table th.pinned, .po-table th.pinned-check { z-index: 3; background: var(--earth); color: white; }
+.chosen td, .po-table tbody tr.chosen td { background: #edf3e3; }
+.po-table tbody tr.chosen:hover td { background: #e2ebd6; }
 .line-table { table-layout: auto; width: max-content; }
-.line-table th { position: sticky; top: 0; z-index: 2; }
+.line-table th { position: sticky; top: 0; z-index: 2; background: var(--earth); color: white; font-size: .82rem; }
 .line-table thead th { white-space: pre-line; vertical-align: bottom; }
-.line-table th:first-child, .line-table td:first-child { position: sticky; left: 0; background: white; z-index: 1; box-shadow: 2px 0 0 #c8bead; }
-.line-table th:first-child { background: #ede6da; z-index: 3; }
-.stone-ref { display: grid; gap: .3rem; }
+.line-table tbody tr:not(.category-row) td { background: var(--white); }
+.line-table tbody tr:not(.category-row):nth-child(odd) td { background: #faf7f2; }
+.line-table tbody tr:not(.category-row):hover td { background: #efe4d4; }
+.line-table th:first-child, .line-table td:first-child { position: sticky; left: 0; background: var(--white); z-index: 1; box-shadow: 2px 0 0 var(--rule); }
+.line-table th:first-child { background: var(--earth); color: white; z-index: 3; }
+.stone-ref { display: grid; gap: .25rem; width: 16rem; max-width: 24rem; }
+.stone-ref textarea { width: 100%; min-width: 0; min-height: 3.75rem; resize: vertical; font-size: .9rem; line-height: 1.35; }
 .line-table input { width: auto; box-sizing: border-box; }
-.words-field { width: min(100%, 48rem); margin-top: 1rem; font-weight: 600; }
-.words-field input { width: 100%; min-height: 2.75rem; background: #f5f1e9; color: #29231d; font-size: 1.05rem; font-weight: 600; letter-spacing: .02em; }
+.words-field { width: min(100%, 48rem); margin-top: 1rem; color: var(--stone-dk); font-size: .85rem; font-weight: 600; }
+.words-field input { width: 100%; min-height: 2.2rem; background: var(--white); color: var(--ink-mid); font-size: .9rem; font-weight: 500; letter-spacing: 0; }
 .column-option { display: flex; padding: .2rem; }
 .preview { width: 100%; height: 800px; border: 1px solid #c8bead; }
 @media (max-width: 900px) {
-  .header-groups, .association-panel .fields { grid-template-columns: minmax(0, 1fr); }
+  .association-panel .fields { grid-template-columns: minmax(0, 1fr); }
+  .association-panel { margin-left: 0; }
   .category-heading { align-items: flex-start; flex-direction: column; gap: .5rem; }
+}
+@media (max-width: 1100px) {
+  .review-heading-row { align-items: stretch; flex-direction: column; }
+  .review-actions { justify-content: flex-start; }
+}
+@media (max-width: 720px) {
+  .panel { padding: .85rem; }
+  .header-groups { grid-template-columns: minmax(0, 1fr); }
+  .selection-toolbar .filter-search { grid-template-columns: minmax(0, 1fr); flex-basis: 100%; }
+  .selection-toolbar .filter-search input { width: 100%; }
+  .selection-count { flex-basis: 100%; text-align: center; }
+  .step-nav { gap: .25rem; }
+  .step-button { padding: .35rem .55rem; font-size: .85rem; }
 }
 </style>

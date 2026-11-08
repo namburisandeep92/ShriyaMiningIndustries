@@ -239,6 +239,10 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       page.on('pageerror', error => pageErrors.push(error.message));
       const origin = `http://127.0.0.1:${vite.httpServer.address().port}`;
       await page.goto(`${origin}/po-import`);
+      expect(await page.locator('.upload-association').count()).toBe(1);
+      expect(await page.locator('.upload-association').evaluate(panel => panel.getBoundingClientRect().width)).toBeLessThanOrEqual(544);
+      await page.getByLabel('Vendor', { exact: true }).selectOption(String(vendorId));
+      await page.getByLabel('Buyer', { exact: true }).selectOption(String(buyerId));
       await page.getByLabel('PO file', { exact: true }).setInputFiles(fileURLToPath(new URL('../fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.xlsx', import.meta.url)));
       await page.getByRole('heading', { name: 'Select PO lines' }).waitFor();
       expect(await page.locator('.po-table tbody tr').count()).toBe(82);
@@ -272,11 +276,29 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.locator('.po-table tbody input:checked').count()).toBe(2);
       await page.getByRole('button', { name: 'Create invoice', exact: true }).click();
       await page.getByRole('heading', { name: 'Review & edit invoice' }).waitFor();
-      expect(await page.locator('.line-table input[aria-label$="Stone"]').count()).toBe(2);
+      const reviewActions = await page.locator('.review-heading-row').evaluate(row => {
+        const actions = row.querySelector('.review-actions');
+        const panel = row.closest('.panel');
+        const style = getComputedStyle(panel);
+        const bounds = actions.getBoundingClientRect();
+        return {
+          rightGap: panel.getBoundingClientRect().right - bounds.right,
+          panelPadding: parseFloat(style.paddingRight) + parseFloat(style.borderRightWidth),
+          topGap: Math.abs(row.querySelector('h2').getBoundingClientRect().top - bounds.top),
+        };
+      });
+      expect(Math.abs(reviewActions.rightGap - reviewActions.panelPadding)).toBeLessThan(1);
+      expect(reviewActions.topGap).toBeLessThan(1);
+      expect(await page.locator('.line-table textarea[aria-label$="Stone / PO ref"]').count()).toBe(2);
+      expect(await page.getByLabel('Line 1 Stone / PO ref', { exact: true }).inputValue()).toContain('\nNSR PO #');
+      expect(await page.locator('.line-table input[aria-label$="PO / ref"]').count()).toBe(0);
       expect(await page.locator('[data-validation-summary]').count()).toBe(0);
       expect(await page.locator('.line-table .invalid').count()).toBe(0);
-      expect(await page.locator('.association-panel').evaluate(panel =>
-        panel.compareDocumentPosition(panel.parentElement.querySelector('.header-groups')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+      expect(await page.locator('.association-panel').count()).toBe(0);
+      const exporterAddress = page.getByLabel('Exporter', { exact: true });
+      expect(await exporterAddress.inputValue()).toContain('PRAKASAM D.T. (A.P) INDIA.');
+      expect(await exporterAddress.evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
+      expect(await page.locator('.header-groups .header-group').count()).toBe(4);
       expect(await page.getByRole('button', { name: 'Excel', exact: true }).getAttribute('aria-pressed')).toBe('true');
       expect(await page.locator('.line-table thead th').nth(3).innerText()).toBe('Crate\nCount');
       expect(await page.locator('.line-table thead th').nth(3).evaluate(element => element.getBoundingClientRect().width)).toBeLessThan(120);
@@ -289,7 +311,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect(await page.getByLabel('Invoice no', { exact: true }).evaluate(element => element === document.activeElement)).toBe(true);
       const frozenLine = await page.locator('.line-table').evaluate(async table => {
         const scroller = table.parentElement;
-        const cells = table.querySelector('tbody tr:has(input[aria-label="Line 1 Stone"])').children;
+        const cells = table.querySelector('tbody tr:has(textarea[aria-label="Line 1 Stone / PO ref"])').children;
         const before = [cells[0], cells[1]].map(cell => cell.getBoundingClientRect().left);
         scroller.scrollLeft = 400;
         await new Promise(resolve => requestAnimationFrame(resolve));
@@ -359,8 +381,6 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       expect((pdf.toString('latin1').match(/\/Type \/Page\b/g) || [])).toHaveLength(2);
       await printPage.close();
       await page.getByRole('button', { name: 'Excel', exact: true }).click();
-      await page.getByLabel('Vendor', { exact: true }).selectOption(String(vendorId));
-      await page.getByLabel('Buyer', { exact: true }).selectOption(String(buyerId));
       const createdResponse = page.waitForResponse(response => response.url().endsWith('/api/invoices') && response.request().method() === 'POST');
       const downloading = page.waitForEvent('download');
       await page.getByRole('button', { name: 'Save & download', exact: true }).click();
