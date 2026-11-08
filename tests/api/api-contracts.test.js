@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { invoiceResponse, invoiceStatus, pagedResponse, paging, rowVersion, validateItems } from '../../api/services/api-contracts.js';
+import { companyProfileInput, invoiceResponse, invoiceStatus, pagedResponse, paging, rowVersion, validateItems } from '../../api/services/api-contracts.js';
 import * as correlationId from '../../api/middleware/correlation-id.js';
 import { apiClient } from '../../app/src/services/api.ts';
 import { readFile } from 'node:fs/promises';
@@ -32,6 +32,20 @@ describe('Database-backed API contracts', () => {
     }
   });
 
+  it('validates company profile requirements and normalizes registration identifiers', () => {
+    const profile = companyProfileInput({
+      legalName: ' Shriya Mining Industries ', addressLine1: ' S.No. 1 ',
+      email: ' accounts@example.com ', gstin: ' abcd1234 ', iec: ' a1b2c3 ', ifsc: ' sbIN0001 ',
+    });
+    expect(profile).toMatchObject({
+      legalName: 'Shriya Mining Industries', addressLine1: 'S.No. 1',
+      email: 'accounts@example.com', gstin: 'ABCD1234', iec: 'A1B2C3', ifsc: 'SBIN0001',
+    });
+    expect(profile.addressLine2).toBeNull();
+    expect(() => companyProfileInput({ legalName: '', addressLine1: 'Address' })).toThrow();
+    expect(() => companyProfileInput({ legalName: 'SMI', addressLine1: 'Address', email: 'not-an-email' })).toThrow();
+  });
+
   it('uses separate pagination metadata for an empty page', () => {
     expect(pagedResponse({ recordset: [], recordsets: [[], [{ TotalCount: 17 }]] }, 3, 10))
       .toEqual({ total: 17, pagination: { page: 3, pageSize: 10, totalCount: 17, totalPages: 2 } });
@@ -42,10 +56,12 @@ describe('Database-backed API contracts', () => {
     const response = invoiceResponse({
       InvoiceId: 'id', Status: 'In Review', TotalAmount: 24.68, TaxAmount: 4.44,
       FinalAmount: 29.12, RowVersion: Buffer.from('00000000a1b2c3d4', 'hex'),
+      VendorName: 'Current profile name', DocumentJson: JSON.stringify({ header: { Exporter: 'Saved exporter\nSaved address' } }),
     }, [{ Description: 'Stone', Rate: 12.34, Quantity: 2, TaxRate: 18 }]);
     expect(response.status).toBe('in review');
     expect(response.rowVersion).toBe('00000000a1b2c3d4');
     expect(response.totals).toEqual({ subtotal: 24.68, tax: 4.44, total: 29.12 });
+    expect(response.vendorName).toBe('Saved exporter');
     expect(response.lineItems[0]).toMatchObject({ unitPrice: 12.34, taxPercent: 18 });
   });
 
@@ -71,10 +87,13 @@ describe('Database-backed API contracts', () => {
       await apiClient.updateInvoice('id', { notes: 'x' }, '00000000a1b2c3d4');
       await apiClient.exportInvoiceAsExcel('id');
       await apiClient.searchErrorLogs({ page: 1 });
+      await apiClient.updateCompanyProfile(await apiClient.getCompanyProfile());
       expect(calls[0]).toMatchObject({ method: 'patch', url: '/invoices/id' });
       expect(calls[0].headers['X-Row-Version']).toBe('00000000a1b2c3d4');
       expect(calls[1]).toMatchObject({ url: '/invoices/id/export', params: { format: 'excel' } });
       expect(calls[2].url).toBe('/admin/error-log');
+      expect(calls[3]).toMatchObject({ method: 'get', url: '/company-profile' });
+      expect(calls[4]).toMatchObject({ method: 'put', url: '/company-profile' });
     } finally {
       apiClient.instance.defaults.adapter = original;
     }

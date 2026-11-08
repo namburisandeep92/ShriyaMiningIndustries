@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import ExcelJS from 'exceljs';
 import { parsePendingOrders } from '../../api/services/pending-orders.js';
 import {
-  amountWords, buildLegacyPrintHtml, buildLegacyWorkbook, crateRanges, createLegacyInvoice, excelPreviewHtml,
+  amountWords, applyCompanyProfileDefaults, buildLegacyPrintHtml, buildLegacyWorkbook, crateRanges, createLegacyInvoice, excelPreviewHtml,
   goodsCategories, invoiceTotal, lineAmount, parseItem, validHsnCode, validateLegacyInvoice,
 } from '../../api/services/legacy-invoice.js';
 import { legacyInvoiceInput } from '../../api/services/api-contracts.js';
@@ -167,6 +167,36 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(crateRanges(document.lines, '1001')).toEqual(['1001', '1002 - 1004']);
     expect(createLegacyInvoice(po.rows.slice(0, 2), document.lines, { 'Crate starting no': '700' }).header['Crate starting no']).toBe('700');
     expect(createLegacyInvoice(po.rows.slice(0, 2), document.lines, { 'Crate starting no': '' }).header['Crate starting no']).toBe('');
+  });
+
+  it('snapshots company exporter, shipping defaults, declaration and signatory in both outputs', async () => {
+    const document = applyCompanyProfileDefaults(await validDocument(), {
+      legalName: 'SHRIYA MINING INDUSTRIES',
+      addressLine1: 'S.NO: 1174/2B, ONGOLE ROAD',
+      addressLine2: 'MARKAPUR - 523 316',
+      addressLine3: 'PRAKASAM D.T. (A.P) INDIA.',
+      countryOfOrigin: 'INDIA',
+      preCarriageBy: 'BY ROAD',
+      placeOfReceipt: 'CHENNAI',
+      portOfLoading: 'CHENNAI',
+      packing: 'WOODEN CRATES',
+      grade: 'FIRST GRADE',
+      declarationText: 'Declaration <verified>',
+      authorisedSignatoryLabel: 'Export Manager',
+    });
+    expect(document.header.Exporter).toBe('SHRIYA MINING INDUSTRIES\nS.NO: 1174/2B, ONGOLE ROAD\nMARKAPUR - 523 316\nPRAKASAM D.T. (A.P) INDIA.');
+    expect(document.header['Country of origin']).toBe('INDIA');
+
+    const print = buildLegacyPrintHtml(document, '2365');
+    expect(print).toContain('Declaration &lt;verified&gt;');
+    expect(print).toContain('For SHRIYA MINING INDUSTRIES');
+    expect(print).toContain('Export Manager');
+    const workbook = await buildLegacyWorkbook(document);
+    for (const sheet of workbook.worksheets) {
+      const text = sheet.getSheetValues().flat().map(value => typeof value === 'object' ? JSON.stringify(value) : value).join(' ');
+      expect(text).toContain('Declaration <verified>');
+      expect(text).toContain('Export Manager');
+    }
   });
 
   it('writes INV and PACKING sheets with crate totals, per-line counts, HSN headings, and no packing amounts', async () => {

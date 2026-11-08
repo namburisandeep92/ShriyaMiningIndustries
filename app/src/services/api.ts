@@ -19,7 +19,6 @@ export interface InvoiceLine {
 }
 export interface InvoiceInput {
   invoiceDate: string
-  vendorId: number
   buyerId: number
   poNumber?: string
   notes?: string
@@ -30,6 +29,7 @@ export interface InvoiceDocument extends Omit<InvoiceInput, 'poNumber' | 'notes'
   id: string
   invoiceId: string
   invoiceNumber: string
+  vendorId: number
   poNumber: string | null
   notes: string | null
   vendorName: string
@@ -41,6 +41,37 @@ export interface InvoiceDocument extends Omit<InvoiceInput, 'poNumber' | 'notes'
   totals: { subtotal: number; tax: number; total: number }
   createdAt: string
   modifiedAt: string
+}
+export interface CompanyProfile {
+  legalName: string
+  addressLine1: string
+  addressLine2: string | null
+  addressLine3: string | null
+  city: string | null
+  district: string | null
+  state: string | null
+  pinCode: string | null
+  country: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  gstin: string | null
+  iec: string | null
+  pan: string | null
+  lutArn: string | null
+  bankName: string | null
+  bankBranch: string | null
+  accountNumber: string | null
+  ifsc: string | null
+  swift: string | null
+  countryOfOrigin: string | null
+  preCarriageBy: string | null
+  placeOfReceipt: string | null
+  portOfLoading: string | null
+  packing: string | null
+  grade: string | null
+  declarationText: string | null
+  authorisedSignatoryLabel: string | null
 }
 export interface InvoiceVersion { version: number; modifiedAt: string; modifiedBy: string }
 export interface UserRecord { id: string; email: string; roles: string[]; role: string; createdAt: string }
@@ -145,8 +176,16 @@ class ApiClient {
   }
 
   // ========== PO Import ==========
-  async masterData(): Promise<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }> {
+  async masterData(): Promise<{ buyers: { id: number; name: string }[] }> {
     return (await this.instance.get('/master-data')).data
+  }
+
+  async getCompanyProfile(): Promise<CompanyProfile> {
+    return (await this.instance.get('/company-profile')).data
+  }
+
+  async updateCompanyProfile(data: CompanyProfile): Promise<CompanyProfile> {
+    return (await this.instance.put('/company-profile', data)).data
   }
 
   async parsePO(file: File): Promise<{ fileName: string; columns: string[]; rows: PORow[] }> {

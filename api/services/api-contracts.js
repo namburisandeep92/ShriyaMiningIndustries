@@ -1,6 +1,79 @@
 import { ApiError, Errors } from '../middleware/error-handler.js';
 import { cleanHsnCode, goodsCategories, validateLegacyInvoice } from './legacy-invoice.js';
 
+const companyProfileFields = [
+  'legalName', 'addressLine1', 'addressLine2', 'addressLine3', 'city', 'district', 'state',
+  'pinCode', 'country', 'phone', 'email', 'website', 'gstin', 'iec', 'pan', 'lutArn',
+  'bankName', 'bankBranch', 'accountNumber', 'ifsc', 'swift', 'countryOfOrigin',
+  'preCarriageBy', 'placeOfReceipt', 'portOfLoading', 'packing', 'grade', 'declarationText',
+  'authorisedSignatoryLabel',
+];
+const uppercaseCompanyFields = new Set(['gstin', 'iec', 'ifsc']);
+const companyFieldLengths = {
+  legalName: 255, addressLine1: 255, addressLine2: 255, addressLine3: 255,
+  city: 100, district: 100, state: 100, pinCode: 20, country: 100,
+  phone: 20, email: 255, website: 255, gstin: 50, iec: 50, pan: 50,
+  lutArn: 100, bankName: 255, bankBranch: 255, accountNumber: 100,
+  ifsc: 50, swift: 50, countryOfOrigin: 100, preCarriageBy: 100,
+  placeOfReceipt: 100, portOfLoading: 100, packing: 100, grade: 100,
+  authorisedSignatoryLabel: 255,
+};
+
+export function companyProfileInput(value) {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+    throw Errors.InvalidInput('Company profile must be an object');
+  }
+  const profile = Object.fromEntries(companyProfileFields.map(field => {
+    const raw = value[field];
+    if (raw != null && typeof raw !== 'string') throw Errors.InvalidInput(`${field} must be text`);
+    const normalized = typeof raw === 'string' ? raw.trim() : null;
+    if (normalized && companyFieldLengths[field] && normalized.length > companyFieldLengths[field]) {
+      throw Errors.InvalidInput(`${field} must not exceed ${companyFieldLengths[field]} characters`);
+    }
+    return [field, normalized ? (uppercaseCompanyFields.has(field) ? normalized.toUpperCase() : normalized) : null];
+  }));
+  if (!profile.legalName) throw Errors.InvalidInput('legalName is required');
+  if (!profile.addressLine1) throw Errors.InvalidInput('addressLine1 is required');
+  if (profile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    throw Errors.InvalidInput('email must be a valid email address');
+  }
+  return profile;
+}
+
+export function companyProfileResponse(row) {
+  return {
+    legalName: row.LegalName,
+    addressLine1: row.AddressLine1,
+    addressLine2: row.AddressLine2,
+    addressLine3: row.AddressLine3,
+    city: row.City,
+    district: row.District,
+    state: row.State,
+    pinCode: row.PINCode,
+    country: row.Country,
+    phone: row.Phone,
+    email: row.Email,
+    website: row.Website,
+    gstin: row.GSTIN,
+    iec: row.IEC,
+    pan: row.PAN,
+    lutArn: row.LUTARN,
+    bankName: row.BankName,
+    bankBranch: row.BankBranch,
+    accountNumber: row.AccountNumber,
+    ifsc: row.IFSC,
+    swift: row.SWIFT,
+    countryOfOrigin: row.CountryOfOrigin,
+    preCarriageBy: row.PreCarriageBy,
+    placeOfReceipt: row.PlaceOfReceipt,
+    portOfLoading: row.PortOfLoading,
+    packing: row.Packing,
+    grade: row.Grade,
+    declarationText: row.DeclarationText,
+    authorisedSignatoryLabel: row.AuthorisedSignatoryLabel,
+  };
+}
+
 export function legacyInvoiceInput(document) {
   const issues = validateLegacyInvoice(document);
   if (issues.length) throw new ApiError(400, 'INV-VALIDATE-400', issues.map(issue => issue.message).join('; '), issues);
@@ -87,6 +160,9 @@ export function rowVersion(value) {
 }
 
 export function invoiceResponse(header, lines = []) {
+  const document = header.DocumentJson ? JSON.parse(header.DocumentJson) : undefined;
+  const documentExporter = typeof document?.header?.Exporter === 'string'
+    ? document.header.Exporter.split(/\r?\n/, 1)[0] : null;
   const items = lines.map(line => ({
     lineId: line.LineId, description: line.Description, quantity: line.Quantity,
     rate: line.Rate, unitPrice: line.Rate, lineAmount: line.LineAmount,
@@ -95,9 +171,9 @@ export function invoiceResponse(header, lines = []) {
   return {
     id: header.InvoiceId, invoiceId: header.InvoiceId, invoiceNumber: header.InvoiceNumber,
     invoiceDate: header.InvoiceDate, poNumber: header.PONumber,
-    vendorId: header.VendorId, buyerId: header.BuyerId, vendorName: header.VendorName, buyerName: header.BuyerName,
+    vendorId: header.VendorId, buyerId: header.BuyerId, vendorName: documentExporter || header.VendorName, buyerName: header.BuyerName,
     status: header.Status.toLowerCase(), notes: header.Notes, version: header.Version,
-    document: header.DocumentJson ? JSON.parse(header.DocumentJson) : undefined,
+    document,
     totalAmount: header.FinalAmount, items, lineItems: items,
     totals: { subtotal: header.TotalAmount, tax: header.TaxAmount, total: header.FinalAmount },
     rowVersion: Buffer.isBuffer(header.RowVersion) ? header.RowVersion.toString('hex') : undefined,

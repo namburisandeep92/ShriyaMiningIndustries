@@ -1,6 +1,6 @@
 import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
-import { paging, pagedResponse, positiveInteger } from '../services/api-contracts.js';
+import { paging, pagedResponse } from '../services/api-contracts.js';
 import { parsePendingOrders } from '../services/pending-orders.js';
 
 const handleParsePendingOrders = asyncHandler(async (req, res) => {
@@ -17,11 +17,11 @@ const handleListPOImports = asyncHandler(async (req, res) => {
   if (!req.user.permissions.includes('file.upload')) throw Errors.Forbidden('list PO imports');
   const { pageNum, pageSize } = paging(req.query);
   const result = await getDatabase().execute('sales.usp_POImport_GetList', {
-    correlationId: req.correlationId, vendorId: req.query.vendorId ? positiveInteger(req.query.vendorId, 'vendorId') : null,
+    correlationId: req.correlationId,
     status: req.query.status || null, pageNum, pageSize,
   });
   res.json({ imports: result.recordset.map(row => ({
-    importId: row.ImportId, vendorId: row.VendorId, poNumber: row.PONumber,
+    importId: row.ImportId, poNumber: row.PONumber,
     status: row.Status.toLowerCase(), rowsImported: row.RowsImported, createdBy: row.CreatedBy, createdOn: row.CreatedOn,
   })), ...pagedResponse(result, pageNum, pageSize) });
 });

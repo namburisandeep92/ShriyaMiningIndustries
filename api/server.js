@@ -40,6 +40,7 @@ import {
   handleDeleteUser,
   handleSearchErrorLog,
 } from './functions/admin.js';
+import { handleGetCompanyProfile, handleUpdateCompanyProfile } from './functions/company-profile.js';
 
 /**
  * Validate required environment variables at startup
@@ -234,6 +235,10 @@ const createApp = async () => {
   app.post('/api/po-import/parse', authMw.requireAuth, handleParsePendingOrders);
   app.get('/api/po-import', authMw.requireAuth, handleListPOImports);
 
+  // ========== COMPANY PROFILE ==========
+  app.get('/api/company-profile', authMw.requireAuth, handleGetCompanyProfile);
+  app.put('/api/company-profile', authMw.requireAuth, authMw.requirePermission('vendor.manage'), handleUpdateCompanyProfile);
+
   // ========== INVOICE CRUD ==========
   app.post('/api/invoices', authMw.requireAuth, handleCreateInvoice);
   app.get('/api/invoices', authMw.requireAuth, handleListInvoices);
@@ -258,11 +263,8 @@ const createApp = async () => {
   app.get('/api/admin/error-log', authMw.requireAuth, authMw.requireRole('Admin'), handleSearchErrorLog);
   app.get('/api/master-data', authMw.requireAuth, authMw.requirePermission('invoice.read'), asyncHandler(async (req, res) => {
     const db = getDatabase();
-    const [vendors, buyers] = await Promise.all([
-      db.query('SELECT VendorId AS id, VendorName AS name FROM app.Vendor WHERE IsDeleted=0 ORDER BY VendorName'),
-      db.query('SELECT BuyerId AS id, BuyerName AS name FROM app.Buyer WHERE IsDeleted=0 ORDER BY BuyerName'),
-    ]);
-    res.json({ vendors, buyers });
+    const buyers = await db.query('SELECT BuyerId AS id, BuyerName AS name FROM app.Buyer WHERE IsDeleted=0 ORDER BY BuyerName');
+    res.json({ buyers });
   }));
 
   // ========== 404 Handler ==========

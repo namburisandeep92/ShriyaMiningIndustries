@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { apiClient } from '@/services/api'
 
 // Views (lazy loaded)
 const InvoiceList = () => import('@/views/InvoiceList.vue')
@@ -7,6 +8,7 @@ const InvoiceView = () => import('@/views/InvoiceView.vue')
 const POImport = () => import('@/views/POImport.vue')
 const AdminUsers = () => import('@/views/AdminUsers.vue')
 const AdminErrors = () => import('@/views/AdminErrors.vue')
+const CompanyProfile = () => import('@/views/CompanyProfile.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 const routes: RouteRecordRaw[] = [
@@ -50,6 +52,11 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Admin - Error Logs' },
   },
   {
+    path: '/admin/company-profile',
+    component: CompanyProfile,
+    meta: { title: 'Admin - Company Profile', requiresPermission: 'vendor.manage' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: NotFound,
     meta: { title: 'Page Not Found' },
@@ -59,6 +66,17 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+router.beforeEach(async (to) => {
+  const permission = to.meta.requiresPermission
+  if (typeof permission !== 'string' || apiClient.hasPermission(permission)) return true
+  try {
+    await apiClient.refreshAuthContext()
+  } catch {
+    return '/invoices'
+  }
+  return apiClient.hasPermission(permission) ? true : '/invoices'
 })
 
 router.afterEach((to) => {

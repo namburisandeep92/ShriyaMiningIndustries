@@ -59,7 +59,7 @@ BEGIN
 END;
 GO
 CREATE OR ALTER PROCEDURE app.usp_Invoice_Create
-  @InvoiceDate DATETIME2(7), @VendorId INT, @BuyerId INT, @Notes NVARCHAR(MAX)=NULL,
+  @InvoiceDate DATETIME2(7), @BuyerId INT, @VendorId INT=NULL, @Notes NVARCHAR(MAX)=NULL,
   @CreatedBy NVARCHAR(255)=NULL, @CorrelationId UNIQUEIDENTIFIER=NULL,
   @InvoiceId UNIQUEIDENTIFIER=NULL OUTPUT, @InvoiceNumber NVARCHAR(20)=NULL OUTPUT,
   @ItemsJson NVARCHAR(MAX)=NULL, @CreatedByEmail NVARCHAR(255)=NULL, @PONumber NVARCHAR(MAX)=NULL,
@@ -70,9 +70,11 @@ BEGIN
   SET XACT_ABORT ON;
   SET @CreatedBy=COALESCE(@CreatedByEmail,@CreatedBy);
   IF @CreatedBy IS NULL OR @InvoiceDate IS NULL THROW 50400, 'Invoice date and creator are required', 1;
+  SELECT TOP (1) @VendorId=VendorId FROM app.Vendor WHERE IsDeleted=0 ORDER BY VendorId;
+  IF @VendorId IS NULL THROW 50400, 'Company profile is not configured', 1;
   IF NOT EXISTS(SELECT 1 FROM app.Vendor WHERE VendorId=@VendorId AND IsDeleted=0)
      OR NOT EXISTS(SELECT 1 FROM app.Buyer WHERE BuyerId=@BuyerId AND IsDeleted=0)
-     THROW 50400, 'Vendor or buyer is invalid', 1;
+     THROW 50400, 'Exporter or buyer is invalid', 1;
   IF @ItemsJson IS NOT NULL AND (ISJSON(@ItemsJson)<>1 OR LEFT(LTRIM(@ItemsJson),1)<>'[')
     THROW 50400, 'Items must be a JSON array', 1;
   IF @DocumentJson IS NOT NULL AND ISJSON(@DocumentJson)<>1 THROW 50400, 'Invalid invoice document', 1;
@@ -245,13 +247,15 @@ BEGIN
 END;
 GO
 CREATE OR ALTER PROCEDURE sales.usp_POImport_Create
-  @VendorId INT,@PONumber NVARCHAR(50),@ImportedByEmail NVARCHAR(255),
-  @RowsJson NVARCHAR(MAX),@CorrelationId UNIQUEIDENTIFIER=NULL,@FileName NVARCHAR(255)=NULL
+  @PONumber NVARCHAR(50),@ImportedByEmail NVARCHAR(255),@RowsJson NVARCHAR(MAX),
+  @VendorId INT=NULL,@CorrelationId UNIQUEIDENTIFIER=NULL,@FileName NVARCHAR(255)=NULL
 AS
 BEGIN
   SET NOCOUNT ON;
   SET XACT_ABORT ON;
   IF ISJSON(@RowsJson)<>1 OR LEFT(LTRIM(@RowsJson),1)<>'[' THROW 50400, 'Rows must be a JSON array', 1;
+  SELECT TOP (1) @VendorId=VendorId FROM app.Vendor WHERE IsDeleted=0 ORDER BY VendorId;
+  IF @VendorId IS NULL THROW 50400, 'Company profile is not configured', 1;
   IF NOT EXISTS(SELECT 1 FROM app.Vendor WHERE VendorId=@VendorId AND IsDeleted=0) THROW 50400, 'Invalid vendor', 1;
   DECLARE @Count INT=(SELECT COUNT(*) FROM OPENJSON(@RowsJson)),@Id UNIQUEIDENTIFIER=NEWID();
   IF @Count=0 OR NULLIF(@PONumber,'') IS NULL THROW 50400, 'PO number and rows are required', 1;

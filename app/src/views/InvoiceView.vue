@@ -41,7 +41,7 @@
       <section class="invoice-section">
         <div class="section-row">
           <div class="section-col">
-            <h3>Vendor</h3>
+            <h3>Exporter</h3>
             <p>{{ invoiceData.vendorName }}</p>
           </div>
           <div class="section-col">

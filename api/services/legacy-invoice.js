@@ -9,6 +9,34 @@ export const headerDefaults = {
   Packing: 'WOODEN CRATES', Grade: 'FIRST GRADE', 'Crate starting no': '1001',
 };
 
+export function applyCompanyProfileDefaults(document, profile) {
+  const header = { ...document.header };
+  const address = [profile.addressLine1, profile.addressLine2, profile.addressLine3]
+    .map(value => String(value ?? '').trim()).filter(Boolean);
+  const existingAddress = address.join(' ').toLocaleLowerCase();
+  const location = [profile.city, profile.district, profile.state, profile.pinCode, profile.country]
+    .map(value => String(value ?? '').trim())
+    .filter(value => value && !existingAddress.includes(value.toLocaleLowerCase()));
+  if (location.length) {
+    const formattedLocation = location.join(', ');
+    if (address.length < 3) address.push(formattedLocation);
+    else address[2] = `${address[2]}, ${formattedLocation}`;
+  }
+  header.Exporter = [String(profile.legalName ?? '').trim(), ...address].filter(Boolean).join('\n');
+  header['Country of origin'] = profile.countryOfOrigin || '';
+  header['Pre-carriage by'] = profile.preCarriageBy || '';
+  header['Place of receipt'] = profile.placeOfReceipt || '';
+  header['Port of loading'] = profile.portOfLoading || '';
+  header.Packing = profile.packing || '';
+  header.Grade = profile.grade || '';
+  return {
+    ...document,
+    header,
+    declarationText: profile.declarationText ?? '',
+    authorisedSignatoryLabel: profile.authorisedSignatoryLabel ?? '',
+  };
+}
+
 export const headerGroups = [
   { title: 'Invoice details', fields: ['Invoice no', 'Invoice date', 'Buyer PO nos', 'Buyer PO date', 'Other reference'] },
   { title: 'Parties', fields: ['Exporter', 'Consignee', 'Buyer (if other)', 'Notify party'] },
@@ -171,6 +199,9 @@ const un=u=>String(u||'').replace(/[^A-Za-z0-9 ]/g,'').toUpperCase();
 const qd=l=>({v:+l.qty||0,nf:(Number.isInteger(+l.qty)?'#,##0':'#,##0.00')+' "'+(un(l.uom)||'QTY')+'"'});
 const tc=lines.reduce((a,l)=>a+(parseInt(l.crates)||0),0);
 const totalWeight=lines.reduce((a,l)=>a+(+lineWeight(l)||0),0);
+const exporterName=h('Exporter').split('\n')[0]||'';
+const declaration=document.declarationText??'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.';
+const signatory=document.authorisedSignatoryLabel??'Authorised Signatory';
 const uk=new Set(lines.map(l=>un(l.uom))),uni=lines.length>0&&uk.size==1,tnf=uni?'#,##0.00 "'+(un(lines[0].uom)||'QTY')+'"':'#,##0.00';
 const packageLabel=value=>value&&!/[.!?]$/.test(value.trim())?`${value.trim()}.`:value.trim();
 const crateLabel=count=>`${String(count).padStart(2,'0')} CRATES`;
@@ -256,9 +287,9 @@ function sheet(name,title,inv,tab){
  else{
   put(r,1,7,`TOTAL WEIGHT ; ${totalWeight?totalWeight.toFixed(3)+' KGS':''}`,{b:1,fill:LIGHT});ws.getRow(r).height=20;r++}
  lab(r,1,5,'Declaration');lab(r,6,9,'Signature & Date');r++;
- put(r,1,5,'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.',{wrap:1,v:'top',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln}},r+2);
- put(r,6,9,'For SHRIYA MINING INDUSTRIES',{b:1,h:'center',color:NAVY,bd:{left:Ln,right:Ln}});put(r+1,6,9,'',{bd:{left:Ln,right:Ln}});ws.getRow(r+1).height=34;
- put(r+2,6,9,'Authorised Signatory',{h:'center',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln,top:Hr}});
+ put(r,1,5,declaration,{wrap:1,v:'top',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln}},r+2);
+ put(r,6,9,`For ${exporterName}`,{b:1,h:'center',color:NAVY,bd:{left:Ln,right:Ln}});put(r+1,6,9,'',{bd:{left:Ln,right:Ln}});ws.getRow(r+1).height=34;
+ put(r+2,6,9,signatory,{h:'center',size:9.5,color:'FF5B6578',bd:{left:Ln,right:Ln,bottom:Ln,top:Hr}});
  const fin=r+2;
  for(let a=1;a<=fin;a++)for(let b=1;b<=9;b++){const x=ws.getCell(a,b),o=x.border||{};x.border={top:a==1?MED:o.top,bottom:a==fin?MED:o.bottom,left:b==1?MED:o.left,right:b==9?MED:o.right}}
  ws.pageSetup.printArea=`A1:I${fin}`}
@@ -328,6 +359,9 @@ const totalWeight=L.reduce((a,l)=>a+(+lineWeight(l)||0),0);
 const uk=new Set(L.map(l=>un(l.uom))),uni=L.length>0&&uk.size==1,tq=uni?nf(L.reduce((a,l)=>a+(+l.qty||0),0),2)+' '+[...uk][0]:'';
 const d=h('Invoice date'),dd=d?d.split('-').reverse().join('-'):'',pd=h('Buyer PO date'),pdd=pd?pd.split('-').reverse().join('-'):'';
 const np=h('Notify party').split('\n'),WD=document.words||amountWords(total());
+const exporterName=h('Exporter').split('\n')[0]||'';
+const declaration=document.declarationText??'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.';
+const signatory=document.authorisedSignatoryLabel??'Authorised Signatory';
 const packageLabel=value=>value&&!/[.!?]$/.test(value.trim())?`${value.trim()}.`:value.trim();
 const crateLabel=count=>`${String(count).padStart(2,'0')} CRATES`;
 const box=(t,b,c)=>`<div class="bx ${c||''}"><div class="lb">${t}</div><div class="bv">${b}</div></div>`;
@@ -353,7 +387,7 @@ const heading=(inv)=>`<thead><tr><th colspan="2">Marks &amp; No's</th><th colspa
 <tr class="sb"><th colspan="2">Container</th><th colspan="2">${tc?String(tc).padStart(2,'0')+' NOS':''}</th><th colspan="2"></th><th>${uni?E([...uk][0]):''}</th>${inv?'<th>U.S.D</th><th>U.S.D</th>':''}</tr>
 <tr class="sb"><th colspan="2">${E(h('Marks code'))}</th><th colspan="2">${E(packageLabel(h('Packing')))}</th><th colspan="2">${E(packageLabel(h('Grade')))}</th><th></th>${inv?'<th></th><th></th>':''}</tr></thead>`;
 const cont=(inv)=>`<tr class="ft"><td colspan="2"></td><td colspan="4"><b>${h('Container no')?'CONT # '+E(h('Container no')):''}</b></td><td></td>${inv?'<td></td><td></td>':''}</tr>`;
-const sign=`<div class="g2 dc"><div class="bx"><div class="lb">Declaration</div><div class="bv sm">We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.</div></div><div class="bx sg"><div class="lb">Signature &amp; Date</div><div class="bv" style="text-align:center"><b class="nm">For SHRIYA MINING INDUSTRIES</b><div style="height:34px"></div><span class="sm">Authorised Signatory</span></div></div></div>`;
+const sign=`<div class="g2 dc"><div class="bx"><div class="lb">Declaration</div><div class="bv sm">${ml(declaration)}</div></div><div class="bx sg"><div class="lb">Signature &amp; Date</div><div class="bv" style="text-align:center"><b class="nm">For ${E(exporterName)}</b><div style="height:34px"></div><span class="sm">${E(signatory)}</span></div></div></div>`;
 const p1=`<section class="pg">${top('INVOICE')}<table class="gd">${heading(true)}<tbody>${B1}${cont(true)}</tbody></table>
 <div class="tt"><div class="wd"><div class="lb">Amount chargeable in words</div><b>${E(WD)}</b></div><div class="tq">${tq}</div><div class="tl">TOTAL (USD)</div><div class="ta">$${nf(total(),2)}</div></div>${sign}</section>`;
 const p2=`<section class="pg">${top('PACKING LIST')}<table class="gd pk">${heading(false)}<tbody>${B2}${cont(false)}

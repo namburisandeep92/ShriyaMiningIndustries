@@ -2,12 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import ExcelJS from 'exceljs';
-import { amountWords, crateRanges, createLegacyInvoice, goodsCategories, invoiceTotal } from '../../api/services/legacy-invoice.js';
+import { amountWords, applyCompanyProfileDefaults, crateRanges, createLegacyInvoice, goodsCategories, invoiceTotal } from '../../api/services/legacy-invoice.js';
 
 const enabled = process.env.SMI_LIVE_DB_TEST === 'test';
 
 describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
-  let db, server, base, vendorId, buyerId, invoice, importId, createdUserId, adminId, errorLogId, originalRoles;
+  let db, server, base, vendorId, buyerId, invoice, importId, createdUserId, adminId, errorLogId, originalRoles, originalProfile;
   const legacyIds = new Set();
   const marker = `contract-${randomUUID()}`;
   const adminEmail = `${marker}@example.invalid`;
@@ -44,12 +44,14 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     originalRoles = await db.query('SELECT RoleId,RoleName FROM security.Role ORDER BY RoleId');
     await apply('V004__api-contract-data.sql');
     await apply('V005__legacy-invoice-document.sql');
+    await apply('V006__company-profile.sql');
+    await apply('V006__company-profile.sql');
     await apply('R__platform-procedures.sql');
     const admin = await db.execute('security.usp_User_Create', {
       email: adminEmail, name: marker, createdByEmail: marker, rolesJson: '["Admin"]',
     });
     adminId = admin.recordset[0].UserId;
-    vendorId = (await db.query('INSERT app.Vendor(VendorCode,VendorName) OUTPUT inserted.VendorId VALUES(@marker,@marker)', { marker }))[0].VendorId;
+    vendorId = (await db.query('SELECT VendorId FROM app.Vendor WHERE IsDeleted=0'))[0].VendorId;
     buyerId = (await db.query('INSERT app.Buyer(BuyerCode,BuyerName) OUTPUT inserted.BuyerId VALUES(@marker,@marker)', { marker }))[0].BuyerId;
     errorLogId = (await db.query(`INSERT log.ErrorLog(CorrelationId,Layer,SqlMessage,RequestPath,CreatedBy)
       OUTPUT inserted.ErrorLogId VALUES(NEWID(),'API',@marker,'/api/fixture',@marker)`, { marker }))[0].ErrorLogId;
@@ -61,9 +63,11 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     base = `http://127.0.0.1:${server.address().port}`;
     expect((await call('/health')).data.status).toBe('healthy');
     expect((await call('/health')).data).toMatchObject({ environment: 'test', databaseName: 'shriyaminingdbtest' });
+    originalProfile = (await call('/company-profile')).data;
   }, 120000);
 
   afterAll(async () => {
+    if (server && originalProfile) await call('/company-profile', 'PUT', originalProfile);
     if (server) {
       server.closeAllConnections();
       await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
@@ -77,7 +81,6 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       if (importId) {
         await db.query('DELETE sales.POLine WHERE POImportBatchId=@id; DELETE sales.POImportBatch WHERE POImportBatchId=@id', { id: importId });
       }
-      if (vendorId) await db.query('DELETE app.Vendor WHERE VendorId=@id', { id: vendorId });
       if (buyerId) await db.query('DELETE app.Buyer WHERE BuyerId=@id', { id: buyerId });
       if (errorLogId) await db.query('DELETE log.ErrorLog WHERE ErrorLogId=@id', { id: errorLogId });
       for (const id of [createdUserId, adminId].filter(Boolean)) {
@@ -87,9 +90,77 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     }
   }, 60000);
 
+  it('serves the company profile to signed-in users and requires Vendor.Manage to edit it', async () => {
+    const viewerGet = await call('/company-profile', 'GET', undefined, userEmail);
+    expect(viewerGet.status).toBe(200);
+    const forbidden = await call('/company-profile', 'PUT', originalProfile, userEmail);
+    expect(forbidden.status).toBe(403);
+    expect((await call('/company-profile', 'PUT', { ...originalProfile, email: 'invalid' })).status).toBe(400);
+
+    const saved = await call('/company-profile', 'PUT', {
+      ...originalProfile, gstin: ' abcd1234 ', iec: ' in123456 ', ifsc: ' sbin0001 ',
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.data).toMatchObject({ gstin: 'ABCD1234', iec: 'IN123456', ifsc: 'SBIN0001' });
+  }, 60000);
+
+  it('assigns the active company automatically and keeps exporter snapshots stable across profile edits', async () => {
+    const parsedFile = await readFile(new URL('../fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.xlsx', import.meta.url));
+    const parsed = await call('/po-import/parse', 'POST', {
+      fileName: 'PendingOrders.xlsx', file: parsedFile.toString('base64'),
+    });
+    const makeDocument = (invoiceNumber, profile) => {
+      const document = applyCompanyProfileDefaults(createLegacyInvoice(parsed.data.rows.slice(0, 2)), profile);
+      document.header['Invoice no'] = invoiceNumber;
+      document.header['Crate starting no'] = '1001';
+      document.hsnCodes = Object.fromEntries(goodsCategories(document.lines).map(category => [category, '12345678']));
+      document.lines.forEach(line => { line.qty = Math.ceil(Number(line.qty)); line.crates = 1; line.rate = 1; });
+      crateRanges(document.lines, '1001').forEach((range, index) => { document.lines[index].crt = range; });
+      return document;
+    };
+
+    const firstProfile = {
+      ...originalProfile,
+      addressLine1: `${marker} ORIGINAL ADDRESS`,
+      declarationText: `${marker} original declaration`,
+    };
+    expect((await call('/company-profile', 'PUT', firstProfile)).status).toBe(200);
+    const firstDocument = makeDocument(`S-${randomUUID().slice(0, 16)}`, firstProfile);
+    firstDocument.header['Country of origin'] = 'CUSTOM PER INVOICE';
+    const first = await call('/invoices', 'POST', {
+      vendorId: 999999, buyerId, document: firstDocument,
+    });
+    expect(first.status).toBe(201);
+    legacyIds.add(first.data.id);
+    expect(first.data.vendorId).toBe(vendorId);
+    expect(first.data.document.header.Exporter).toContain(firstProfile.addressLine1);
+    expect(first.data.document.header['Country of origin']).toBe('CUSTOM PER INVOICE');
+    expect(first.data.document.declarationText).toBe(firstProfile.declarationText);
+
+    const nextProfile = {
+      ...firstProfile,
+      addressLine1: `${marker} UPDATED ADDRESS`,
+      declarationText: `${marker} updated declaration`,
+      countryOfOrigin: 'UPDATED ORIGIN',
+    };
+    expect((await call('/company-profile', 'PUT', nextProfile)).status).toBe(200);
+    const reopened = await call(`/invoices/${first.data.id}`);
+    expect(reopened.data.document.header.Exporter).toContain(firstProfile.addressLine1);
+    expect(reopened.data.document.declarationText).toBe(firstProfile.declarationText);
+
+    const secondDocument = makeDocument(`S-${randomUUID().slice(0, 16)}`, nextProfile);
+    const second = await call('/invoices', 'POST', { buyerId, document: secondDocument });
+    expect(second.status).toBe(201);
+    legacyIds.add(second.data.id);
+    expect(second.data.vendorId).toBe(vendorId);
+    expect(second.data.document.header.Exporter).toContain(nextProfile.addressLine1);
+    expect(second.data.document.declarationText).toBe(nextProfile.declarationText);
+    expect(second.data.document.header['Country of origin']).toBe(nextProfile.countryOfOrigin);
+  }, 120000);
+
   it('creates, filters and pages real invoices with separate header/line resultsets', async () => {
     const created = await call('/invoices', 'POST', {
-      vendorId, buyerId, invoiceDate: '2026-01-02', poNumber: marker,
+      vendorId: 999999, buyerId, invoiceDate: '2026-01-02', poNumber: marker,
       lineItems: [{ description: marker, quantity: 2, unitPrice: 12.34, taxPercent: 18 }],
     });
     expect(created.status).toBe(201);
@@ -105,7 +176,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     const outside = await call(`/invoices?search=${marker}&page=2&pageSize=1`);
     expect(outside.data).toMatchObject({ invoices: [], total: 1 });
     expect((await call('/invoices?pageSize=0')).status).toBe(400);
-    expect((await call('/master-data')).data.vendors.some(vendor => vendor.id === vendorId)).toBe(true);
+    expect((await call('/master-data')).data).not.toHaveProperty('vendors');
   }, 60000);
 
   it('parses the real PendingOrders workbook and persists/export/reopens its complete selected invoice', async () => {
@@ -120,13 +191,18 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     document.header['Crate starting no'] = '245';
     document.lines.forEach(line => { line.rate = 1.234567; line.crates = 2; });
     crateRanges(document.lines, '245').forEach((range, index) => { document.lines[index].crt = range; });
-    expect((await call('/invoices', 'POST', { vendorId, buyerId, document })).status).toBe(400);
+    expect((await call('/invoices', 'POST', { vendorId: 999999, buyerId, document })).status).toBe(400);
     document.lines.forEach(line => { line.qty = Math.ceil(line.qty); });
     document.lines[0].qty = 7;
     document.lines[0].rate = 1.005;
-    const created = await call('/invoices', 'POST', { vendorId, buyerId, document });
+    const created = await call('/invoices', 'POST', { vendorId: 999999, buyerId, document });
     expect(created.status).toBe(201);
     legacyIds.add(created.data.id);
+    const activeProfile = (await call('/company-profile')).data;
+    expect(created.data.vendorId).toBe(vendorId);
+    expect(created.data.document.header.Exporter).toContain(activeProfile.addressLine1);
+    expect(created.data.document.declarationText).toBe(activeProfile.declarationText);
+    Object.assign(document, created.data.document);
     expect(created.data.document).toEqual(document);
     expect(created.data.poNumber).toBe(document.header['Buyer PO nos']);
     expect(created.data.invoiceNumber).toBe(document.header['Invoice no']);
@@ -157,7 +233,7 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     expect(print.status).toBe(200);
     expect(await print.text()).toContain('NEW YORK');
     document.lines[0].rate = 0;
-    expect((await call('/invoices', 'POST', { vendorId, buyerId, document })).status).toBe(400);
+    expect((await call('/invoices', 'POST', { vendorId: 999999, buyerId, document })).status).toBe(400);
   }, 120000);
 
   it('updates atomically, rejects stale versions and retains historical line snapshots', async () => {
@@ -206,18 +282,30 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
     sheet.addRow(['Line Number', 'Product Code', 'Description', 'Quantity', 'Unit Rate', 'Tax Rate']);
     sheet.addRow([1, 'PRODUCT-A', marker, 3, 12.34, 18]);
     const file = Buffer.from(await workbook.xlsx.writeBuffer()).toString('base64');
-    const imported = await call('/po-import', 'POST', { vendorId, poNumber: marker, fileName: 'fixture.xlsx', file });
+    const before = (await db.query('SELECT COUNT(*) n FROM sales.POImportBatch'))[0].n;
+    const imported = await call('/po-import', 'POST', { vendorId: 999999, poNumber: marker, fileName: 'fixture.xlsx', file });
     expect(imported.status).toBe(200);
     expect(imported.data.itemsCount).toBe(1);
     expect(imported.data.rows[0].raw['Product Code']).toBe('PRODUCT-A');
     expect(imported.data.rows[0].raw['Unit Rate']).toBe('12.34');
-    const batches = await call(`/po-import?vendorId=${vendorId}`);
+    const batches = await call('/po-import?vendorId=999999');
     expect(batches.status).toBe(200);
     expect(batches.data.imports).toEqual([]);
     sheet.addRow([2, 'PRODUCT-B', 'Invalid', -1, 10, 0]);
     const invalid = Buffer.from(await workbook.xlsx.writeBuffer()).toString('base64');
     expect((await call('/po-import', 'POST', { fileName: 'fixture.xlsx', file: invalid })).status).toBe(200);
-    expect((await db.query('SELECT COUNT(*) n FROM sales.POImportBatch WHERE VendorId=@id', { id: vendorId }))[0].n).toBe(0);
+    expect((await db.query('SELECT COUNT(*) n FROM sales.POImportBatch'))[0].n).toBe(before);
+  }, 60000);
+
+  it('assigns the active company to PO import batches regardless of a supplied vendor ID', async () => {
+    const result = await db.execute('sales.usp_POImport_Create', {
+      PONumber: marker, ImportedByEmail: adminEmail,
+      RowsJson: JSON.stringify([{ description: marker, productCode: 'TEST-SKU', quantity: 2, unitOfMeasure: 'SF' }]),
+      vendorId: 999999,
+    });
+    importId = result.recordset[0].ImportId;
+    const [batch] = await db.query('SELECT VendorId FROM sales.POImportBatch WHERE POImportBatchId=@id', { id: importId });
+    expect(batch.VendorId).toBe(vendorId);
   }, 60000);
 
   it.skipIf(process.env.SMI_BROWSER_TEST !== 'test')('runs upload/select/edit/validate/preview/download/reopen in a real browser and Test SQL', async () => {
@@ -241,7 +329,8 @@ describe.skipIf(!enabled)('Platform contracts against guarded test SQL', () => {
       await page.goto(`${origin}/po-import`);
       expect(await page.locator('.upload-association').count()).toBe(1);
       expect(await page.locator('.upload-association').evaluate(panel => panel.getBoundingClientRect().width)).toBeLessThanOrEqual(544);
-      await page.getByLabel('Vendor', { exact: true }).selectOption(String(vendorId));
+      await page.getByLabel('Exporter', { exact: true }).waitFor();
+      expect(await page.getByLabel('Exporter', { exact: true }).inputValue()).toBe('SHRIYA MINING INDUSTRIES');
       await page.getByLabel('Buyer', { exact: true }).selectOption(String(buyerId));
       await page.getByLabel('PO file', { exact: true }).setInputFiles(fileURLToPath(new URL('../fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.xlsx', import.meta.url)));
       await page.getByRole('heading', { name: 'Select PO lines' }).waitFor();

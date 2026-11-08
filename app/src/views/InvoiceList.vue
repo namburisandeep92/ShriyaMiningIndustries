@@ -44,7 +44,7 @@
           <tr>
             <th>Invoice #</th>
             <th>PO #</th>
-            <th>Vendor</th>
+            <th>Exporter</th>
             <th>Date</th>
             <th>Amount</th>
             <th>Status</th>

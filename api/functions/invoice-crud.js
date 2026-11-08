@@ -1,20 +1,39 @@
 import { asyncHandler, Errors } from '../middleware/error-handler.js';
 import { getDatabase } from '../services/database.js';
-import { invoiceId, invoiceResponse, invoiceStatus, legacyInvoiceInput, pagedResponse, paging, positiveInteger, rowVersion, validateItems } from '../services/api-contracts.js';
+import { companyProfileResponse, invoiceId, invoiceResponse, invoiceStatus, legacyInvoiceInput, pagedResponse, paging, positiveInteger, rowVersion, validateItems } from '../services/api-contracts.js';
+import { applyCompanyProfileDefaults } from '../services/legacy-invoice.js';
 
 function requirePermission(req, permission) {
   if (!req.user?.permissions?.includes(permission)) throw Errors.Forbidden(permission);
 }
 
+async function getActiveCompanyProfile() {
+  const [profile] = await getDatabase().query(`
+    SELECT TOP (1) LegalName, AddressLine1, AddressLine2, AddressLine3, CountryOfOrigin,
+      PreCarriageBy, PlaceOfReceipt, PortOfLoading, Packing, Grade, DeclarationText,
+      AuthorisedSignatoryLabel, City, District, State, PINCode, Country, Phone, Email, Website,
+      GSTIN, IEC, PAN, LUTARN, BankName, BankBranch, AccountNumber, IFSC, SWIFT
+    FROM app.Vendor WHERE IsDeleted = 0 ORDER BY VendorId
+  `);
+  if (!profile) throw Errors.DatabaseError('The company profile is not configured');
+  return companyProfileResponse(profile);
+}
+
 const handleCreateInvoice = asyncHandler(async (req, res) => {
   requirePermission(req, 'invoice.create');
-  const { vendorId, buyerId, notes, poNumber } = req.body;
-  const legacy = req.body.document ? legacyInvoiceInput(req.body.document) : null;
+  const { buyerId, notes, poNumber } = req.body;
+  let legacy = null;
+  if (req.body.document) {
+    const companyDefaults = applyCompanyProfileDefaults(req.body.document, await getActiveCompanyProfile());
+    for (const key of ['Country of origin', 'Pre-carriage by', 'Place of receipt', 'Port of loading', 'Packing', 'Grade']) {
+      if (typeof req.body.document.header?.[key] === 'string') companyDefaults.header[key] = req.body.document.header[key];
+    }
+    legacy = legacyInvoiceInput(companyDefaults);
+  }
   const date = legacy?.invoiceDate || new Date(req.body.invoiceDate);
   if (Number.isNaN(date.getTime())) throw Errors.InvalidInput('invoiceDate must be a valid date');
   const result = await getDatabase().execute('app.usp_Invoice_Create', {
-    correlationId: req.correlationId, vendorId: positiveInteger(vendorId, 'vendorId'),
-    buyerId: positiveInteger(buyerId, 'buyerId'), invoiceDate: date,
+    correlationId: req.correlationId, buyerId: positiveInteger(buyerId, 'buyerId'), invoiceDate: date,
     itemsJson: JSON.stringify(validateItems(legacy?.items ?? req.body.items ?? req.body.lineItems)),
     notes: notes ?? null, poNumber: legacy?.poNumber ?? (poNumber || null), createdByEmail: req.user.email,
     ...(legacy && { documentJson: legacy.documentJson, requestedInvoiceNumber: legacy.requestedInvoiceNumber }),
@@ -34,7 +53,6 @@ const handleListInvoices = asyncHandler(async (req, res) => {
   const result = await getDatabase().execute('app.usp_Invoice_GetList', {
     correlationId: req.correlationId, pageNum, pageSize, sortBy, sortOrder,
     status: invoiceStatus(req.query.status), search: req.query.search || null,
-    vendorId: req.query.vendorId ? positiveInteger(req.query.vendorId, 'vendorId') : null,
     buyerId: req.query.buyerId ? positiveInteger(req.query.buyerId, 'buyerId') : null,
   });
   res.json({ invoices: result.recordset.map(header => invoiceResponse(header)), ...pagedResponse(result, pageNum, pageSize) });
@@ -56,7 +74,22 @@ const handleUpdateInvoice = asyncHandler(async (req, res) => {
     throw Errors.Forbidden('approve invoices');
   }
   const items = req.body.items ?? req.body.lineItems;
-  const legacy = req.body.document ? legacyInvoiceInput(req.body.document) : null;
+  let legacy = null;
+  if (req.body.document) {
+    const current = await getDatabase().execute('app.usp_Invoice_GetById', { invoiceId: invoiceId(req.params.id) });
+    if (!current.recordset[0]) throw Errors.NotFound('Invoice');
+    const submittedDocument = { ...req.body.document, header: { ...req.body.document.header } };
+    if (current.recordset[0].DocumentJson) {
+      const savedDocument = JSON.parse(current.recordset[0].DocumentJson);
+      submittedDocument.header.Exporter = savedDocument.header.Exporter;
+      submittedDocument.declarationText = savedDocument.declarationText
+        ?? 'We declare that this Invoice shows the actual price of the goods described and that all particulars are true and correct.';
+      submittedDocument.authorisedSignatoryLabel = savedDocument.authorisedSignatoryLabel ?? 'Authorised Signatory';
+    } else {
+      Object.assign(submittedDocument, applyCompanyProfileDefaults(submittedDocument, await getActiveCompanyProfile()));
+    }
+    legacy = legacyInvoiceInput(submittedDocument);
+  }
   if (items != null && !legacy) {
     const current = await getDatabase().execute('app.usp_Invoice_GetById', { invoiceId: invoiceId(req.params.id) });
     if (!current.recordset[0]) throw Errors.NotFound('Invoice');

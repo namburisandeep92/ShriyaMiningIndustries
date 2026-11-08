@@ -11,14 +11,15 @@
     </nav>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     <p v-if="busy" role="status">Processing...</p>
+    <p v-if="profileLoading" role="status">Loading company profile...</p>
 
     <section v-if="step === 1" class="panel" @dragover.prevent @drop.prevent="dropFile">
       <h2>Upload PendingOrders</h2>
-      <p>Select the vendor and buyer this invoice is for, then choose or drop the PendingOrders workbook.</p>
+      <p>Select the buyer for this invoice, then choose or drop the PendingOrders workbook.</p>
       <fieldset class="association-panel upload-association" :disabled="busy || !canEdit">
         <legend>Invoice association</legend>
         <div class="fields">
-          <label>Vendor <select v-model.number="vendorId" aria-label="Vendor"><option :value="0">Select vendor</option><option v-for="vendor in master.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option></select></label>
+          <label>Exporter <input :value="profile?.legalName || 'Loading company profile…'" readonly /></label>
           <label>Buyer <select v-model.number="buyerId" aria-label="Buyer"><option :value="0">Select buyer</option><option v-for="buyer in master.buyers" :key="buyer.id" :value="buyer.id">{{ buyer.name }}</option></select></label>
         </div>
       </fieldset>
@@ -44,7 +45,7 @@
           </div>
         </details>
         <strong class="selection-count" role="status">{{ selected.size }} selected · {{ visibleRows.length }} of {{ rows.length }} shown</strong>
-        <button class="btn btn-primary" :disabled="!selected.size" @click="review">Create invoice</button>
+        <button class="btn btn-primary" :disabled="!selected.size || !profile" @click="review">Create invoice</button>
       </div>
       <div class="table-scroll">
         <table class="po-table">
@@ -86,9 +87,9 @@
             <button type="button" :aria-pressed="format === 'pdf'" :class="{ selected: format === 'pdf' }"
                     :disabled="busy" @click="format = 'pdf'">PDF</button>
           </div>
-          <button class="save-action" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveInvoice">Save invoice</button>
+          <button class="save-action" :disabled="busy || !canEdit || !profile || (!saved && !buyerId)" @click="saveInvoice">Save invoice</button>
           <button class="preview-action" :disabled="busy" @click="preview">Preview</button>
-          <button class="save-download-action" :disabled="busy || !canEdit || (!saved && (!vendorId || !buyerId))" @click="saveDownload">Save &amp; download</button>
+          <button class="save-download-action" :disabled="busy || !canEdit || !profile || (!saved && !buyerId)" @click="saveDownload">Save &amp; download</button>
           <button v-if="saved" :disabled="busy" @click="reload">Reload saved invoice (discard edits)</button>
         </div>
       </div>
@@ -109,7 +110,7 @@
           </ul>
         </section>
       </div>
-      <p v-if="!saved && (!vendorId || !buyerId)">Select the vendor and buyer on the Upload PO step before saving &amp; downloading.</p>
+      <p v-if="!saved && !buyerId">Select the buyer on the Upload PO step before saving &amp; downloading.</p>
       <div class="header-groups">
         <fieldset v-for="group in headerGroups" :key="group.title" class="header-group" :disabled="busy || !canEdit">
           <legend>{{ group.title }}</legend>
@@ -117,7 +118,7 @@
             <label v-for="key in group.fields" :key="key"
                    :class="{ 'wide-field': headerDefaults[key].includes('\n') || key === 'Buyer PO nos' || key === 'Other reference' }">
               {{ key }}
-              <textarea v-if="headerDefaults[key].includes('\n')" v-model="invoice.header[key]" v-auto-grow rows="1"
+              <textarea v-if="headerDefaults[key].includes('\n')" v-model="invoice.header[key]" v-auto-grow rows="1" :readonly="key === 'Exporter'"
                         :data-validation-key="`header:${key}`" :aria-invalid="invalid(key)" :class="{ invalid: invalid(key) }"
                         @blur="touch(key)"></textarea>
               <input v-else v-model="invoice.header[key]" :type="/date/i.test(key) ? 'date' : 'text'"
@@ -213,11 +214,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch, type ObjectDirective } from 'vue'
 import { onBeforeRouteLeave, useRoute } from 'vue-router'
-import { apiClient, type InvoiceDocument, type InvoiceInput } from '@/services/api'
+import { apiClient, type CompanyProfile, type InvoiceDocument, type InvoiceInput } from '@/services/api'
 import { toastManager } from '@/services/notifications'
 import { downloadBlob, printInvoice } from '@/services/invoice-download'
 import {
-  amountWords, buildLegacyPrintHtml, buildLegacyWorkbook, cleanHsnCode, crateRanges, createLegacyInvoice, excelPreviewHtml,
+  amountWords, applyCompanyProfileDefaults, buildLegacyPrintHtml, buildLegacyWorkbook, cleanHsnCode, crateRanges, createLegacyInvoice, excelPreviewHtml,
   groupedLinesByHsn, headerDefaults, headerGroups, invoiceTotal, lineAmount, validateLegacyInvoice,
   type LegacyDocument, type LegacyLine, type PORow,
 } from '../../../api/services/legacy-invoice.js'
@@ -237,6 +238,8 @@ const dragColumn = ref('')
 const invoice = ref<LegacyDocument>()
 const saved = ref<InvoiceDocument>()
 const savedJson = ref('')
+const profile = ref<CompanyProfile | null>(null)
+const profileLoading = ref(true)
 const format = ref('excel')
 const previewHtml = ref('')
 const textareaObservers = new WeakMap<HTMLTextAreaElement, ResizeObserver>()
@@ -262,8 +265,7 @@ const validationAttempted = ref(false)
 const touchedFields = ref(new Set<string>())
 interface HsnMemory { categoryCodes: Record<string, string> }
 const hsnMemory = ref<HsnMemory>({ categoryCodes: {} })
-const master = ref<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }>({ vendors: [], buyers: [] })
-const vendorId = ref(0)
+const master = ref<{ buyers: { id: number; name: string }[] }>({ buyers: [] })
 const buyerId = ref(0)
 const canEdit = computed(() => apiClient.hasPermission(saved.value ? 'invoice.update' : 'invoice.create'))
 const issues = computed(() => invoice.value ? validateLegacyInvoice(invoice.value) : [])
@@ -468,10 +470,17 @@ function selectFile(event: Event) {
 }
 function dropFile(event: DragEvent) { void loadFile(event.dataTransfer?.files[0]) }
 function review() {
-  if (!selected.value.size) return
+  if (!selected.value.size || !profile.value) return
   hsnMemory.value = readHsnMemory()
-  const next = createLegacyInvoice(rows.value.filter(row => selected.value.has(row.id)), invoice.value?.lines, invoice.value?.header, hsnMemory.value)
-  if (invoice.value) next.header = { ...next.header, ...invoice.value.header, 'Buyer PO nos': next.header['Buyer PO nos'], 'Buyer PO date': next.header['Buyer PO date'] }
+  let next = applyCompanyProfileDefaults(
+    createLegacyInvoice(rows.value.filter(row => selected.value.has(row.id)), invoice.value?.lines, invoice.value?.header, hsnMemory.value),
+    profile.value,
+  )
+  if (invoice.value) {
+    next.header = { ...next.header, ...invoice.value.header, 'Buyer PO nos': next.header['Buyer PO nos'], 'Buyer PO date': next.header['Buyer PO date'] }
+    next.declarationText = invoice.value.declarationText
+    next.authorisedSignatoryLabel = invoice.value.authorisedSignatoryLabel
+  }
   if (invoice.value) next.hsnCodes = { ...next.hsnCodes, ...invoice.value.hsnCodes }
   hsnMemoryForDocument(next)
   invoice.value = next
@@ -523,7 +532,6 @@ function applySaved(value: InvoiceDocument) {
   delete documentWithLegacyCodes.knownHsnCodes
   hsnMemory.value = readHsnMemory()
   hydrating = false
-  vendorId.value = value.vendorId
   buyerId.value = value.buyerId
   savedJson.value = JSON.stringify(value.document)
   resetValidation()
@@ -543,7 +551,7 @@ async function persistInvoice() {
   hsnMemoryForDocument(invoice.value)
   if (!saved.value) {
     const input: InvoiceInput = {
-      invoiceDate: invoice.value.header['Invoice date'], vendorId: vendorId.value, buyerId: buyerId.value,
+      invoiceDate: invoice.value.header['Invoice date'], buyerId: buyerId.value,
       document: invoice.value, lineItems: invoice.value.lines.map(line => ({
         description: `${line.stone} ${line.finish} ${line.size} ${line.ref}`.trim() || 'Invoice line',
         quantity: Number(line.qty), unitPrice: Number(line.rate), taxPercent: 0, unitOfMeasure: line.uom,
@@ -557,7 +565,7 @@ async function persistInvoice() {
   rememberSavedHsnCodes(invoice.value)
 }
 async function saveInvoice() {
-  if (!invoice.value || busy.value || !canEdit.value || (!saved.value && (!vendorId.value || !buyerId.value))
+  if (!invoice.value || busy.value || !canEdit.value || (!saved.value && (!profile.value || !buyerId.value))
       || !await validateForAction()) return
   busy.value = true
   error.value = ''
@@ -570,7 +578,7 @@ async function saveInvoice() {
   } finally { busy.value = false }
 }
 async function saveDownload() {
-  if (!invoice.value || busy.value || !canEdit.value || (!saved.value && (!vendorId.value || !buyerId.value))
+  if (!invoice.value || busy.value || !canEdit.value || (!saved.value && (!profile.value || !buyerId.value))
       || !await validateForAction()) return
   busy.value = true
   error.value = ''
@@ -594,7 +602,10 @@ async function saveDownload() {
 }
 onMounted(async () => {
   try { master.value = await apiClient.masterData() }
-  catch (cause) { error.value = `Could not load vendor/buyer choices: ${message(cause)}`; toastManager.error(error.value) }
+  catch (cause) { error.value = `Could not load buyer choices: ${message(cause)}`; toastManager.error(error.value) }
+  try { profile.value = await apiClient.getCompanyProfile() }
+  catch (cause) { error.value = `Could not load the company profile: ${message(cause)}`; toastManager.error(error.value) }
+  finally { profileLoading.value = false }
   hsnMemory.value = readHsnMemory()
   if (route.query.invoice) await reload()
 })

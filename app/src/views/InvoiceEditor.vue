@@ -47,13 +47,6 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>Vendor *</label>
-            <select v-model.number="form.vendorId" @change="markDirty" class="form-input" :disabled="isEdit" required>
-              <option :value="0" disabled>Select vendor</option>
-              <option v-for="vendor in masterData.vendors" :key="vendor.id" :value="vendor.id">{{ vendor.name }}</option>
-            </select>
-          </div>
-          <div class="form-group">
             <label>Buyer *</label>
             <select v-model.number="form.buyerId" @change="markDirty" class="form-input" :disabled="isEdit" required>
               <option :value="0" disabled>Select buyer</option>
@@ -210,7 +203,7 @@ const invoiceId = computed(() => route.params.id as string)
 const isEdit = computed(() => !!invoiceId.value)
 const conflictError = ref(false)
 const rowVersion = ref<string>('')
-const masterData = ref<{ vendors: { id: number; name: string }[]; buyers: { id: number; name: string }[] }>({ vendors: [], buyers: [] })
+const masterData = ref<{ buyers: { id: number; name: string }[] }>({ buyers: [] })
 
 interface LineItem {
   description: string
@@ -223,7 +216,6 @@ interface Invoice {
   invoiceNumber: string
   poNumber: string
   invoiceDate: string
-  vendorId: number
   buyerId: number
   status: string
   lineItems: LineItem[]
@@ -234,7 +226,6 @@ const { form, isDirty, isSubmitting, error, markDirty, submit } = useForm<Invoic
   invoiceNumber: '',
   poNumber: '',
   invoiceDate: new Date().toISOString().split('T')[0],
-  vendorId: 0,
   buyerId: 0,
   status: 'draft',
   lineItems: [],
@@ -297,7 +288,6 @@ const reloadInvoice = async () => {
       invoiceNumber: invoice.invoiceNumber,
       poNumber: invoice.poNumber || '',
       invoiceDate: invoice.invoiceDate.slice(0, 10),
-      vendorId: invoice.vendorId,
       buyerId: invoice.buyerId,
       status: invoice.status,
       lineItems: invoice.lineItems || [],
@@ -332,7 +322,7 @@ onMounted(async () => {
   try {
     masterData.value = await apiClient.masterData()
   } catch {
-    toastManager.error('Failed to load vendor and buyer choices')
+    toastManager.error('Failed to load buyer choices')
   }
   if (isEdit.value) {
     await reloadInvoice()

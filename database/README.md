@@ -12,6 +12,7 @@ database/
 │   ├── V003__seed-initial-data.sql # Roles, permissions, test data
 │   ├── V004__api-contract-data.sql # Invoice taxes, PO metadata, version snapshots
 │   ├── V005__legacy-invoice-document.sql # Complete PO invoice document, precise rates
+│   ├── V006__company-profile.sql # Sole active exporter profile and historical reassignment
 │   ├── R__error-handling.sql       # Logging and legacy procedure signatures
 │   └── R__platform-procedures.sql  # Complete API procedure contracts
 ├── migration-runner.js             # Node.js migration runner (mssql dependency)
@@ -67,6 +68,10 @@ Run once in order. Idempotent checks prevent re-running.
 - `V005__legacy-invoice-document.sql`: Preserves all legacy invoice header/line
   fields in checked `Invoice.DocumentJson`, expands buyer PO numbers and
   retains rates to six decimal places. Existing invoices remain unchanged.
+- `V006__company-profile.sql`: Adds company identity, registration, bank,
+  shipping-default and text-block fields to `app.Vendor`; seeds Shriya Mining
+  Industries as the sole active company and reassigns existing invoices and PO
+  import batches without changing their foreign keys.
 
 Versioned migrations are recorded once and must never be forcibly removed from
 `__MigrationHistory`. Schema creation uses existence checks, not table drops.
@@ -80,7 +85,8 @@ Run every time. Idempotent by design (CREATE OR ALTER).
   It runs after the legacy repeatable so the API contracts remain authoritative.
 
 Versioned migrations track completion in `__MigrationHistory`; repeatables run
-every deployment. Apply V004 and V005 before the platform repeatable.
+every deployment. Apply V004–V006 before the platform repeatable so invoice
+and PO-import procedures assign the active company automatically.
 
 ## PO to invoice workflow
 
@@ -100,6 +106,10 @@ remain upload errors; historical import batches remain available via GET.
 Header defaults, item parsing, rate defaults, USD calculations, integer
 quantity/crate validation, sequential crate ranges, editable amount words,
 shipping fields and both `INV`/`PACKING` sheets derive from the legacy source.
+The Company profile page manages the single Shriya Mining exporter identity and
+shipping defaults. New PO invoices snapshot the exporter, declaration and
+shipping values in `Invoice.DocumentJson`, so later profile edits do not change
+previously saved invoice or packing-list output.
 PDF uses its two-page A4 print layout: choose **Save as PDF** in the print
 dialog. Saved documents and their immutable versions preserve every field.
 Reopening **Edit** on a PO invoice returns to the detailed editor.
@@ -247,6 +257,8 @@ npm install && node database/migration-runner.js
 
 ### `app.usp_Invoice_Create`
 Creates new invoice with auto-generated invoice number (SMI-YYYY-MM-NNN format).
+- Assigns the sole active company profile as the exporter, regardless of any
+  caller-supplied `VendorId`.
 - Counts existing invoices for month
 - Generates next sequence number
 - Checks for duplicate (409 if conflict)

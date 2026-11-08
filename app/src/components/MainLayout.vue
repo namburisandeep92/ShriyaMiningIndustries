@@ -11,6 +11,9 @@
           <router-link to="/admin/users" class="nav-link" v-if="hasPermission('user.manage') && apiClient.getAuthContext()?.roles?.includes('Admin')">
             Admin
           </router-link>
+          <router-link to="/admin/company-profile" class="nav-link" v-if="hasPermission('vendor.manage')">
+            Company profile
+          </router-link>
           <router-link to="/admin/errors" class="nav-link" v-if="hasPermission('errorlog.view') && apiClient.getAuthContext()?.roles?.includes('Admin')">
             Error Logs
           </router-link>
