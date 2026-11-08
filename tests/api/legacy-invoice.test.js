@@ -12,12 +12,11 @@ const fixture = new URL('../fixtures/po/SHRIYA_MINING_INDUSTRIES_PendingOrders.x
 async function validDocument() {
   const po = await parsePendingOrders(await readFile(fixture), 'PendingOrders.xlsx');
   const document = createLegacyInvoice(po.rows.slice(0, 2));
-  document.lines.forEach(line => { line.hsnCode = line.kind === 'GRANITE TILES' ? '68022310' : '1234'; });
-  document.knownHsnCodes = Object.fromEntries(goodsCategories(document.lines).map(category =>
-    [category, [category === 'GRANITE TILES' ? '68022310' : '1234']]));
+  document.hsnCodes = Object.fromEntries(goodsCategories(document.lines).map(category =>
+    [category, category === 'GRANITE TILES' ? '68022310' : '1234']));
   document.header['Invoice no'] = '2365';
   document.header['Crate starting no'] = '245';
-  document.lines.forEach(line => { line.crates = 2; line.rate = 1.625; line.net = 100; line.gross = 120; });
+  document.lines.forEach(line => { line.crates = 2; line.rate = 1.625; line.weight = 100; });
   crateRanges(document.lines, '245').forEach((range, index) => { document.lines[index].crt = range; });
   document.words = amountWords(invoiceTotal(document.lines));
   return document;
@@ -73,27 +72,47 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(initial.lines[0]).toMatchObject({ qty: 250, uom: 'PC', rate: 0, size: '3/4" X 12"', ref: 'NSR PO # 172203 (GRNABSBLKLN34P)' });
     initial.lines[0].rate = 7;
     expect(createLegacyInvoice([po.rows[0], po.rows[1]], initial.lines).lines[0].rate).toBe(7);
-    expect(createLegacyInvoice([po.rows[0]], [], {}, { skuCodes: { GRNABSBLKLN34P: '6802.23.10' } }).lines[0].hsnCode).toBe('68022310');
+    expect(createLegacyInvoice([po.rows[0]], [], {}, { categoryCodes: { 'GRANITE TILES': '6802.23.10' } }).hsnCodes['GRANITE TILES']).toBe('68022310');
     expect(initial.header['Buyer PO date']).toBe('2026-10-05');
   });
 
-  it('requires a non-empty cleaned HSN code on every line', async () => {
+  it('requires one non-empty cleaned HSN code for each goods category', async () => {
     const document = await validDocument();
     expect(validHsnCode('68022310')).toBe(true);
     expect(validHsnCode('6802000')).toBe(true);
     expect(validHsnCode('6802.23.10')).toBe(true);
     expect(validHsnCode('letters and spaces')).toBe(false);
     expect(validateLegacyInvoice(document)).toEqual([]);
-    document.lines[0].hsnCode = 'letters and spaces';
+    document.hsnCodes['GRANITE TILES'] = 'letters and spaces';
     const issue = validateLegacyInvoice(document).find(item => item.field === 'hsn');
-    expect(issue).toMatchObject({ line: 0, message: expect.stringContaining('HSN code is required') });
+    expect(issue).toMatchObject({ category: 'GRANITE TILES', message: expect.stringContaining('HSN code is required') });
+    document.hsnCodes['GRANITE TILES'] = '';
+    expect(validateLegacyInvoice(document).some(item => item.field === 'hsn' && item.category === 'GRANITE TILES')).toBe(true);
+    document.lines[0].hsnCode = '68022310';
+    expect(validateLegacyInvoice(document).some(item => item.field === 'hsn' && item.category === 'GRANITE TILES')).toBe(true);
+  });
+
+  it('prefills and validates one remembered code per category', async () => {
+    const po = await parsePendingOrders(await readFile(fixture), 'PendingOrders.xlsx');
+    const rows = [po.rows[0], po.rows[4]];
+    const document = createLegacyInvoice(rows, [], {}, {
+      categoryCodes: { 'GRANITE TILES': '6802.23.10', 'SLATE STONE TILES': '680300' },
+    });
+    expect(document.hsnCodes).toMatchObject({ 'GRANITE TILES': '68022310', 'SLATE STONE TILES': '680300' });
+    document.header['Invoice no'] = '2368';
+    document.lines.forEach(line => { line.crates = 1; line.rate = 1.625; });
+    crateRanges(document.lines, document.header['Crate starting no']).forEach((range, index) => { document.lines[index].crt = range; });
+    expect(validateLegacyInvoice(document)).toEqual([]);
+    delete document.hsnCodes['SLATE STONE TILES'];
+    expect(validateLegacyInvoice(document).filter(issue => issue.field === 'hsn').map(issue => issue.category))
+      .toEqual(['SLATE STONE TILES']);
   });
 
   it.each([
     ['qty', '', true], ['qty', '1.5', true], ['qty', '-1', true], ['qty', '2', false],
     ['crates', '0', true], ['crates', '1.5', true], ['crates', '2', false],
     ['rate', '0', true], ['rate', '-1', true], ['rate', 'abc', true], ['rate', '1.625', false],
-    ['rate', '1.1234567', true], ['net', '', false], ['net', '0', true], ['net', '1.25', false],
+    ['rate', '1.1234567', true], ['weight', '', false], ['weight', '0', true], ['weight', '1.25', false],
     ['uom', '', true],
   ])('validates %s = %s according to required/format rules', async (field, value, invalid) => {
     const document = await validDocument();
@@ -123,10 +142,16 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(invoiceTotal(document.lines)).toBe(1218.75);
     expect(document.words).toBe('USD ONE THOUSAND TWO HUNDRED EIGHTEEN AND CENTS SEVENTY FIVE ONLY');
     expect(legacyInvoiceInput(document)).toMatchObject({ requestedInvoiceNumber: '2365', items: [{ rate: 1.625, taxRate: 0 }, { rate: 1.625, taxRate: 0 }] });
-    document.lines[0].hsnCode = '6802.23.10';
+    document.hsnCodes['GRANITE TILES'] = '6802.23.10';
     const stored = JSON.parse(legacyInvoiceInput(document).documentJson);
-    expect(stored.lines[0].hsnCode).toBe('68022310');
-    expect(stored.hsnCodes).toBeUndefined();
+    expect(stored.hsnCodes['GRANITE TILES']).toBe('68022310');
+    expect(stored.lines[0].hsnCode).toBeUndefined();
+    document.lines[0].net = 100;
+    document.lines[0].gross = 120;
+    const migrated = JSON.parse(legacyInvoiceInput(document).documentJson);
+    expect(migrated.lines[0]).toMatchObject({ weight: 100 });
+    expect(migrated.lines[0].net).toBeUndefined();
+    expect(migrated.lines[0].gross).toBeUndefined();
     expect(lineAmount({ qty: 7, rate: 1.005 })).toBe(7.04);
     expect(lineAmount({ qty: 1, rate: 1.005 })).toBe(1.01);
   });
@@ -170,19 +195,20 @@ describe('Legacy PendingOrders invoice contracts', () => {
       } else {
         expect(sheet.getCell(row, 8).value).toBeNull();
         expect(sheet.getCell(row, 9).value).toBeNull();
-        expect(text).toContain('TOTAL GROSS WEIGHT ; 240.000 KGS');
-        expect(text).toContain('TOTAL NET WEIGHT ; 200.000 KGS');
+        expect(text).toContain('TOTAL WEIGHT ; 200.000 KGS');
+        expect(text).not.toContain('GROSS');
+        expect(text).not.toContain('NET WEIGHT');
         expect(text).not.toContain('406.25');
       }
     }
   });
 
-  it('prints one HSN heading per code subgroup in both documents', async () => {
+  it('prints one HSN heading per category in both documents', async () => {
     const po = await parsePendingOrders(await readFile(fixture), 'PendingOrders.xlsx');
     const document = createLegacyInvoice([po.rows[0], po.rows[4]]);
     document.header['Invoice no'] = '2366';
-    document.knownHsnCodes = {};
-    document.lines.forEach(line => { line.hsnCode = line.kind === 'GRANITE TILES' ? '6802.23.10' : '680300'; line.crates = 2; line.rate = 1.625; });
+    document.hsnCodes = { 'GRANITE TILES': '6802.23.10', 'SLATE STONE TILES': '680300' };
+    document.lines.forEach(line => { line.crates = 2; line.rate = 1.625; });
     crateRanges(document.lines, '245').forEach((range, index) => { document.lines[index].crt = range; });
 
     const workbook = await buildLegacyWorkbook(document);
@@ -204,25 +230,22 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(packingPrint).not.toContain('Amount');
   });
 
-  it('groups same cleaned HSN values together and keeps distinct codes in separate headings', async () => {
+  it('uses exactly one cleaned HSN heading for every category', async () => {
     const po = await parsePendingOrders(await readFile(fixture), 'PendingOrders.xlsx');
     const document = createLegacyInvoice([po.rows[0], po.rows[2], po.rows[1], po.rows[4]]);
     document.header['Invoice no'] = '2367';
-    document.lines[0].hsnCode = '6802.23.10';
-    document.lines[1].hsnCode = '68022310';
-    document.lines[2].hsnCode = '6802000';
-    document.lines[3].hsnCode = '680300';
+    document.hsnCodes = { 'GRANITE TILES': '6802.23.10', 'SLATE STONE TILES': '680300' };
     document.lines.forEach(line => { line.crates = 1; line.rate = 1.625; });
     crateRanges(document.lines, '245').forEach((range, index) => { document.lines[index].crt = range; });
 
     const workbook = await buildLegacyWorkbook(document);
     const invoiceText = workbook.worksheets[0].getColumn(1).values;
     expect(invoiceText.filter(value => value === 'GRANITE TILES  HSN CODE 68022310')).toHaveLength(1);
-    expect(invoiceText.filter(value => value === 'GRANITE TILES  HSN CODE 6802000')).toHaveLength(1);
+    expect(invoiceText.filter(value => String(value).includes('GRANITE TILES  HSN CODE'))).toHaveLength(1);
     expect(invoiceText.filter(value => value === 'SLATE STONE TILES  HSN CODE 680300')).toHaveLength(1);
     const html = buildLegacyPrintHtml(document, '2367');
     expect(html).toContain('GRANITE TILES  HSN CODE 68022310');
-    expect(html).toContain('GRANITE TILES  HSN CODE 6802000');
+    expect((html.match(/GRANITE TILES  HSN CODE/g) || [])).toHaveLength(2);
     expect(html).toContain('SLATE STONE TILES  HSN CODE 680300');
   });
 
@@ -242,7 +265,7 @@ describe('Legacy PendingOrders invoice contracts', () => {
     }
     expect((print.match(/<section class="pg">/g) || [])).toHaveLength(2);
     expect(print).toContain('PACKING LIST');
-    expect(print).toContain('TOTAL NET WEIGHT');
+    expect(print).toContain('TOTAL WEIGHT');
     expect(print).toContain('GRANITE TILES  HSN CODE 68022310');
     expect(print).toContain('04 NOS');
     expect(print).toContain('02 CRATES');
@@ -251,7 +274,8 @@ describe('Legacy PendingOrders invoice contracts', () => {
     expect(packingPrint).not.toContain('Rate');
     expect(packingPrint).not.toContain('USD');
     expect(packingPrint).not.toContain('1218.75');
-    expect(packingPrint).toContain('TOTAL GROSS WEIGHT');
-    expect(packingPrint).toContain('TOTAL NET WEIGHT');
+    expect(packingPrint).toContain('TOTAL WEIGHT');
+    expect(packingPrint).not.toContain('GROSS');
+    expect(packingPrint).not.toContain('NET WEIGHT');
   });
 });

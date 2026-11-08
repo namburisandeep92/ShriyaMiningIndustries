@@ -1,20 +1,24 @@
 import { ApiError, Errors } from '../middleware/error-handler.js';
-import { cleanHsnCode, validateLegacyInvoice } from './legacy-invoice.js';
+import { cleanHsnCode, goodsCategories, validateLegacyInvoice } from './legacy-invoice.js';
 
 export function legacyInvoiceInput(document) {
   const issues = validateLegacyInvoice(document);
   if (issues.length) throw new ApiError(400, 'INV-VALIDATE-400', issues.map(issue => issue.message).join('; '), issues);
-  const legacyCodes = document.hsnCodes || {};
   const normalizedDocument = {
     ...document,
-    lines: document.lines.map(line => ({
-      ...line, hsnCode: cleanHsnCode(line.hsnCode || legacyCodes[line.kind]),
-    })),
-    knownHsnCodes: Object.fromEntries(Object.entries(document.knownHsnCodes || {}).map(([category, codes]) => [
-      category, [...new Set((Array.isArray(codes) ? codes : []).map(cleanHsnCode).filter(Boolean))],
+    hsnCodes: Object.fromEntries(goodsCategories(document.lines).map(category => [
+      category,
+      cleanHsnCode(document.hsnCodes && Object.prototype.hasOwnProperty.call(document.hsnCodes, category)
+        ? document.hsnCodes[category] : document.lines.find(line => line.kind === category)?.hsnCode),
     ])),
+    lines: document.lines.map(line => {
+      const { net, gross, ...normalizedLine } = line;
+      normalizedLine.weight = line.weight ?? net ?? gross ?? '';
+      delete normalizedLine.hsnCode;
+      return normalizedLine;
+    }),
   };
-  delete normalizedDocument.hsnCodes;
+  delete normalizedDocument.knownHsnCodes;
   return {
     documentJson: JSON.stringify(normalizedDocument),
     requestedInvoiceNumber: document.header['Invoice no'].trim(),

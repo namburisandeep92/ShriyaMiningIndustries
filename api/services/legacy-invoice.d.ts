@@ -1,15 +1,17 @@
 import type { Workbook } from 'exceljs';
 export interface LegacyLine {
   stone: string; finish: string; size: string; ref: string; crates: string | number;
-  crt: string; qty: string | number; uom: string; net: string | number;
+  crt: string; qty: string | number; uom: string; weight?: string | number;
+  net?: string | number; gross?: string | number;
   rate: string | number; kind: string; src?: string; code?: string;
-  poQty?: number; poUom?: string; gross?: string | number; hsnCode?: string; sku?: string;
+  poQty?: number; poUom?: string; hsnCode?: string; sku?: string;
 }
 export interface LegacyDocument {
   header: Record<string, string>;
   lines: LegacyLine[];
   words: string;
-  knownHsnCodes: Record<string, string[]>;
+  hsnCodes: Record<string, string>;
+  knownHsnCodes?: Record<string, string[]>;
 }
 export interface PORow {
   id: number; key: string; raw: Record<string, string>; all: string; item: string;
@@ -27,7 +29,7 @@ export function goodsCategories(lines: LegacyLine[]): string[];
 export function groupedLinesByHsn(lines: LegacyLine[], document?: LegacyDocument): { category: string; codes: { code: string; lines: { line: LegacyLine; index: number }[] }[] }[];
 export function crateRanges(lines: LegacyLine[], start: string): string[];
 export function validateLegacyInvoice(document: LegacyDocument): ValidationIssue[];
-export function createLegacyInvoice(rows: PORow[], previousLines?: LegacyLine[], previousHeader?: Record<string, string>, previousHsnMemory?: { skuCodes?: Record<string, string>; categoryCodes?: Record<string, string[]> }): LegacyDocument;
+export function createLegacyInvoice(rows: PORow[], previousLines?: LegacyLine[], previousHeader?: Record<string, string>, previousHsnMemory?: { categoryCodes?: Record<string, string | string[]> }): LegacyDocument;
 export function parseItem(row: { item: string; sku?: string }): { stone: string; size: string; finish: string; code: string; kind: string; area: number };
 export function buildLegacyWorkbook(document: LegacyDocument): Promise<Workbook>;
 export function buildLegacyPrintHtml(document: LegacyDocument, title: string): string;
